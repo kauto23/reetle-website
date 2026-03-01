@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-outfit bg-background text-primary;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  a {
+    @apply no-underline text-primary transition-all duration-200;
+  }
+
+  a:hover {
+    @apply text-primary-light;
+  }
+
+  ul {
+    list-style: none;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn-primary {
+    @apply inline-block bg-primary text-white border-none rounded-md px-[24px] py-[16px] text-[16px] font-medium cursor-pointer transition-all duration-200 text-center;
+  }
+
+  .btn-primary:hover {
+    @apply bg-primary-dark -translate-y-[1px];
+    color: white;
+  }
+
+  .btn-primary:active {
+    @apply translate-y-0;
+  }
+
+  .btn-primary:focus {
+    @apply outline-none;
+    box-shadow: 0 0 0 3px rgba(74, 36, 98, 0.1);
+  }
+
+  .btn-secondary {
+    @apply inline-block bg-transparent text-primary border border-primary rounded-md px-[24px] py-[16px] text-[16px] font-medium cursor-pointer transition-all duration-200 text-center;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-primary text-white;
+  }
+
+  .btn-secondary:focus {
+    @apply outline-none;
+    box-shadow: 0 0 0 3px rgba(74, 36, 98, 0.1);
+  }
+
+  .btn-sm {
+    @apply px-[16px] py-[10px] text-[14px];
+  }
+
+  /* Card */
+  .card {
+    @apply bg-surface border border-border p-[24px] my-[8px] transition-all duration-200;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Loading spinner */
+  .loading-spinner {
+    @apply border-2 border-border rounded-full w-[24px] h-[24px] mx-auto animate-spin;
+    border-top-color: theme('colors.primary.DEFAULT');
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar for category nav */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

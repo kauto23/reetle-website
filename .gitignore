@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Firebase
+.firebase/
+
+# Claude/Codex
+**/.claude/settings.local.json
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Environment
+.env
+.env.local
+.env.production.local
+
+# OAuth client secret files
+client_secret_*.json
+
+# IDE
+.vscode/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
