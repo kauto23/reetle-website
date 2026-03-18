@@ -3,9 +3,12 @@
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import QuestionCard from '@/components/practice/QuestionCard';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
 import { getArticleQuestions, getGuestArticleQuestions, submitPracticeAnswer } from '@/services/api';
+import { consumeQuizCache } from '@/services/quizCache';
 import type { PracticeQuestion } from '@/types/practice';
 
 const PRACTICE_HINT_KEY = 'reetle-practice-hint-dismissed';
@@ -14,6 +17,7 @@ function ArticleQuizContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const { preferences: guestPrefs } = useGuestPreferences();
   const articleId = searchParams.get('articleId') || '';
   const viewIdStr = searchParams.get('viewId');
   const articleViewId = viewIdStr ? parseInt(viewIdStr, 10) : undefined;
@@ -31,26 +35,31 @@ function ArticleQuizContent() {
     setHintDismissed(!!localStorage.getItem(PRACTICE_HINT_KEY));
   }, []);
 
-  useEffect(() => {
+  const fetchQuestions = useCallback(async () => {
     if (!articleId) {
       router.replace('/');
       return;
     }
-
-    async function fetchQuestions() {
-      try {
-        const qs = isGuestQuiz
-          ? await getGuestArticleQuestions(articleId)
+    setIsLoading(true);
+    setError(null);
+    try {
+      const cached = consumeQuizCache(articleId);
+      const qs = cached
+        ? await cached
+        : isGuestQuiz
+          ? await getGuestArticleQuestions(articleId, undefined, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel)
           : await getArticleQuestions(articleId, articleViewId);
-        setQuestions(qs);
-      } catch {
-        setError('Failed to load quiz questions.');
-      } finally {
-        setIsLoading(false);
-      }
+      setQuestions(qs);
+    } catch {
+      setError('Failed to load quiz questions.');
+    } finally {
+      setIsLoading(false);
     }
+  }, [articleId, articleViewId, router, isGuestQuiz, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel]);
+
+  useEffect(() => {
     fetchQuestions();
-  }, [articleId, articleViewId, router, isGuestQuiz]);
+  }, [fetchQuestions]);
 
   const handleAnswer = useCallback(async (isCorrect: boolean) => {
     const currentQuestion = questions[currentIndex];
@@ -81,22 +90,53 @@ function ArticleQuizContent() {
   const totalQuestions = questions.length;
 
   return (
-    <section className="py-2xl">
-      <div className="max-w-[600px] mx-auto px-md">
+    <section className="min-h-[calc(100dvh-80px)] py-md relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/[0.03] pointer-events-none" />
+
+      <div className="max-w-[600px] mx-auto px-md relative">
         {/* Loading */}
         {isLoading && (
-          <div className="flex flex-col items-center justify-center py-xl gap-md">
-            <div className="loading-spinner" />
+          <motion.div
+            className="flex flex-col items-center justify-center py-2xl gap-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.15 }}
+          >
+            <div className="relative w-[40px] h-[40px]">
+              <div className="absolute inset-0 rounded-full border-2 border-primary/10" />
+              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+            </div>
             <p className="text-body-md text-text-secondary">Loading quiz...</p>
-          </div>
+          </motion.div>
         )}
 
         {/* Error */}
         {error && !isLoading && (
-          <div className="text-center py-xl">
-            <p className="text-body-lg text-text-secondary mb-md">{error}</p>
-            <Link href="/" className="btn-primary">Back to Articles</Link>
-          </div>
+          <motion.div
+            className="text-center py-xl"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="w-[56px] h-[56px] bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-md">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#991B1B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <p className="text-body-lg text-text-secondary mb-lg">{error}</p>
+            <div className="flex flex-col sm:flex-row gap-md justify-center">
+              <motion.button
+                onClick={fetchQuestions}
+                className="btn-primary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Try Again
+              </motion.button>
+              <Link href="/" className="btn-secondary">Back to Articles</Link>
+            </div>
+          </motion.div>
         )}
 
         {/* Completion */}
@@ -154,15 +194,17 @@ function ArticleQuizContent() {
               </div>
             </div>
 
-            <QuestionCard
-              key={currentIndex}
-              question={questions[currentIndex]}
-              onAnswer={handleAnswer}
-              onNext={handleNext}
-              nextLabel={currentIndex + 1 >= questions.length ? 'See Results' : 'Next Question'}
-              showHint={!hintDismissed}
-              onDismissHint={handleDismissHint}
-            />
+            <AnimatePresence mode="wait">
+              <QuestionCard
+                key={currentIndex}
+                question={questions[currentIndex]}
+                onAnswer={handleAnswer}
+                onNext={handleNext}
+                nextLabel={currentIndex + 1 >= questions.length ? 'See Results' : 'Next Question'}
+                showHint={!hintDismissed}
+                onDismissHint={handleDismissHint}
+              />
+            </AnimatePresence>
           </>
         )}
       </div>
@@ -174,7 +216,10 @@ export default function ArticleQuizPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="loading-spinner" />
+        <div className="relative w-[40px] h-[40px]">
+          <div className="absolute inset-0 rounded-full border-2 border-primary/10" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+        </div>
       </div>
     }>
       <ArticleQuizContent />

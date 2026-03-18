@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import type { Article } from '@/types/article';
+import { useHasHover } from '@/hooks/useHasHover';
 
 interface ArticleCardProps {
   article: Article;
@@ -24,6 +25,7 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
   const [showTranslation, setShowTranslation] = useState(false);
   const [imgError, setImgError] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasHover = useHasHover();
 
   const imageUrl = article.imageLinks?.[0] || null;
   const topicLabel = article.topic
@@ -36,11 +38,11 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
       : null;
 
   const handleHeadlineMouseEnter = useCallback(() => {
-    if (!article.headlineFamiliar) return;
+    if (!hasHover || !article.headlineFamiliar) return;
     hoverTimerRef.current = setTimeout(() => {
       setShowTranslation(true);
     }, 500);
-  }, [article.headlineFamiliar]);
+  }, [hasHover, article.headlineFamiliar]);
 
   const handleHeadlineMouseLeave = useCallback(() => {
     if (hoverTimerRef.current) {
@@ -49,6 +51,13 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
     }
     setShowTranslation(false);
   }, []);
+
+  const toggleTranslation = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!article.headlineFamiliar) return;
+    setShowTranslation(prev => !prev);
+  }, [article.headlineFamiliar]);
 
   const showImage = imageUrl && !imgError;
 
@@ -101,7 +110,10 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
                   <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
                 </svg>
                 <span className="text-[12px] sm:text-[13px] text-white/90 font-medium flex-1">
-                  Hover over a headline to see its English translation
+                  {hasHover
+                    ? 'Hover over a headline to see its translation'
+                    : <>Tap <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-2px]"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg> next to a headline to see its translation</>
+                  }
                 </span>
                 <button
                   onClick={(e) => {
@@ -135,14 +147,27 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
               {article.hoursSinceMostRecent && (
                 <span className="text-[11px] text-text-secondary">{article.hoursSinceMostRecent}</span>
               )}
+              {!hasHover && article.headlineFamiliar && !isRefreshing && (
+                <button
+                  onClick={toggleTranslation}
+                  className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                  aria-label={showTranslation ? 'Show original' : 'Translate headline'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </button>
+              )}
             </div>
             <h2
               className={`relative text-[20px] sm:text-[24px] font-semibold leading-[1.25] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-              onMouseEnter={isRefreshing ? undefined : handleHeadlineMouseEnter}
-              onMouseLeave={isRefreshing ? undefined : handleHeadlineMouseLeave}
-              title={showTranslation ? undefined : (article.headlineFamiliar || undefined)}
+              onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
+              onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
+              title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
             >
-              <span className={showTranslation && !isRefreshing ? 'invisible' : ''} aria-hidden={showTranslation && !isRefreshing}>
+              <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
                 {article.headline}
               </span>
               {showTranslation && !isRefreshing && (
@@ -201,12 +226,25 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
               {article.hoursSinceMostRecent && (
                 <span className="text-[10px] text-text-secondary">{article.hoursSinceMostRecent}</span>
               )}
+              {!hasHover && article.headlineFamiliar && !isRefreshing && (
+                <button
+                  onClick={toggleTranslation}
+                  className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                  aria-label={showTranslation ? 'Show original' : 'Translate headline'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </button>
+              )}
             </div>
             <h3
               className={`relative text-[14px] sm:text-[15px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-              onMouseEnter={isRefreshing ? undefined : handleHeadlineMouseEnter}
-              onMouseLeave={isRefreshing ? undefined : handleHeadlineMouseLeave}
-              title={showTranslation ? undefined : (article.headlineFamiliar || undefined)}
+              onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
+              onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
+              title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
             >
               <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
                 {article.headline}
@@ -276,12 +314,25 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
               {article.hoursSinceMostRecent && (
                 <span className="text-[11px] text-text-secondary">{article.hoursSinceMostRecent}</span>
               )}
+              {!hasHover && article.headlineFamiliar && !isRefreshing && (
+                <button
+                  onClick={toggleTranslation}
+                  className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                  aria-label={showTranslation ? 'Show original' : 'Translate headline'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <path d="M12 17h.01" />
+                  </svg>
+                </button>
+              )}
             </div>
             <h3
               className={`relative text-[16px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-              onMouseEnter={isRefreshing ? undefined : handleHeadlineMouseEnter}
-              onMouseLeave={isRefreshing ? undefined : handleHeadlineMouseLeave}
-              title={showTranslation ? undefined : (article.headlineFamiliar || undefined)}
+              onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
+              onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
+              title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
             >
               <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
                 {article.headline}
@@ -355,12 +406,25 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
             {article.hoursSinceMostRecent && (
               <span className="text-[10px] text-text-secondary">{article.hoursSinceMostRecent}</span>
             )}
+            {!hasHover && article.headlineFamiliar && !isRefreshing && (
+              <button
+                onClick={toggleTranslation}
+                className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                aria-label={showTranslation ? 'Show original' : 'Translate headline'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </button>
+            )}
           </div>
           <h3
-              className={`relative text-[14px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-            onMouseEnter={isRefreshing ? undefined : handleHeadlineMouseEnter}
-            onMouseLeave={isRefreshing ? undefined : handleHeadlineMouseLeave}
-            title={showTranslation ? undefined : (article.headlineFamiliar || undefined)}
+            className={`relative text-[14px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
+            onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
+            onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
+            title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
           >
             <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
               {article.headline}

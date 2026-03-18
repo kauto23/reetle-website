@@ -5,6 +5,7 @@ import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 import ErrorBoundary from '@/components/layout/ErrorBoundary';
 import NetworkStatus from '@/components/layout/NetworkStatus';
+import MobileGuestNudge from '@/components/layout/MobileGuestNudge';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { GuestPreferencesProvider } from '@/contexts/GuestPreferencesContext';
 import { ArticlesProvider } from '@/contexts/ArticlesContext';
@@ -30,6 +31,9 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  other: {
+    'apple-itunes-app': 'app-id=6747426043',
+  },
 };
 
 export const viewport: Viewport = {
@@ -46,12 +50,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={outfit.variable}>
+      <head>
+        <link rel="preconnect" href="https://reetle-api-production-507485624349.us-central1.run.app" />
+        <link rel="dns-prefetch" href="https://reetle-api-production-507485624349.us-central1.run.app" />
+      </head>
       <body className="font-outfit bg-background text-primary min-h-screen flex flex-col">
         <ErrorBoundary>
           <AuthProvider>
             <GuestPreferencesProvider>
               <ArticlesProvider>
                 <Suspense><Header /></Suspense>
+                <MobileGuestNudge />
                 <main className="flex-1">
                   {children}
                 </main>

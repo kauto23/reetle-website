@@ -1,10 +1,53 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
-import { getArticles, getGuestArticles } from '@/services/api';
+import { getArticles, getGuestArticles, getAccessToken, getSavedUser } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
 import type { ArticlesResponse } from '@/types/article';
+
+// ---------------------------------------------------------------------------
+// SessionStorage stale-while-revalidate cache
+// ---------------------------------------------------------------------------
+const CACHE_PREFIX = 'reetle-articles-';
+
+function buildCacheKey(authenticated: boolean, language: string): string {
+  return `${CACHE_PREFIX}${authenticated ? 'auth' : 'guest'}-${language}`;
+}
+
+function loadCachedArticles(authenticated: boolean, language: string): ArticlesResponse | null {
+  try {
+    const raw = sessionStorage.getItem(buildCacheKey(authenticated, language));
+    if (!raw) return null;
+    return JSON.parse(raw) as ArticlesResponse;
+  } catch {
+    return null;
+  }
+}
+
+function cacheArticles(authenticated: boolean, language: string, data: ArticlesResponse): void {
+  try {
+    sessionStorage.setItem(buildCacheKey(authenticated, language), JSON.stringify(data));
+  } catch { /* storage full – ignore */ }
+}
+
+/**
+ * Read auth state and language directly from localStorage so we can
+ * hydrate cached articles on the very first render — before AuthProvider
+ * and GuestPreferencesProvider have resolved via their useEffects.
+ */
+function getEagerCachedArticles(): ArticlesResponse | null {
+  if (typeof window === 'undefined') return null;
+  const token = getAccessToken();
+  const savedUser = getSavedUser();
+  const isAuth = !!(token && savedUser);
+  const lang = isAuth
+    ? (savedUser?.targetLanguage || '')
+    : (localStorage.getItem('reetle-guest-language') || 'es');
+  return loadCachedArticles(isAuth, lang);
+}
+
+// ---------------------------------------------------------------------------
 
 interface ArticlesContextType {
   articlesData: ArticlesResponse | null;
@@ -19,7 +62,7 @@ const ArticlesContext = createContext<ArticlesContextType | null>(null);
 export function ArticlesProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { preferences: guestPrefs } = useGuestPreferences();
-  const [articlesData, setArticlesData] = useState<ArticlesResponse | null>(null);
+  const [articlesData, setArticlesData] = useState<ArticlesResponse | null>(getEagerCachedArticles);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +90,6 @@ export function ArticlesProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     const doFetch = async () => {
-      // Initial load: full skeleton. Language-switch refresh: shimmer over text only.
       if (articlesData) {
         setIsRefreshing(true);
       } else {
@@ -62,14 +104,15 @@ export function ArticlesProvider({ children }: { children: ReactNode }) {
         } else {
           const prefs = guestPrefsRef.current;
           const opts: { targetLanguage?: string; familiarLanguage?: string; cefrLevel?: string } = {};
-          if (prefs.targetLanguage !== 'spanish') opts.targetLanguage = prefs.targetLanguage;
+          if (prefs.targetLanguage !== 'es') opts.targetLanguage = prefs.targetLanguage;
           if (prefs.cefrLevel !== 'A2') opts.cefrLevel = prefs.cefrLevel;
-          if (opts.targetLanguage || opts.cefrLevel) opts.familiarLanguage = 'english';
+          if (opts.targetLanguage || opts.cefrLevel) opts.familiarLanguage = prefs.familiarLanguage;
           data = await getGuestArticles(Object.keys(opts).length > 0 ? opts : undefined);
         }
 
         if (!cancelled) {
           setArticlesData(data);
+          cacheArticles(isAuthenticated, languageKey, data);
         }
       } catch {
         if (!cancelled && !articlesData) {

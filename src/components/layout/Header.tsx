@@ -36,8 +36,8 @@ export default function Header() {
     getTargetLanguages().then(langs => {
       if (cancelled) return;
       const sorted = [...langs].sort((a, b) => {
-        if (a.code === 'spanish') return -1;
-        if (b.code === 'spanish') return 1;
+        if (a.code === 'es') return -1;
+        if (b.code === 'es') return 1;
         return a.name.localeCompare(b.name);
       });
       setLanguages(sorted);
@@ -121,7 +121,7 @@ export default function Header() {
               {isAuthenticated ? (
                 <>
                   <Link href="/" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
-                    Articles
+                    News
                   </Link>
                   <Link href="/practice" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Practice
@@ -263,7 +263,7 @@ export default function Header() {
                   <>
                     <li>
                       <Link href="/" className="block py-[10px] text-[15px] font-medium text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
-                        Articles
+                        News
                       </Link>
                     </li>
                     <li>

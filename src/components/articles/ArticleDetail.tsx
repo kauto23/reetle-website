@@ -3,12 +3,15 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import Link from 'next/link';
 import TranslationSheet from '@/components/articles/TranslationSheet';
+import TranslationDemoBanner from '@/components/articles/TranslationDemoBanner';
 import SelectionHandles from '@/components/articles/SelectionHandles';
 import { useArticles } from '@/contexts/ArticlesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
-import { getArticleContent, getGuestArticleContent, GuestQuotaError } from '@/services/api';
+import { getArticleContent, getGuestArticleContent, getArticleQuestions, getGuestArticleQuestions, GuestQuotaError } from '@/services/api';
+import { prefetchQuiz } from '@/services/quizCache';
 import type { Article } from '@/types/article';
+import { useHasHover } from '@/hooks/useHasHover';
 
 // ── Highlight types & helpers ────────────────────────────────────────────────
 
@@ -111,6 +114,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const [showRefreshMsg, setShowRefreshMsg] = useState(false);
   const [refreshMsgIdx, setRefreshMsgIdx] = useState(0);
 
+  const hasHover = useHasHover();
   const contentRef = useRef<HTMLDivElement>(null);
   const headlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mouseStart = useRef<{ x: number; y: number } | null>(null);
@@ -253,14 +257,25 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hasPassedHalf]);
 
-  // ── Headline hover-to-translate ─────────────────────────────────────────────
+  // ── Prefetch quiz questions when button becomes visible ─────────────────────
+
+  useEffect(() => {
+    if (!hasPassedHalf || contentLoading || quotaExceeded || !articleId) return;
+    prefetchQuiz(articleId, () =>
+      isAuthenticated
+        ? getArticleQuestions(articleId, articleViewId)
+        : getGuestArticleQuestions(articleId, undefined, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel),
+    );
+  }, [hasPassedHalf, contentLoading, quotaExceeded, articleId, isAuthenticated, articleViewId, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel]);
+
+  // ── Headline translation: hover on desktop, button on mobile ────────────────
 
   const handleHeadlineMouseEnter = useCallback(() => {
-    if (!article?.headlineFamiliar) return;
+    if (!hasHover || !article?.headlineFamiliar) return;
     headlineTimerRef.current = setTimeout(() => {
       setShowHeadlineTranslation(true);
     }, 500);
-  }, [article?.headlineFamiliar]);
+  }, [hasHover, article?.headlineFamiliar]);
 
   const handleHeadlineMouseLeave = useCallback(() => {
     if (headlineTimerRef.current) {
@@ -269,6 +284,11 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
     }
     setShowHeadlineTranslation(false);
   }, []);
+
+  const toggleHeadlineTranslation = useCallback(() => {
+    if (!article?.headlineFamiliar) return;
+    setShowHeadlineTranslation(prev => !prev);
+  }, [article?.headlineFamiliar]);
 
   // ── Commit a selection: save highlight + open translation ──────────────────
 
@@ -494,19 +514,34 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 </div>
               )}
 
-              <h1
-                className={`relative text-display-md mb-sm cursor-pointer select-none transition-colors duration-300 overflow-hidden ${showHeadlineTranslation ? 'text-primary-light' : 'text-primary'}`}
-                onMouseEnter={handleHeadlineMouseEnter}
-                onMouseLeave={handleHeadlineMouseLeave}
-                title={showHeadlineTranslation ? undefined : (article.headlineFamiliar || undefined)}
-              >
-                <span className={showHeadlineTranslation ? 'invisible' : ''} aria-hidden={showHeadlineTranslation}>
-                  {article.headline}
-                </span>
-                {showHeadlineTranslation && (
-                  <span className="absolute inset-0">{article.headlineFamiliar}</span>
+              <div className="flex items-start gap-[8px] mb-sm">
+                <h1
+                  className={`relative flex-1 text-display-md select-none transition-colors duration-300 overflow-hidden ${hasHover ? 'cursor-pointer' : ''} ${showHeadlineTranslation ? 'text-primary-light' : 'text-primary'}`}
+                  onMouseEnter={hasHover ? handleHeadlineMouseEnter : undefined}
+                  onMouseLeave={hasHover ? handleHeadlineMouseLeave : undefined}
+                  title={hasHover && !showHeadlineTranslation ? (article.headlineFamiliar || undefined) : undefined}
+                >
+                  <span className={showHeadlineTranslation ? 'invisible' : ''} aria-hidden={showHeadlineTranslation}>
+                    {article.headline}
+                  </span>
+                  {showHeadlineTranslation && (
+                    <span className="absolute inset-0">{article.headlineFamiliar}</span>
+                  )}
+                </h1>
+                {!hasHover && article.headlineFamiliar && (
+                  <button
+                    onClick={toggleHeadlineTranslation}
+                    className={`flex-shrink-0 mt-[6px] bg-transparent border-none cursor-pointer transition-colors duration-200 ${showHeadlineTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                    aria-label={showHeadlineTranslation ? 'Show original headline' : 'Translate headline'}
+                  >
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                      <path d="M12 17h.01" />
+                    </svg>
+                  </button>
                 )}
-              </h1>
+              </div>
 
               <div className={`flex items-center gap-md text-body-md text-text-secondary ${quotaExceeded ? 'mb-md' : 'mb-xl'}`}>
                 {article.publishedDate && <span>{article.publishedDate}</span>}
@@ -517,6 +552,10 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 )}
               </div>
 
+              {!quotaExceeded && !contentLoading && content && (
+                <TranslationDemoBanner hasInteracted={!!selectedText} />
+              )}
+
               <div
                 ref={contentRef}
                 onMouseDown={onMouseDown}
@@ -525,7 +564,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 onTouchEnd={onMouseUp}
               >
                 {isContentRefreshing && content ? (
-                  <div className="relative">
+                  <div className="relative overflow-hidden">
                     <div
                       className="space-y-md select-none pointer-events-none transition-[filter] duration-300"
                       style={{ filter: 'blur(4px)', WebkitFilter: 'blur(4px)' }}

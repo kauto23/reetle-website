@@ -179,6 +179,7 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
     email: data.email || email || null,
     familiarLanguage: data.familiar_language || null,
     targetLanguage: data.target_language || null,
+    deviceToken: data.device_token || null,
   };
 
   return { user, accessToken: data.access_token };
@@ -214,6 +215,7 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
     email: data.email || email || null,
     familiarLanguage: data.familiar_language || null,
     targetLanguage: data.target_language || null,
+    deviceToken: data.device_token || null,
   };
 
   return { user, accessToken: data.access_token };
@@ -321,7 +323,8 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(body),
-  });
+    priority: 'high',
+  } as RequestInit);
 
   await checkForExpiredToken(response);
   checkRateLimit(response);
@@ -362,7 +365,7 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
     if (article.createdAt) {
       const date = new Date(article.createdAt);
       const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      article.publishedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')} GMT`;
+      article.publishedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
       article.hoursSinceMostRecent = getTimeSince(article.createdAt);
     }
 
@@ -431,8 +434,9 @@ async function checkGuestQuota(response: Response): Promise<void> {
         body.detail || 'Sign up for unlimited access!'
       );
     }
-    const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
-    throw new RateLimitError(retryAfter);
+    const retryAfter = body.retry_after
+      ?? parseInt(response.headers.get('Retry-After') || '60', 10);
+    throw new RateLimitError(typeof retryAfter === 'number' ? retryAfter : parseInt(retryAfter, 10) || 60);
   }
 }
 
@@ -455,7 +459,8 @@ export async function getGuestArticles(options?: { maxArticles?: number; sinceId
     headers: getGuestHeaders(),
     credentials: 'include',
     body: JSON.stringify(body),
-  });
+    priority: 'high',
+  } as RequestInit);
 
   await checkGuestQuota(response);
 
@@ -498,7 +503,7 @@ export async function getGuestArticles(options?: { maxArticles?: number; sinceId
     if (article.createdAt) {
       const date = new Date(article.createdAt);
       const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      article.publishedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')} GMT`;
+      article.publishedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
       article.hoursSinceMostRecent = getTimeSince(article.createdAt);
     }
 
@@ -590,6 +595,14 @@ export async function getGuestTranslation(
       explanation: item.explanation,
       id: 0,
       status: item.status || null,
+      grammar_notes: Array.isArray(item.grammar_notes)
+        ? item.grammar_notes.map((n: Record<string, unknown>) => ({
+            label: String(n.label || ''),
+            title: String(n.title || ''),
+            source_word: String(n.source_word || ''),
+            why: String(n.why || ''),
+          }))
+        : [],
     };
   }
 
@@ -606,7 +619,7 @@ export async function getGuestArticleQuestions(
   cefrLevel?: string
 ): Promise<PracticeQuestion[]> {
   const body: Record<string, unknown> = {
-    article_id: articleId,
+    article_id: parseInt(articleId, 10),
     num_questions: numQuestions || 6,
   };
   if (targetLanguage) body.target_language = targetLanguage;
@@ -659,6 +672,14 @@ export async function getTranslation(words: string, context: string, extendedCon
       explanation: item.explanation,
       id: item.id || 0,
       status: item.status || null,
+      grammar_notes: Array.isArray(item.grammar_notes)
+        ? item.grammar_notes.map((n: Record<string, unknown>) => ({
+            label: String(n.label || ''),
+            title: String(n.title || ''),
+            source_word: String(n.source_word || ''),
+            why: String(n.why || ''),
+          }))
+        : [],
     };
   }
 
@@ -722,7 +743,7 @@ export async function submitPracticeAnswer(practiceQuestionId: number, isCorrect
 
 export async function getArticleQuestions(articleId: string, articleViewId?: number): Promise<PracticeQuestion[]> {
   const body: Record<string, unknown> = {
-    article_id: articleId,
+    article_id: parseInt(articleId, 10),
     num_questions: 6,
     question_type: 'fill_in_the_blank',
   };
@@ -909,8 +930,7 @@ function parsePracticeQuestion(data: Record<string, unknown>): PracticeQuestion 
     questionType: data.question_type === 'pairs' ? 'pairs' : 'fill_in_the_blank',
     wordPairs,
     correctStreak: Number(data.correct_streak) || 0,
-    masteryHeading: data.mastery_heading ? String(data.mastery_heading) : null,
-    masteryText: data.mastery_text ? String(data.mastery_text) : null,
+    willMaster: data.will_master === true,
   };
 }
 

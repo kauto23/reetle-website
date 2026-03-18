@@ -20,6 +20,7 @@ import {
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  hasApp: boolean;
   isLoading: boolean;
   signInWithGoogle: (idToken: string, email?: string, fullName?: string) => Promise<boolean>;
   signInWithApple: (idToken: string, email?: string, fullName?: string) => Promise<boolean>;
@@ -133,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isAuthenticated: !!user,
+        hasApp: !!user?.deviceToken,
         isLoading,
         signInWithGoogle,
         signInWithApple,

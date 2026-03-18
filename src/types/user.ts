@@ -8,6 +8,7 @@ export interface User {
   email: string | null;
   familiarLanguage: string | null;
   targetLanguage: string | null;
+  deviceToken: string | null;
 }
 
 export interface TargetLanguage {

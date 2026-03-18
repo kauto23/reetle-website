@@ -22,7 +22,7 @@ function TopicPageContent() {
   const params = useParams();
   const slug = typeof params.slug === 'string' ? params.slug : '';
   const { articlesData, isLoading, isRefreshing, error, fetchArticles } = useArticles();
-  const { isAuthenticated } = useAuth();
+  const { hasApp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [selectedSubtopic, setSelectedSubtopic] = useState<string | null>(null);
@@ -55,7 +55,7 @@ function TopicPageContent() {
   }, [router, slug]);
 
   const topicLabel = articlesData?.topicMap[slug.toLowerCase()] || articlesData?.topicMap[topicName] || topicName;
-  const heroCount = isAuthenticated ? 5 : 4;
+  const heroCount = hasApp ? 5 : 4;
 
   return (
     <>
@@ -169,7 +169,7 @@ function TopicPageContent() {
                           isRefreshing={isRefreshing}
                         />
                       ))}
-                      {!isAuthenticated && <AppStoreCTA />}
+                      {!hasApp && <AppStoreCTA />}
                     </div>
                   </div>
                 </div>

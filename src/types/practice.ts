@@ -28,6 +28,5 @@ export interface PracticeQuestion {
   questionType: 'fill_in_the_blank' | 'pairs';
   wordPairs: WordPair[];
   correctStreak: number;
-  masteryHeading: string | null;
-  masteryText: string | null;
+  willMaster: boolean;
 }

@@ -1,0 +1,30 @@
+---
+description: Always consult API documentation before modifying code that interacts with API endpoints
+alwaysApply: true
+---
+
+# Check API Documentation Before Modifying Endpoint Code
+
+Before modifying any code that interacts with API endpoints, **always read the relevant documentation** in the `docs/` folder first.
+
+## Documentation Map
+
+| Doc File | Covers |
+|----------|--------|
+| `docs/auth.md` | Authentication, registration, OAuth, token refresh |
+| `docs/articles.md` | Articles endpoints |
+| `docs/assessment.md` | Assessment endpoints |
+| `docs/languages.md` | Languages endpoints |
+| `docs/practice.md` | Practice endpoints |
+| `docs/stats.md` | User statistics endpoints |
+| `docs/translations.md` | Translation endpoints |
+| `docs/rate_limiting.md` | Rate limiting rules and 429 handling |
+
+## Workflow
+
+1. **Identify** which API endpoints the code change touches.
+2. **Read** the corresponding `docs/*.md` file(s) using the Read tool.
+3. **Verify** request methods, paths, request/response shapes, auth requirements, and rate limits match what the docs specify.
+4. **Apply** the change, ensuring it stays consistent with the documented API contract.
+
+If the docs and the existing code disagree, flag the discrepancy before proceeding.

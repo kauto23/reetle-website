@@ -25,7 +25,7 @@ export default function HomePage() {
 
 function HomePageContent() {
   const { articlesData, isLoading, isRefreshing, error, fetchArticles } = useArticles();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hasApp } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedArticleId = searchParams.get('article');
@@ -63,7 +63,7 @@ function HomePageContent() {
   const allArticles = useMemo(() => articlesData?.articles ?? [], [articlesData]);
 
   const articlesByTopic = useMemo(() => {
-    const heroCount = isAuthenticated ? 5 : 4;
+    const heroCount = hasApp ? 5 : 4;
     const remaining = allArticles.slice(heroCount);
     const grouped: Record<string, Article[]> = {};
     for (const article of remaining) {
@@ -81,7 +81,7 @@ function HomePageContent() {
         const subs = Array.from(subSet).sort();
         return { topic: cat, articles, subtopics: subs };
       });
-  }, [allArticles, isAuthenticated]);
+  }, [allArticles, hasApp]);
 
   const scrollSectionIntoView = useCallback((topic: string, sectionRefs: Record<string, HTMLDivElement | null>) => {
     requestAnimationFrame(() => {
@@ -195,7 +195,7 @@ function HomePageContent() {
                   </div>
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
-                      {allArticles.slice(1, isAuthenticated ? 5 : 4).map(article => (
+                      {allArticles.slice(1, hasApp ? 5 : 4).map(article => (
                         <ArticleCard
                           key={article.articleId}
                           article={article}
@@ -207,7 +207,7 @@ function HomePageContent() {
                           isRefreshing={isRefreshing}
                         />
                       ))}
-                      {!isAuthenticated && <AppStoreCTA />}
+                      {!hasApp && <AppStoreCTA />}
                     </div>
                   </div>
                 </div>

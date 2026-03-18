@@ -100,8 +100,8 @@ export default function ProfilePage() {
     try {
       const langs = await getTargetLanguages();
       const sorted = [...langs].sort((a, b) => {
-        if (a.code === 'spanish') return -1;
-        if (b.code === 'spanish') return 1;
+        if (a.code === 'es') return -1;
+        if (b.code === 'es') return 1;
         return a.name.localeCompare(b.name);
       });
       setLanguages(sorted);

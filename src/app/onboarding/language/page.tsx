@@ -40,8 +40,8 @@ export default function LanguageSelectionPage() {
         const langs = await getTargetLanguages();
         // Sort: Spanish first, then alphabetically
         const sorted = [...langs].sort((a, b) => {
-          if (a.code === 'spanish') return -1;
-          if (b.code === 'spanish') return 1;
+          if (a.code === 'es') return -1;
+          if (b.code === 'es') return 1;
           return a.name.localeCompare(b.name);
         });
         setLanguages(sorted);
@@ -66,7 +66,7 @@ export default function LanguageSelectionPage() {
     try {
       // Detect browser language as familiar language
       const browserLang = navigator.language.split('-')[0];
-      const familiarLanguage = browserLang === 'en' ? 'english' : browserLang;
+      const familiarLanguage = browserLang === 'en' ? 'en' : browserLang;
 
       const success = await updateLanguage(familiarLanguage, selectedLanguage);
       if (success) {

@@ -6,11 +6,13 @@ import { useAuth } from '@/contexts/AuthContext';
 const STORAGE_KEY_LANGUAGE = 'reetle-guest-language';
 const STORAGE_KEY_LEVEL = 'reetle-guest-level';
 
-const DEFAULT_LANGUAGE = 'spanish';
+const DEFAULT_LANGUAGE = 'es';
+const DEFAULT_FAMILIAR_LANGUAGE = 'en';
 const DEFAULT_LEVEL = 'A2';
 
 interface GuestPreferences {
   targetLanguage: string;
+  familiarLanguage: string;
   cefrLevel: string;
 }
 
@@ -27,6 +29,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
   const { isAuthenticated } = useAuth();
   const [preferences, setPreferences] = useState<GuestPreferences>({
     targetLanguage: DEFAULT_LANGUAGE,
+    familiarLanguage: DEFAULT_FAMILIAR_LANGUAGE,
     cefrLevel: DEFAULT_LEVEL,
   });
   const [hasCustomised, setHasCustomised] = useState(false);
@@ -38,6 +41,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
     if (storedLang || storedLevel) {
       setPreferences({
         targetLanguage: storedLang || DEFAULT_LANGUAGE,
+        familiarLanguage: DEFAULT_FAMILIAR_LANGUAGE,
         cefrLevel: storedLevel || DEFAULT_LEVEL,
       });
       setHasCustomised(true);
@@ -60,7 +64,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
   if (isAuthenticated) {
     return (
       <GuestPreferencesContext.Provider value={{
-        preferences: { targetLanguage: DEFAULT_LANGUAGE, cefrLevel: DEFAULT_LEVEL },
+        preferences: { targetLanguage: DEFAULT_LANGUAGE, familiarLanguage: DEFAULT_FAMILIAR_LANGUAGE, cefrLevel: DEFAULT_LEVEL },
         setTargetLanguage: () => {},
         setCefrLevel: () => {},
         hasCustomised: false,
