@@ -275,7 +275,7 @@ export default function PlayAllAudio({
           onClick={() => queue.start(articles)}
           className="btn-primary rounded-sm text-[13px] px-[14px] py-[8px] inline-flex items-center gap-[6px] shrink-0"
         >
-          <Play size={14} fill="currentColor" />
+          <Play size={14} fill="currentColor" strokeWidth={0} />
           Restart
         </button>
       </div>
@@ -323,6 +323,7 @@ export default function PlayAllAudio({
   }
 
   // Active playback becomes app chrome, so it stays clear of sticky topic headers.
+  const currentDisplay = queue.current ?? queue.pendingPlayback;
   const articleLink =
     queue.current && queue.mode !== 'loading' && queue.mode !== 'awaiting_next'
       ? `/?article=${encodeURIComponent(queue.current.articleId)}`
@@ -474,7 +475,7 @@ export default function PlayAllAudio({
             {/* Scrollable list */}
             <div className="overflow-y-auto max-h-[min(50vh,360px)] px-[14px] py-[8px]">
               {/* Now Playing */}
-              {queue.current && (
+              {currentDisplay && (
                 <div className="mb-[6px]">
                   <div className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-[6px] px-[2px]">
                     Now Playing
@@ -485,11 +486,11 @@ export default function PlayAllAudio({
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-medium text-primary leading-snug truncate">
-                        {queue.current.headline}
+                        {currentDisplay.headline}
                       </div>
-                      {queue.current.topic && (
+                      {currentDisplay.topic && (
                         <div className="text-[11px] text-text-secondary truncate mt-[1px]">
-                          {queue.current.topic}
+                          {currentDisplay.topic}
                         </div>
                       )}
                     </div>
@@ -566,11 +567,11 @@ export default function PlayAllAudio({
                 scroll={false}
                 className="text-[15px] sm:text-[14px] leading-[1.25] font-medium text-primary block hover:underline text-left w-full"
               >
-                <MarqueeText text={queue.current?.headline ?? '—'} />
+                <MarqueeText text={currentDisplay?.headline ?? 'Preparing audio'} />
               </Link>
             ) : (
               <div className="text-[15px] sm:text-[14px] leading-[1.25] font-medium text-primary">
-                <MarqueeText text={queue.current?.headline ?? '—'} />
+                <MarqueeText text={currentDisplay?.headline ?? 'Preparing audio'} />
               </div>
             )}
           </div>
@@ -607,7 +608,7 @@ export default function PlayAllAudio({
               className="w-[46px] h-[46px] rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary-dark transition-colors"
               aria-label={queue.isPlaying ? 'Pause' : 'Play'}
             >
-              {queue.isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+              {queue.isPlaying ? <Pause size={18} fill="currentColor" strokeWidth={0} /> : <Play size={18} fill="currentColor" strokeWidth={0} />}
             </button>
             <AnimatedSkipButton
               direction="forward"
@@ -673,7 +674,7 @@ export default function PlayAllAudio({
             className="w-[46px] h-[46px] rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary-dark transition-colors"
             aria-label={queue.isPlaying ? 'Pause' : 'Play'}
           >
-            {queue.isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
+            {queue.isPlaying ? <Pause size={18} fill="currentColor" strokeWidth={0} /> : <Play size={18} fill="currentColor" strokeWidth={0} />}
           </button>
           <AnimatedSkipButton
             direction="forward"

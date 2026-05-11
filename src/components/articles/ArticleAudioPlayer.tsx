@@ -23,19 +23,7 @@ import { Headphones, Play, Pause, RotateCcw, RotateCw, X } from 'lucide-react';
 import { useAudioStatus } from '@/contexts/AudioStatusContext';
 import { usePlayAllAudio } from '@/contexts/PlayAllAudioContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-
-const AUDIO_PREPARING_MESSAGES = [
-  'We’re preparing the audio for this article.',
-  'Recording the article at a pace suited to your level.',
-  'Adjusting the pacing to match your level.',
-  'Tuning the audio to the right level for you.',
-  'Preparing narration with pacing suited to this article.',
-  'Getting the audio ready at a pace appropriate for you.',
-  'Tailoring the narration to your language level.',
-  'Fine-tuning pronunciation and pacing for your level.',
-  'Almost ready. You can keep reading while we finish it.',
-  'Adding the final touches to your audio.',
-];
+import { AUDIO_PREPARING_DETAIL_MESSAGES } from '@/lib/audioPreparingMessages';
 
 const MESSAGE_ROTATE_INTERVAL_MS = 5000;
 
@@ -144,7 +132,7 @@ export default function ArticleAudioPlayer({
       return;
     }
     const interval = setInterval(() => {
-      setMessageIndex(prev => (prev + 1) % AUDIO_PREPARING_MESSAGES.length);
+      setMessageIndex(prev => (prev + 1) % AUDIO_PREPARING_DETAIL_MESSAGES.length);
     }, MESSAGE_ROTATE_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [entry?.status]);
@@ -295,9 +283,9 @@ export default function ArticleAudioPlayer({
             {loading ? (
               <span className="inline-block w-[14px] h-[14px] border-2 border-white/50 border-t-white rounded-full animate-spin" />
             ) : playAll.isPlaying ? (
-              <Pause size={18} fill="currentColor" />
+              <Pause size={18} fill="currentColor" strokeWidth={0} />
             ) : (
-              <Play size={18} fill="currentColor" className="translate-x-[1px]" />
+              <Play size={18} fill="currentColor" strokeWidth={0} className="translate-x-[1px]" />
             )}
           </button>
             <AnimatedSkipButton
@@ -374,7 +362,7 @@ export default function ArticleAudioPlayer({
   }
 
   if (status === 'preparing') {
-    const message = AUDIO_PREPARING_MESSAGES[messageIndex];
+    const message = AUDIO_PREPARING_DETAIL_MESSAGES[messageIndex];
     return (
       <div className={`${wrapperClass} flex items-start gap-[12px]`}>
         <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
@@ -457,9 +445,9 @@ export default function ArticleAudioPlayer({
               aria-label={isPlaying ? 'Pause article audio' : 'Play article audio'}
             >
               {isPlaying ? (
-                <Pause size={18} fill="currentColor" />
+                <Pause size={18} fill="currentColor" strokeWidth={0} />
               ) : (
-                <Play size={18} fill="currentColor" className="translate-x-[1px]" />
+                <Play size={18} fill="currentColor" strokeWidth={0} className="translate-x-[1px]" />
               )}
             </button>
             <AnimatedSkipButton
@@ -516,7 +504,7 @@ export default function ArticleAudioPlayer({
                 </>
               ) : (
                 <>
-                  <Play size={14} fill="currentColor" />
+                  <Play size={14} fill="currentColor" strokeWidth={0} />
                   Listen
                 </>
               )}

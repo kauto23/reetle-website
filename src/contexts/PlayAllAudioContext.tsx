@@ -8,7 +8,6 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAudioStatus, type AudioEntry } from '@/contexts/AudioStatusContext';
@@ -54,6 +53,12 @@ export interface PreparingNextInfo {
   status: 'resolving_content' | 'generating';
 }
 
+export interface PendingPlaybackInfo {
+  articleId: string;
+  headline: string;
+  topic: string;
+}
+
 /**
  * Outcome of a user-initiated queue action (tap "Play" or "Add to queue"
  * on a card). The button surfaces a toast based on this result so the
@@ -83,6 +88,7 @@ export interface PlayAllAudioValue {
   queue: QueueItem[];
   currentIndex: number;
   current: QueueItem | null;
+  pendingPlayback: PendingPlaybackInfo | null;
   upNextCount: number;
   currentTime: number;
   duration: number;
@@ -235,12 +241,11 @@ function itemKey(item: { articleId: string; contentId: string }): string {
 }
 
 /**
- * Tiny looped silent track played between articles while we wait for the
- * next one to be generated. The `<audio>` element must keep "actively
- * playing" something for browsers to treat the eventual `src` swap to the
- * real next track as a continuation of the user's original Play All
- * gesture; otherwise autoplay policy blocks `play()` and the user has to
- * tap Play to continue. Generated with ffmpeg as 1s of silence and looped.
+ * Technical fallback, not a user-facing transition. The audible transition
+ * marks article boundaries; this silent loop is only used when there is a
+ * real async gap after the transition (URL fetch/generation not ready yet)
+ * and iOS/Safari would otherwise drop autoplay permission before the next
+ * article can start.
  */
 const SILENCE_AUDIO_SRC = '/audio/silence.mp3';
 const TRANSITION_AUDIO_SRC = '/audio/transition.mp3';
@@ -288,6 +293,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
   const [duration, setDuration] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [preparingNext, setPreparingNext] = useState<PreparingNextInfo | null>(null);
+  const [pendingPlayback, setPendingPlayback] = useState<PendingPlaybackInfo | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [listenedIds, setListenedIds] = useState<Set<string>>(() => {
     if (typeof window === 'undefined') return new Set();
@@ -338,38 +344,21 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
   // rationale.
   const pendingPrefResetRef = useRef(false);
 
-  // Track the current route so the queue's auto-advance behaviour can
-  // adapt to where the user is. We only autoplay the next article when
-  // the user is on the home screen list (where the Play All UI lives)
-  // or when the page is hidden (mobile lock screen / background tab,
-  // i.e. the user is interacting with the audio session via OS controls
-  // rather than a foreground tab). The article detail view is rendered
-  // at `/?article=<id>` so we explicitly exclude that case even though
-  // the pathname is still `/`.
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const isOnHomeListRef = useRef(false);
-  isOnHomeListRef.current = pathname === '/' && !searchParams?.get('article');
-
-  const shouldAutoplayNextRef = useRef(() => false);
-  shouldAutoplayNextRef.current = () => {
-    if (typeof document === 'undefined') return false;
-    // Lock screen / background tab — always keep the queue moving.
-    if (document.visibilityState === 'hidden') {
-      return true;
-    }
-    // iOS WebKit sometimes leaves visibility as "visible" while the device is
-    // locked or Safari is backgrounded; the document usually loses focus then.
-    // Without this, we would incorrectly take the "pause after transition"
-    // path meant for foreground article reading on /?article=….
+  const shouldPauseForVisibleArticleRef = useRef<() => boolean>(() => false);
+  shouldPauseForVisibleArticleRef.current = () => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return false;
+    const params = new URLSearchParams(window.location.search);
+    const isOnArticlePage = window.location.pathname === '/' && params.has('article');
+    if (!isOnArticlePage) return false;
+    if (document.visibilityState === 'hidden') return false;
     try {
       if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
-        return true;
+        return false;
       }
     } catch {
-      // ignore
+      // If focus detection is unavailable, route visibility is enough.
     }
-    return isOnHomeListRef.current;
+    return true;
   };
 
   queueRef.current = queue;
@@ -394,6 +383,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       setCurrentIndex(0);
       setIsPlaying(false);
       setPreparingNext(null);
+      setPendingPlayback(null);
       generationStartedRef.current = false;
       setListenedIds(new Set());
       // The pref signature must reset alongside auth state, otherwise
@@ -472,13 +462,16 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
   const setSourceAndPlay = useCallback((url: string, item: QueueItem, autoplay = true) => {
     const el = audioRef.current;
     if (!el) return;
+    const swappingFromBridge = isPlayingSilenceRef.current || isPlayingTransitionRef.current;
     // Clear the silence-bridge state before swapping in the real track.
     // The element keeps its "actively playing" status across this swap,
     // which is what allows `play()` to succeed without a fresh gesture.
     isPlayingSilenceRef.current = false;
     isPlayingTransitionRef.current = false;
     el.loop = false;
-    try { el.pause(); } catch { /* ignore */ }
+    if (!swappingFromBridge) {
+      try { el.pause(); } catch { /* ignore */ }
+    }
     el.src = url;
     try { el.load(); } catch { /* ignore */ }
     loadedItemKeyRef.current = itemKey(item);
@@ -506,6 +499,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
 
       setCurrentIndex(index);
       setMode('loading');
+      setPendingPlayback(null);
       setErrorMessage(null);
       setCurrentTime(0);
       setDuration(0);
@@ -627,6 +621,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     setCurrentIndex(0);
     generationStartedRef.current = false;
     setPreparingNext(null);
+    setPendingPlayback(null);
     setErrorMessage(null);
     queueRef.current = built;
     indexRef.current = 0;
@@ -682,6 +677,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     setQueue([]);
     setCurrentIndex(0);
     setPreparingNext(null);
+    setPendingPlayback(null);
     setPendingAdds(new Map());
     setMode('idle');
     generationStartedRef.current = false;
@@ -705,6 +701,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     setQueue([]);
     setCurrentIndex(0);
     setPreparingNext(null);
+    setPendingPlayback(null);
     setPendingAdds(new Map());
     setMode('idle');
     generationStartedRef.current = false;
@@ -903,11 +900,21 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
           || modeRef.current === 'awaiting_next');
       if (isCurrent) return { status: 'now_playing' };
 
-      // Capture the user gesture immediately for playback actions so the
-      // async URL fetch (or generation) doesn't cause the gesture token to
-      // expire in Safari.
+      // A Play tap on an unprepared article can take several async steps
+      // before a real URL is available. iOS/Safari may reject that delayed
+      // `play()` unless the original tap immediately started media playback,
+      // so we use the silent bridge only for explicit "play now" gestures.
       if (action === 'play_now') {
         playSilence();
+        setPendingPlayback({
+          articleId,
+          headline: article.headline,
+          topic: article.topic,
+        });
+        setMode('loading');
+        setErrorMessage(null);
+        setCurrentTime(0);
+        setDuration(0);
       }
 
       const sessionActive = modeRef.current === 'playing'
@@ -941,13 +948,19 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       }
 
       if (!isPremium && modeRef.current === 'limit_reached') {
-        if (action === 'play_now') stopAudioElement();
+        if (action === 'play_now') {
+          stopAudioElement();
+          setPendingPlayback(null);
+        }
         return { status: 'limit_reached' };
       }
       if (!isPremium && dailyUsage?.audio) {
         const remaining = dailyUsage.audio.limit - dailyUsage.audio.used;
         if (remaining <= 0) {
-          if (action === 'play_now') stopAudioElement();
+          if (action === 'play_now') {
+            stopAudioElement();
+            setPendingPlayback(null);
+          }
           return { status: 'limit_reached' };
         }
       }
@@ -1005,7 +1018,10 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       }
 
       if (!isPremium) {
-        if (action === 'play_now') stopAudioElement();
+        if (action === 'play_now') {
+          stopAudioElement();
+          setPendingPlayback(null);
+        }
         return { status: 'requires_premium' };
       }
 
@@ -1032,7 +1048,10 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
               n.delete(articleId);
               return n;
             });
-            if (action === 'play_now') stopAudioElement();
+            if (action === 'play_now') {
+              stopAudioElement();
+              setPendingPlayback(null);
+            }
             return { status: 'error', message: 'Could not fetch article content.' };
           }
           resolvedContentId = result.contentId;
@@ -1044,7 +1063,10 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
           n.delete(articleId);
           return n;
         });
-        if (action === 'play_now') stopAudioElement();
+        if (action === 'play_now') {
+          stopAudioElement();
+          setPendingPlayback(null);
+        }
         if (err instanceof FreeTierQuotaError) return { status: 'limit_reached' };
         if (err instanceof TokenExpiredError) return { status: 'guest_locked' };
         if (err instanceof RateLimitError) {
@@ -1063,7 +1085,9 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       isPremium,
       listenedIds,
       playItemAt,
+      playSilence,
       prepareAudio,
+      stopAudioElement,
     ],
   );
 
@@ -1330,35 +1354,22 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
         const idx = indexRef.current;
         const items = queueRef.current;
 
-        // Only autoplay the next article when the Play All UI is
-        // visible (home screen) or the page is hidden (lock screen /
-        // background tab). Anywhere else, the transition jingle still
-        // plays as an "end of article" indicator but the queue then
-        // pauses so the user isn't surprised by the next article
-        // starting while they're reading something else.
-        const autoplay = shouldAutoplayNextRef.current();
-
-        if (!autoplay) {
+        if (shouldPauseForVisibleArticleRef.current()) {
           prefetchedNextUrlRef.current = null;
+          isPlayingSilenceRef.current = false;
           if (idx + 1 < items.length) {
-            // Move on to the next track in the queue but don't load or
-            // play it yet. The player UI will show it as paused and the
-            // user can hit ▶ (or return to the home screen and resume)
-            // to continue.
             setCurrentIndex(idx + 1);
             setCurrentTime(0);
             setDuration(0);
             loadedItemKeyRef.current = null;
-            const el = audioRef.current;
-            if (el) {
-              try { el.pause(); } catch { /* ignore */ }
-              try { el.removeAttribute('src'); el.load(); } catch { /* ignore */ }
-            }
-            setIsPlaying(false);
-            setMode('paused');
-          } else {
-            setMode('finished');
           }
+          const el = audioRef.current;
+          if (el) {
+            try { el.pause(); } catch { /* ignore */ }
+            try { el.removeAttribute('src'); el.load(); } catch { /* ignore */ }
+          }
+          setIsPlaying(false);
+          setMode('paused');
           return;
         }
 
@@ -1398,7 +1409,6 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
         return;
       }
 
-      setIsPlaying(false);
       const idx = indexRef.current;
       const items = queueRef.current;
       if (idx < 0 || idx >= items.length) return;
@@ -1408,6 +1418,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       if (idx + 1 < items.length || preparingNextRef.current) {
         playTransition();
       } else {
+        setIsPlaying(false);
         setMode('finished');
       }
     };
@@ -1527,6 +1538,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     queue,
     currentIndex,
     current,
+    pendingPlayback,
     upNextCount,
     currentTime,
     duration,

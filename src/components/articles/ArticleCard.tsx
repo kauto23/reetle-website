@@ -54,16 +54,89 @@ function ReadBadge({ size = 'md' }: { size?: 'sm' | 'md' }) {
   );
 }
 
-function TopicLabel({ label, size = 'sm', isRefreshing }: { label: string; size?: 'xs' | 'sm'; isRefreshing?: boolean }) {
+/** Shared text block: topic/geography top row, headline left, actions stacked on the right. */
+function CardTextStack({
+  article,
+  hideTopicLabel,
+  topicLabel,
+  geoLabel,
+  isRefreshing,
+  showTranslation,
+  toggleTranslation,
+  iconSize,
+  headlineSizeClass,
+  headlineClampClass = 'line-clamp-3',
+  onHeadlineMouseEnter,
+  onHeadlineMouseLeave,
+}: {
+  article: Article;
+  hideTopicLabel: boolean;
+  topicLabel: string | null;
+  geoLabel: string | null;
+  isRefreshing: boolean;
+  showTranslation: boolean;
+  toggleTranslation: (e: React.MouseEvent) => void;
+  iconSize: number;
+  headlineSizeClass: string;
+  headlineClampClass?: string;
+  onHeadlineMouseEnter?: () => void;
+  onHeadlineMouseLeave?: () => void;
+}) {
+  const primaryLeft = hideTopicLabel ? article.hoursSinceMostRecent : topicLabel;
+
   return (
-    <span className={cn(
-      'font-bold uppercase tracking-wider text-ui-primary',
-      size === 'xs' ? 'text-[10px]' : 'text-[11px]',
-      size === 'sm' && 'bg-ui-primary/10 px-2 py-0.5 rounded',
-      isRefreshing && refreshBlur
-    )}>
-      {label}
-    </span>
+    <div className="flex flex-1 min-w-0 flex-col">
+      <div className={cn('mb-1 flex items-start justify-between gap-3 text-[11px]', isRefreshing && refreshBlur)}>
+        {primaryLeft ? (
+          <span
+            className={cn(
+              hideTopicLabel
+                ? 'font-medium text-ui-muted-foreground'
+                : 'font-bold uppercase tracking-wider text-ui-primary',
+            )}
+          >
+            {primaryLeft}
+          </span>
+        ) : (
+          <span />
+        )}
+        {geoLabel && (
+          <span className="text-right font-medium uppercase tracking-wider text-ui-muted-foreground">
+            {geoLabel}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-1 min-w-0 items-center gap-2">
+        <h3
+          className={cn(
+            'relative min-w-0 flex-1 font-semibold leading-[1.25] transition-colors duration-300',
+            headlineSizeClass,
+            showTranslation ? 'text-primary-light' : 'text-primary',
+            isRefreshing && refreshBlur,
+          )}
+          title={showTranslation ? undefined : (article.headlineFamiliar || undefined)}
+          onMouseEnter={onHeadlineMouseEnter}
+          onMouseLeave={onHeadlineMouseLeave}
+        >
+          <span className={cn(headlineClampClass, showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
+            {article.headline}
+          </span>
+          {showTranslation && !isRefreshing && (
+            <span className={cn('absolute inset-0', headlineClampClass)}>{article.headlineFamiliar}</span>
+          )}
+        </h3>
+
+        <HeadlineRow
+          article={article}
+          showTranslation={showTranslation}
+          toggleTranslation={toggleTranslation}
+          isRefreshing={isRefreshing}
+          iconSize={iconSize}
+          layout="column"
+        />
+      </div>
+    </div>
   );
 }
 
@@ -73,27 +146,47 @@ function HeadlineRow({
   toggleTranslation,
   isRefreshing,
   iconSize = 14,
+  layout = 'row',
 }: {
   article: Article;
   showTranslation: boolean;
   toggleTranslation: (e: React.MouseEvent) => void;
   isRefreshing: boolean;
   iconSize?: number;
+  layout?: 'row' | 'mobile-column' | 'column';
 }) {
   if (isRefreshing) return null;
+  // Mobile-first sizing for the translate icon so the tap target is at
+  // least ~44px on touch screens, while desktop keeps the compact size
+  // that matches the surrounding metadata text.
+  const isHero = iconSize >= 18;
+  const translateIconClass = isHero
+    ? 'w-[20px] h-[20px]'
+    : 'w-[18px] h-[18px]';
+  
+  const isColumn = layout === 'column';
+
   return (
-    <span className="ml-auto flex items-center gap-1 shrink-0">
-      <ArticleQueueButton article={article} size={iconSize >= 18 ? 'md' : 'sm'} />
+    <span className={cn(
+      'flex shrink-0 items-center',
+      isColumn
+        ? 'h-[96px] flex-col justify-center gap-0'
+        : layout === 'mobile-column'
+          ? 'ml-0 flex-col gap-0 sm:ml-auto sm:flex-row sm:gap-1'
+          : 'ml-auto gap-1',
+    )}>
+      <ArticleQueueButton article={article} size={isHero ? 'md' : 'sm'} layout={layout} />
       {article.headlineFamiliar && (
         <button
           onClick={toggleTranslation}
           className={cn(
-            'flex-shrink-0 inline-flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors duration-200 hover:text-ui-primary p-2 rounded-md',
+            'flex-shrink-0 inline-flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors duration-200 hover:text-ui-primary rounded-md',
+            isColumn ? 'p-1.5' : (layout === 'mobile-column' ? 'p-2.5' : 'p-3 sm:p-2'),
             showTranslation ? 'text-ui-primary' : 'text-ui-muted-foreground/60'
           )}
           aria-label={showTranslation ? 'Show original' : 'Translate headline'}
         >
-          <MessageCircleQuestion style={{ width: iconSize, height: iconSize }} />
+          <MessageCircleQuestion className={translateIconClass} />
         </button>
       )}
     </span>
@@ -122,9 +215,6 @@ export default function ArticleCard({
 
   const imageUrl = article.imageLinks?.[0] || null;
   const topicLabel = labelFromMap(topicMap, article.topic);
-  const metaText = article.subtopic
-    ? labelFromMap(subtopicMap, article.subtopic)
-    : labelFromMap(geographyMap, article.geography);
   const geoLabel = labelFromMap(geographyMap, article.geography);
 
   const handleHeadlineMouseEnter = useCallback(() => {
@@ -158,8 +248,6 @@ export default function ArticleCard({
     title: hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined,
   };
 
-  const headlineColor = showTranslation ? 'text-primary-light' : 'text-primary';
-
   if (variant === 'hero') {
     return (
       <Link href={`/article?id=${article.articleId}`} className="block no-underline group" onClick={handleClick}>
@@ -190,38 +278,20 @@ export default function ArticleCard({
               </div>
             )}
           </div>
-          <div className="p-4 sm:p-5">
-            <div className="flex items-center gap-2 mb-2 min-w-0">
-              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-2">
-                {topicLabel && <TopicLabel label={topicLabel} isRefreshing={isRefreshing} />}
-                {metaText && (
-                  <span className={cn('text-[11px] font-medium text-ui-muted-foreground truncate', isRefreshing && refreshBlur)}>
-                    {metaText}
-                  </span>
-                )}
-                {article.hoursSinceMostRecent && (
-                  <span className="article-time-label shrink-0 whitespace-nowrap text-[11px] text-ui-muted-foreground hidden sm:inline">
-                    {article.hoursSinceMostRecent}
-                  </span>
-                )}
-              </div>
-              <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={18} />
-            </div>
-            <h2
-              className={cn(
-                'relative text-[20px] sm:text-[24px] font-semibold leading-[1.25] transition-colors duration-300 overflow-hidden',
-                headlineColor,
-                isRefreshing && refreshBlur
-              )}
-              {...headlineProps}
-            >
-              <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
-                {article.headline}
-              </span>
-              {showTranslation && !isRefreshing && (
-                <span className="absolute inset-0 line-clamp-3">{article.headlineFamiliar}</span>
-              )}
-            </h2>
+          <div className="p-3.5 sm:p-4 flex flex-col">
+            <CardTextStack
+              article={article}
+              hideTopicLabel={hideTopicLabel}
+              topicLabel={topicLabel}
+              geoLabel={geoLabel}
+              isRefreshing={isRefreshing}
+              showTranslation={showTranslation}
+              toggleTranslation={toggleTranslation}
+              iconSize={18}
+              headlineSizeClass="text-[20px] sm:text-[24px]"
+              onHeadlineMouseEnter={headlineProps.onMouseEnter}
+              onHeadlineMouseLeave={headlineProps.onMouseLeave}
+            />
           </div>
         </article>
       </Link>
@@ -245,33 +315,21 @@ export default function ArticleCard({
               </div>
             )}
           </div>
-          <div className="p-3 flex flex-col justify-center flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1 min-w-0">
-              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-1.5">
-                {topicLabel && <TopicLabel label={topicLabel} size="xs" isRefreshing={isRefreshing} />}
-                {article.hoursSinceMostRecent && (
-                  <span className="article-time-label shrink-0 whitespace-nowrap text-[10px] text-ui-muted-foreground hidden sm:inline">
-                    {article.hoursSinceMostRecent}
-                  </span>
-                )}
-              </div>
-              <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={14} />
-            </div>
-            <h3
-              className={cn(
-                'relative text-[14px] sm:text-[15px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden',
-                headlineColor,
-                isRefreshing && refreshBlur
-              )}
-              {...headlineProps}
-            >
-              <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
-                {article.headline}
-              </span>
-              {showTranslation && !isRefreshing && (
-                <span className="absolute inset-0 line-clamp-3">{article.headlineFamiliar}</span>
-              )}
-            </h3>
+          <div className="p-2.5 flex flex-1 min-w-0 flex-col">
+            <CardTextStack
+              article={article}
+              hideTopicLabel={hideTopicLabel}
+              topicLabel={topicLabel}
+              geoLabel={geoLabel}
+              isRefreshing={isRefreshing}
+              showTranslation={showTranslation}
+              toggleTranslation={toggleTranslation}
+              iconSize={14}
+              headlineSizeClass="text-[14px] sm:text-[15px]"
+              headlineClampClass="line-clamp-4"
+              onHeadlineMouseEnter={headlineProps.onMouseEnter}
+              onHeadlineMouseLeave={headlineProps.onMouseLeave}
+            />
           </div>
         </article>
       </Link>
@@ -291,40 +349,20 @@ export default function ArticleCard({
             )}
             {article.read && <ReadBadge size="sm" />}
           </div>
-          <div className="p-4 flex flex-col">
-            <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
-              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-1.5">
-                {hideTopicLabel
-                  ? geoLabel && <TopicLabel label={geoLabel} size="xs" isRefreshing={isRefreshing} />
-                  : topicLabel && <TopicLabel label={topicLabel} size="xs" isRefreshing={isRefreshing} />}
-                {article.hoursSinceMostRecent && (
-                  <span className="article-time-label shrink-0 whitespace-nowrap text-[11px] text-ui-muted-foreground hidden sm:inline">
-                    {article.hoursSinceMostRecent}
-                  </span>
-                )}
-              </div>
-              <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={14} />
-            </div>
-            <h3
-              className={cn(
-                'relative text-[16px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden',
-                headlineColor,
-                isRefreshing && refreshBlur
-              )}
-              {...headlineProps}
-            >
-              <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
-                {article.headline}
-              </span>
-              {showTranslation && !isRefreshing && (
-                <span className="absolute inset-0 line-clamp-3">{article.headlineFamiliar}</span>
-              )}
-            </h3>
-            {!hideTopicLabel && metaText && (
-              <span className={cn('text-[11px] mt-auto pt-2 text-ui-muted-foreground truncate', isRefreshing && refreshBlur)}>
-                {metaText}
-              </span>
-            )}
+          <div className="p-3.5 flex flex-col flex-1">
+            <CardTextStack
+              article={article}
+              hideTopicLabel={hideTopicLabel}
+              topicLabel={topicLabel}
+              geoLabel={geoLabel}
+              isRefreshing={isRefreshing}
+              showTranslation={showTranslation}
+              toggleTranslation={toggleTranslation}
+              iconSize={14}
+              headlineSizeClass="text-[16px]"
+              onHeadlineMouseEnter={headlineProps.onMouseEnter}
+              onHeadlineMouseLeave={headlineProps.onMouseLeave}
+            />
           </div>
         </article>
       </Link>
@@ -343,40 +381,20 @@ export default function ArticleCard({
           )}
           {article.read && <ReadBadge size="sm" />}
         </div>
-        <div className="p-3 flex-1 flex flex-col">
-            <div className="flex items-center gap-1.5 mb-1 min-w-0">
-              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-1.5">
-                {hideTopicLabel
-                  ? geoLabel && <TopicLabel label={geoLabel} size="xs" isRefreshing={isRefreshing} />
-                  : topicLabel && <TopicLabel label={topicLabel} size="xs" isRefreshing={isRefreshing} />}
-                {article.hoursSinceMostRecent && (
-                  <span className="article-time-label shrink-0 whitespace-nowrap text-[10px] text-ui-muted-foreground hidden sm:inline">
-                    {article.hoursSinceMostRecent}
-                  </span>
-                )}
-              </div>
-            <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={14} />
-          </div>
-          <h3
-            className={cn(
-              'relative text-[14px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden',
-              headlineColor,
-              isRefreshing && refreshBlur
-            )}
-            {...headlineProps}
-          >
-            <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
-              {article.headline}
-            </span>
-            {showTranslation && !isRefreshing && (
-              <span className="absolute inset-0 line-clamp-3">{article.headlineFamiliar}</span>
-            )}
-          </h3>
-          {!hideTopicLabel && metaText && (
-            <span className={cn('text-[10px] mt-auto pt-2 text-ui-muted-foreground', isRefreshing && refreshBlur)}>
-              {metaText}
-            </span>
-          )}
+        <div className="p-2.5 flex-1 flex flex-col">
+          <CardTextStack
+            article={article}
+            hideTopicLabel={hideTopicLabel}
+            topicLabel={topicLabel}
+            geoLabel={geoLabel}
+            isRefreshing={isRefreshing}
+            showTranslation={showTranslation}
+            toggleTranslation={toggleTranslation}
+            iconSize={14}
+            headlineSizeClass="text-[16px]"
+            onHeadlineMouseEnter={headlineProps.onMouseEnter}
+            onHeadlineMouseLeave={headlineProps.onMouseLeave}
+          />
         </div>
       </article>
     </Link>

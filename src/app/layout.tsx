@@ -13,6 +13,7 @@ import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { ReferralProvider } from '@/contexts/ReferralContext';
 import { AudioStatusProvider } from '@/contexts/AudioStatusContext';
 import { PlayAllAudioProvider } from '@/contexts/PlayAllAudioContext';
+import PlayAllAudio from '@/components/articles/PlayAllAudio';
 import { Toaster } from '@/components/ui/sonner';
 import { SHOW_APP_STORE_PROMO } from '@/config/site-promos';
 import { API_ORIGIN } from '@/config/environment';
@@ -101,6 +102,7 @@ export default function RootLayout({
                         <Footer />
                         <NetworkStatus />
                         <Toaster position="bottom-right" offset={16} richColors />
+                        <Suspense><PlayAllAudio /></Suspense>
                         </PlayAllAudioProvider>
                     </AudioStatusProvider>
                   </ArticlesProvider>
