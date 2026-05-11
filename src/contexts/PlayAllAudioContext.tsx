@@ -353,8 +353,21 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
 
   const shouldAutoplayNextRef = useRef(() => false);
   shouldAutoplayNextRef.current = () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    if (typeof document === 'undefined') return false;
+    // Lock screen / background tab — always keep the queue moving.
+    if (document.visibilityState === 'hidden') {
       return true;
+    }
+    // iOS WebKit sometimes leaves visibility as "visible" while the device is
+    // locked or Safari is backgrounded; the document usually loses focus then.
+    // Without this, we would incorrectly take the "pause after transition"
+    // path meant for foreground article reading on /?article=….
+    try {
+      if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
+        return true;
+      }
+    } catch {
+      // ignore
     }
     return isOnHomeListRef.current;
   };
