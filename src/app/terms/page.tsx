@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Card, CardContent } from '@/components/ui/card';
 
 export const metadata: Metadata = {
   title: 'Terms of Service - Reetle',
@@ -7,11 +8,12 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <section className="py-2xl">
-      <div className="max-w-[1200px] mx-auto px-md">
-        <div className="card max-w-[800px] mx-auto hover:transform-none hover:shadow-none" style={{ animation: 'none' }}>
-          <h1 className="text-display-md text-primary mb-sm">Terms of Service</h1>
-          <p className="text-body-md text-text-secondary mb-xl">Last updated: December 2025</p>
+    <section className="py-12 sm:py-16">
+      <div className="max-w-[1200px] mx-auto px-4">
+        <Card className="max-w-[800px] mx-auto">
+          <CardContent className="p-6 sm:p-8">
+          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-1">Terms of Service</h1>
+          <p className="text-[14px] text-ui-muted-foreground mb-8">Last updated: December 2025</p>
 
           <h2 className="text-title-lg text-primary mt-xl mb-md">1. Acceptance of Terms</h2>
           <p className="text-body-md text-primary">
@@ -83,7 +85,8 @@ export default function TermsPage() {
           <p className="text-body-md text-primary mt-sm">
             <strong>Email:</strong> support@reetle.com
           </p>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </section>
   );

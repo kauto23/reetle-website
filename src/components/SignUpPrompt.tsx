@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useLoginUrl } from '@/hooks/useLoginUrl';
 
 interface SignUpPromptProps {
   variant: 'modal' | 'inline';
@@ -15,6 +16,7 @@ export default function SignUpPrompt({
   message = 'Sign up for free to get unlimited access.',
   onClose,
 }: SignUpPromptProps) {
+  const loginUrl = useLoginUrl();
   if (variant === 'inline') {
     return (
       <div className="animate-fadeIn">
@@ -33,7 +35,7 @@ export default function SignUpPrompt({
             {message}
           </p>
           <Link
-            href="/login"
+            href={loginUrl}
             className="bg-primary text-white text-[13px] font-semibold px-[20px] py-[8px] rounded-lg hover:bg-primary/90 transition-colors"
           >
             Sign Up Free
@@ -81,7 +83,7 @@ export default function SignUpPrompt({
 
         <div className="flex flex-col gap-[10px]">
           <Link
-            href="/login"
+            href={loginUrl}
             className="bg-primary text-white text-[15px] font-semibold px-[24px] py-[12px] rounded-lg hover:bg-primary/90 transition-colors"
           >
             Sign Up Free

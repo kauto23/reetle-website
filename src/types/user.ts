@@ -9,6 +9,7 @@ export interface User {
   familiarLanguage: string | null;
   targetLanguage: string | null;
   deviceToken: string | null;
+  hasPremium: boolean;
 }
 
 export interface TargetLanguage {

@@ -7,17 +7,38 @@ import { useArticles } from '@/contexts/ArticlesContext';
 import { useMemo } from 'react';
 
 import { CATEGORY_ORDER } from '@/config/categories';
+import { labelFromMap } from '@/lib/translationMap';
 
 const loadingBlur = 'blur-[5px] select-none pointer-events-none opacity-60';
 const refreshBlur = 'blur-[3px] select-none pointer-events-none';
+const NAV_PLACEHOLDER = '\u00A0';
 
 interface TopicNavProps {
   selectedSubtopic?: string | null;
   onSubtopicChange?: (subtopic: string | null) => void;
   subtopics?: string[];
+  /**
+   * When rendered on the home page, mirrors the underline to the topic whose
+   * sticky section header is currently pinned. Uses the same active logic as
+   * the "all" topic tab when no section is highlighted.
+   */
+  activeSectionTopic?: string | null;
 }
 
-export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics = [] }: TopicNavProps) {
+function allTopicsLabel(articlesData: { allTranslation: string } | null | undefined): string {
+  if (!articlesData?.allTranslation?.trim()) return NAV_PLACEHOLDER;
+  return articlesData.allTranslation;
+}
+
+function topicLinkLabel(
+  cat: string,
+  articlesData: { topicMap: Record<string, string> } | null | undefined
+): string {
+  if (!articlesData) return NAV_PLACEHOLDER;
+  return labelFromMap(articlesData.topicMap, cat) ?? NAV_PLACEHOLDER;
+}
+
+export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics = [], activeSectionTopic = null }: TopicNavProps) {
   const pathname = usePathname();
   const { articlesData, isRefreshing } = useArticles();
   const allArticles = useMemo(() => articlesData?.articles ?? [], [articlesData]);
@@ -30,15 +51,21 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
   const isHome = pathname === '/';
   const topicSlug = pathname.startsWith('/topic/') ? decodeURIComponent(pathname.split('/')[2]) : null;
 
-  const activeTopic = isHome ? 'all' : (topicSlug ? categories.find(c => c.toLowerCase() === topicSlug.toLowerCase()) || null : null);
+  const matchedSectionTopic = isHome && activeSectionTopic
+    ? categories.find(c => c.toLowerCase() === activeSectionTopic.toLowerCase()) || null
+    : null;
+
+  const activeTopic = isHome
+    ? (matchedSectionTopic ?? 'all')
+    : (topicSlug ? categories.find(c => c.toLowerCase() === topicSlug.toLowerCase()) || null : null);
 
   const isInitialLoad = !articlesData;
 
-  const btnBase = 'px-[16px] py-[12px] text-[13px] font-semibold tracking-wide uppercase transition-all duration-200 border-b-[3px] border-transparent cursor-pointer bg-transparent whitespace-nowrap';
-  const btnActive = 'border-b-primary text-primary';
-  const btnInactive = 'text-text-secondary hover:text-primary hover:border-b-primary/30';
+  const btnBase = 'px-4 py-3 text-[13px] font-semibold tracking-wide uppercase transition-all duration-200 border-b-[3px] border-transparent cursor-pointer bg-transparent whitespace-nowrap';
+  const btnActive = 'border-b-ui-primary text-ui-primary';
+  const btnInactive = 'text-ui-muted-foreground hover:text-ui-primary hover:border-b-ui-primary/30';
 
-  const displayCategories = categories.length > 0 ? categories : (isInitialLoad ? CATEGORY_ORDER : []);
+  const displayCategories = categories;
 
   const btnStyle = (isActive: boolean) => {
     if (isInitialLoad) return loadingBlur;
@@ -47,7 +74,7 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
   };
 
   return (
-    <div className="bg-white border-b border-border sticky top-[48px] z-[900]">
+    <div className="bg-ui-card border-b border-ui-border sticky top-[48px]" style={{ zIndex: 'var(--z-topic-nav)' }}>
       <div className="max-w-[1280px] mx-auto px-md">
         <ScrollableNav>
           <div className="flex items-center gap-0">
@@ -55,7 +82,7 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
               href="/"
               className={`${btnBase} ${btnStyle(activeTopic === 'all')}`}
             >
-              {articlesData?.allTranslation || 'All'}
+              {allTopicsLabel(articlesData)}
             </Link>
             {displayCategories.map(cat => (
               <Link
@@ -63,7 +90,7 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
                 href={`/topic/${cat.toLowerCase()}`}
                 className={`${btnBase} ${btnStyle(activeTopic === cat)}`}
               >
-                {articlesData?.topicMap[cat.toLowerCase()] || articlesData?.topicMap[cat] || cat}
+                {topicLinkLabel(cat, articlesData)}
               </Link>
             ))}
           </div>
@@ -75,7 +102,7 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
               onClick={() => onSubtopicChange(null)}
               className={`${btnBase} ${!selectedSubtopic ? btnActive : btnInactive}`}
             >
-              All
+              {allTopicsLabel(articlesData)}
             </button>
             {subtopics.map(sub => (
               <button
@@ -83,7 +110,7 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
                 onClick={() => onSubtopicChange(sub)}
                 className={`${btnBase} ${btnStyle(selectedSubtopic === sub)}`}
               >
-                {articlesData?.subtopicMap[sub] || sub}
+                {labelFromMap(articlesData?.subtopicMap, sub) ?? NAV_PLACEHOLDER}
               </button>
             ))}
           </ScrollableNav>

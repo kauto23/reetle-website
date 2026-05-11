@@ -2,10 +2,14 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, ClipboardCheck, Loader2 } from 'lucide-react';
 import AuthGuard from '@/components/layout/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { startAssessment, submitAssessmentAnswer, cancelAssessment } from '@/services/api';
 import type { AssessmentQuestion, AssessmentSummary } from '@/types/assessment';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type AssessmentState = 'intro' | 'loading' | 'question' | 'complete' | 'error';
 
@@ -41,25 +45,19 @@ export default function AssessmentPage() {
 
   const handleSelectAnswer = useCallback(async (answerIndex: number) => {
     if (hasAnswered || !assessmentId) return;
-
     setSelectedAnswer(answerIndex);
     setHasAnswered(true);
-
     try {
       const result = await submitAssessmentAnswer(assessmentId, answerIndex);
-
       if (result.complete && result.summary) {
         setWasCorrect(null);
         setSummary(result.summary);
         updateLocalUser({ cefrLevel: result.summary.cefrLevel, hasCompletedAssessment: true });
-
         setTimeout(() => setState('complete'), 1500);
       } else {
         setWasCorrect(result.wasCorrect ?? null);
         setCorrectIndex(result.correctIndex ?? null);
         setExplanation(result.explanation ?? null);
-
-        // Advance to next question after a delay
         setTimeout(() => {
           if (result.question) {
             setQuestion(result.question);
@@ -80,75 +78,54 @@ export default function AssessmentPage() {
 
   const handleCancel = useCallback(async () => {
     if (assessmentId) {
-      try {
-        await cancelAssessment(assessmentId);
-      } catch {
-        // Non-critical
-      }
+      try { await cancelAssessment(assessmentId); } catch { /* non-critical */ }
     }
     router.back();
   }, [assessmentId, router]);
 
   return (
     <AuthGuard>
-      <section className="py-2xl">
-        <div className="max-w-[600px] mx-auto px-md">
-          {/* Intro */}
+      <section className="py-12 sm:py-16">
+        <div className="max-w-[600px] mx-auto px-4">
           {state === 'intro' && (
             <div className="text-center animate-fadeIn">
-              <div className="w-[64px] h-[64px] bg-primary rounded-2xl flex items-center justify-center mx-auto mb-lg">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                </svg>
+              <div className="w-16 h-16 bg-ui-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <ClipboardCheck className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-display-md text-primary mb-sm">Level Assessment</h1>
-              <p className="text-body-lg text-text-secondary mb-xl">
-                This quick quiz takes about 1 minute and helps us determine your CEFR level
-                so we can personalise your reading content.
+              <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Level Assessment</h1>
+              <p className="text-[15px] text-ui-muted-foreground mb-8 max-w-md mx-auto">
+                A 1-minute quiz that helps us determine your CEFR level so we can personalise your reading.
               </p>
-              <button onClick={handleStart} className="btn-primary w-full mb-md">
-                Start Assessment
-              </button>
-              <button
-                onClick={() => router.back()}
-                className="text-body-md text-text-secondary hover:text-primary cursor-pointer bg-transparent border-none transition-colors"
-              >
-                ← Go back
-              </button>
+              <Button onClick={handleStart} size="lg" className="w-full mb-3">Start assessment</Button>
+              <Button onClick={() => router.back()} variant="ghost" size="sm">← Go back</Button>
             </div>
           )}
 
-          {/* Loading */}
           {state === 'loading' && (
-            <div className="flex flex-col items-center justify-center py-xl gap-md">
-              <div className="loading-spinner" />
-              <p className="text-body-md text-text-secondary">Preparing your assessment...</p>
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <Loader2 className="w-9 h-9 animate-spin text-ui-primary" />
+              <p className="text-[14px] text-ui-muted-foreground">Preparing your assessment...</p>
             </div>
           )}
 
-          {/* Question */}
           {state === 'question' && question && (
             <div className="animate-fadeIn">
-              {/* Progress */}
-              <div className="flex items-center justify-between mb-lg">
-                <span className="text-body-md text-text-secondary">Question {questionNumber}</span>
-                <button
-                  onClick={handleCancel}
-                  className="text-body-md text-text-secondary hover:text-incorrect cursor-pointer bg-transparent border-none transition-colors"
-                >
+              <div className="flex items-center justify-between mb-6">
+                <span className="text-[14px] text-ui-muted-foreground">Question {questionNumber}</span>
+                <Button onClick={handleCancel} variant="ghost" size="sm" className="text-ui-muted-foreground hover:text-incorrect">
                   Cancel
-                </button>
+                </Button>
               </div>
 
-              {/* Question */}
-              <div className="card hover:transform-none mb-lg" style={{ animation: 'none' }}>
-                <p className="text-[18px] font-medium text-primary leading-relaxed">
-                  {question.question}
-                </p>
-              </div>
+              <Card className="mb-6">
+                <CardContent className="p-5">
+                  <p className="text-[18px] font-medium text-ui-foreground leading-relaxed">
+                    {question.question}
+                  </p>
+                </CardContent>
+              </Card>
 
-              {/* Options */}
-              <div className="flex flex-col gap-[8px]">
+              <div className="flex flex-col gap-2">
                 {question.options.map((option, index) => {
                   const isSelected = selectedAnswer === index;
                   const showCorrect = hasAnswered && correctIndex === index;
@@ -160,24 +137,20 @@ export default function AssessmentPage() {
                       key={index}
                       onClick={() => handleSelectAnswer(index)}
                       disabled={hasAnswered}
-                      className={`
-                        p-md rounded-xl border text-left transition-all duration-300 w-full cursor-pointer
-                        ${!hasAnswered
-                          ? 'border-border bg-surface hover:border-primary-light hover:bg-white'
-                          : showCorrect || showSelectedCorrect
-                            ? 'border-correct bg-correct-bg'
-                            : showIncorrect
-                              ? 'border-incorrect bg-incorrect-bg'
-                              : 'border-border bg-surface opacity-50'
-                        }
-                        ${hasAnswered ? 'cursor-default' : ''}
-                      `}
+                      className={cn(
+                        'p-4 rounded-xl border text-left transition-all duration-300 w-full',
+                        !hasAnswered && 'border-ui-border bg-ui-card hover:border-primary-light hover:shadow-sm cursor-pointer',
+                        hasAnswered && (showCorrect || showSelectedCorrect) && 'border-correct bg-correct-bg cursor-default',
+                        hasAnswered && showIncorrect && 'border-incorrect bg-incorrect-bg cursor-default',
+                        hasAnswered && !showCorrect && !showSelectedCorrect && !showIncorrect && 'border-ui-border bg-ui-card opacity-50 cursor-default'
+                      )}
                     >
-                      <p className={`text-[16px] font-medium ${
-                        showCorrect || showSelectedCorrect ? 'text-correct-text'
-                        : showIncorrect ? 'text-incorrect-text'
-                        : 'text-primary'
-                      }`}>
+                      <p className={cn(
+                        'text-[16px] font-medium',
+                        (showCorrect || showSelectedCorrect) && 'text-correct-text',
+                        showIncorrect && 'text-incorrect-text',
+                        !showCorrect && !showSelectedCorrect && !showIncorrect && 'text-ui-foreground'
+                      )}>
                         {option}
                       </p>
                     </button>
@@ -185,10 +158,12 @@ export default function AssessmentPage() {
                 })}
               </div>
 
-              {/* Explanation */}
               {hasAnswered && explanation && (
-                <div className={`mt-lg p-md rounded-xl animate-fadeIn ${wasCorrect ? 'bg-correct-bg' : 'bg-incorrect-bg'}`}>
-                  <p className={`text-body-md ${wasCorrect ? 'text-correct-text' : 'text-incorrect-text'}`}>
+                <div className={cn(
+                  'mt-6 p-4 rounded-xl animate-fadeIn',
+                  wasCorrect ? 'bg-correct-bg' : 'bg-incorrect-bg'
+                )}>
+                  <p className={cn('text-[14px]', wasCorrect ? 'text-correct-text' : 'text-incorrect-text')}>
                     {explanation}
                   </p>
                 </div>
@@ -196,46 +171,41 @@ export default function AssessmentPage() {
             </div>
           )}
 
-          {/* Complete */}
           {state === 'complete' && summary && (
             <div className="text-center animate-fadeIn">
-              <div className="w-[80px] h-[80px] bg-correct rounded-full flex items-center justify-center mx-auto mb-lg">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+              <div className="w-20 h-20 bg-correct rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-10 h-10 text-white" strokeWidth={2.5} />
               </div>
 
-              <h1 className="text-display-md text-primary mb-sm">Assessment Complete!</h1>
-              <p className="text-body-lg text-text-secondary mb-lg">
+              <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Assessment Complete!</h1>
+              <p className="text-[15px] text-ui-muted-foreground mb-6">
                 Based on your answers, your level is:
               </p>
 
-              <div className="card hover:transform-none mb-xl" style={{ animation: 'none' }}>
-                <p className="text-[48px] font-bold text-primary mb-sm">{summary.cefrLevel}</p>
-                {summary.justification && (
-                  <p className="text-body-md text-text-secondary">{summary.justification}</p>
-                )}
-                {summary.stats && (
-                  <p className="text-body-md text-text-secondary mt-md">
-                    {summary.stats.correct} / {summary.stats.totalQuestions} correct
-                  </p>
-                )}
-              </div>
+              <Card className="mb-8">
+                <CardContent className="p-6">
+                  <p className="text-[48px] font-bold text-ui-primary mb-2">{summary.cefrLevel}</p>
+                  {summary.justification && (
+                    <p className="text-[14px] text-ui-muted-foreground">{summary.justification}</p>
+                  )}
+                  {summary.stats && (
+                    <p className="text-[14px] text-ui-muted-foreground mt-3">
+                      {summary.stats.correct} / {summary.stats.totalQuestions} correct
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
-              <button
-                onClick={() => router.push('/articles')}
-                className="btn-primary w-full"
-              >
-                Start Reading
-              </button>
+              <Button onClick={() => router.push('/articles')} size="lg" className="w-full">
+                Start reading
+              </Button>
             </div>
           )}
 
-          {/* Error */}
           {state === 'error' && (
-            <div className="text-center py-xl">
-              <p className="text-body-lg text-text-secondary mb-md">{error}</p>
-              <button onClick={handleStart} className="btn-primary">Try Again</button>
+            <div className="text-center py-12">
+              <p className="text-[15px] text-ui-muted-foreground mb-4">{error}</p>
+              <Button onClick={handleStart}>Try again</Button>
             </div>
           )}
         </div>

@@ -6,14 +6,18 @@ import { useAuth } from '@/contexts/AuthContext';
 const STORAGE_KEY = 'reetle-mobile-nudge-dismissed';
 
 export default function MobileGuestNudge() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) return;
+    if (isLoading) return;
+    if (isAuthenticated) {
+      setVisible(false);
+      return;
+    }
     const dismissed = localStorage.getItem(STORAGE_KEY);
     if (!dismissed) setVisible(true);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isLoading]);
 
   useEffect(() => {
     if (!visible) return;
@@ -37,7 +41,7 @@ export default function MobileGuestNudge() {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-[2000] md:hidden">
+    <div className="fixed inset-0 md:hidden" style={{ zIndex: 'var(--z-mobile-nudge)' }}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-primary-dark/80 backdrop-blur-sm" />
 
@@ -113,7 +117,7 @@ export default function MobileGuestNudge() {
 
           <button
             onClick={dismiss}
-            className="w-full bg-primary text-white font-medium py-[14px] rounded-lg text-[15px] cursor-pointer border-none transition-colors hover:bg-primary-dark active:bg-primary-dark"
+            className="w-full bg-ui-primary text-white font-medium py-3.5 rounded-lg text-[15px] cursor-pointer border-none transition-colors hover:bg-primary-dark active:bg-primary-dark"
           >
             Got it
           </button>

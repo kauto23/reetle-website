@@ -4,14 +4,20 @@ import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import Link from 'next/link';
 import TranslationSheet from '@/components/articles/TranslationSheet';
 import TranslationDemoBanner from '@/components/articles/TranslationDemoBanner';
+import OpenInBrowserBanner from '@/components/articles/OpenInBrowserBanner';
 import SelectionHandles from '@/components/articles/SelectionHandles';
+import ArticleAudioPlayer from '@/components/articles/ArticleAudioPlayer';
 import { useArticles } from '@/contexts/ArticlesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
-import { getArticleContent, getGuestArticleContent, getArticleQuestions, getGuestArticleQuestions, GuestQuotaError } from '@/services/api';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { getArticleContent, getGuestArticleContent, getArticleQuestions, getGuestArticleQuestions, GuestQuotaError, FreeTierQuotaError } from '@/services/api';
 import { prefetchQuiz } from '@/services/quizCache';
 import type { Article } from '@/types/article';
 import { useHasHover } from '@/hooks/useHasHover';
+import { useLoginUrl } from '@/hooks/useLoginUrl';
+import { Button } from '@/components/ui/button';
+import { ClipboardCheck, MessageCircleQuestion, PenLine, BookOpen, Check, Layers } from 'lucide-react';
 
 // ── Highlight types & helpers ────────────────────────────────────────────────
 
@@ -32,25 +38,76 @@ function mergeRanges(ranges: HRange[]): HRange[] {
   return out;
 }
 
-function renderHighlighted(text: string, ranges: HRange[], activeRange?: HRange | null): ReactNode {
-  const merged = mergeRanges(ranges);
-  if (!merged.length) return text;
+/**
+ * Renders `text` with:
+ *   - `lockedRanges`: ranges the user has already translated (persist after
+ *     the translation sheet closes)
+ *   - `activeRange`: the currently-selected range (what the TranslationSheet
+ *     is showing and what SelectionHandles should position over)
+ *
+ * The active range is always rendered as its OWN <mark> (tagged with
+ * `data-active-mark`) — even when it overlaps/sits inside a locked range.
+ * Locked ranges are split around the active range so a wider locked mark
+ * never swallows the narrower active mark.
+ */
+function renderHighlighted(text: string, lockedRanges: HRange[], activeRange?: HRange | null): ReactNode {
+  type Seg = { start: number; end: number; isActive: boolean };
+  const mergedLocked = mergeRanges(lockedRanges);
+  const segments: Seg[] = [];
+
+  if (activeRange) {
+    segments.push({ start: activeRange.start, end: activeRange.end, isActive: true });
+    for (const r of mergedLocked) {
+      const overlaps = r.start < activeRange.end && r.end > activeRange.start;
+      if (!overlaps) {
+        segments.push({ start: r.start, end: r.end, isActive: false });
+        continue;
+      }
+      if (r.start < activeRange.start) {
+        segments.push({ start: r.start, end: activeRange.start, isActive: false });
+      }
+      if (r.end > activeRange.end) {
+        segments.push({ start: activeRange.end, end: r.end, isActive: false });
+      }
+    }
+  } else {
+    for (const r of mergedLocked) {
+      segments.push({ start: r.start, end: r.end, isActive: false });
+    }
+  }
+
+  if (!segments.length) return text;
+
+  segments.sort((a, b) => a.start - b.start);
+
+  // Fuse adjacent/overlapping NON-active segments so we don't emit adjacent
+  // <mark>s that would render as a visible seam. We never fuse the active
+  // segment with anything.
+  const collapsed: Seg[] = [];
+  for (const seg of segments) {
+    const last = collapsed[collapsed.length - 1];
+    if (last && !last.isActive && !seg.isActive && seg.start <= last.end) {
+      last.end = Math.max(last.end, seg.end);
+    } else {
+      collapsed.push({ ...seg });
+    }
+  }
+
   const parts: ReactNode[] = [];
   let cur = 0;
-  for (const r of merged) {
-    if (r.start > cur) parts.push(text.slice(cur, r.start));
-    const isActive = activeRange && r.start === activeRange.start && r.end === activeRange.end;
+  for (const seg of collapsed) {
+    if (seg.start > cur) parts.push(text.slice(cur, seg.start));
     parts.push(
       <mark
-        key={r.start}
-        className="bg-primary/[0.14] text-primary rounded-[2px] px-[1px]"
-        style={{ textDecoration: 'none' }}
-        {...(isActive ? { 'data-active-mark': '' } : {})}
+        key={seg.start}
+        className="bg-primary/[0.14] text-primary"
+        style={{ textDecoration: 'none', padding: 0, borderRadius: 0 }}
+        {...(seg.isActive ? { 'data-active-mark': '' } : {})}
       >
-        {text.slice(r.start, r.end)}
-      </mark>
+        {text.slice(seg.start, seg.end)}
+      </mark>,
     );
-    cur = r.end;
+    cur = seg.end;
   }
   if (cur < text.length) parts.push(text.slice(cur));
   return parts;
@@ -72,6 +129,30 @@ function getWordAt(text: string, offset: number): { word: string; start: number;
   return { word, start: trimStart, end: trimStart + word.length };
 }
 
+// ── Sentence context helpers ─────────────────────────────────────────────────
+
+const SENTENCE_BOUNDARY = /(?<=[.!?…¿¡])\s+/;
+
+/**
+ * Given a paragraph's text and a word/phrase within it, returns:
+ * - `sentence`: the sentence containing the selection
+ * - `extended`: that sentence plus up to 2 preceding sentences (empty string if
+ *   there's nothing extra beyond the sentence itself)
+ */
+function getSentenceContext(paragraphText: string, selectedText: string): { sentence: string; extended: string } {
+  const sentences = paragraphText.split(SENTENCE_BOUNDARY).filter(Boolean);
+  if (sentences.length <= 1) return { sentence: paragraphText.trim(), extended: '' };
+
+  const idx = sentences.findIndex(s => s.includes(selectedText));
+  if (idx < 0) return { sentence: paragraphText.trim(), extended: '' };
+
+  const sentence = sentences[idx].trim();
+  const start = Math.max(0, idx - 2);
+  const extendedSlice = sentences.slice(start, idx + 1).map(s => s.trim()).join(' ');
+
+  return { sentence, extended: extendedSlice !== sentence ? extendedSlice : '' };
+}
+
 // ── Generating messages ─────────────────────────────────────────────────────
 
 const GENERATING_MESSAGES = [
@@ -90,6 +171,8 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const { articlesData } = useArticles();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
   const { preferences: guestPrefs } = useGuestPreferences();
+  const { isPremium, dailyUsage } = useSubscription();
+  const loginUrl = useLoginUrl();
 
   // Try to find article in existing context data
   const contextArticle = articlesData?.articles.find(a => a.articleId === articleId) || null;
@@ -97,13 +180,16 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const [article, setArticle] = useState<Article | null>(contextArticle);
   const [content, setContent] = useState<string | null>(null);
   const [articleViewId, setArticleViewId] = useState<number | undefined>();
+  const [contentId, setContentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(!contextArticle);
   const [contentLoading, setContentLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [freeTierQuota, setFreeTierQuota] = useState<{ detail: string; resetsAt: string } | null>(null);
   const [showHeadlineTranslation, setShowHeadlineTranslation] = useState(false);
   const [selectedText, setSelectedText] = useState<string | null>(null);
   const [selectionContext, setSelectionContext] = useState<string>('');
+  const [selectionExtendedContext, setSelectionExtendedContext] = useState<string>('');
   const [hasPassedHalf, setHasPassedHalf] = useState(false);
   const [highlightsByPara, setHighlightsByPara] = useState<Record<number, HRange[]>>({});
   const [activeSelection, setActiveSelection] = useState<{ paraIdx: number; range: HRange } | null>(null);
@@ -113,6 +199,8 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const [isContentRefreshing, setIsContentRefreshing] = useState(false);
   const [showRefreshMsg, setShowRefreshMsg] = useState(false);
   const [refreshMsgIdx, setRefreshMsgIdx] = useState(0);
+  /** Sticky audio bar only while playback is active; otherwise keep player in document flow under the headline. */
+  const [audioPinnedWhilePlaying, setAudioPinnedWhilePlaying] = useState(false);
 
   const hasHover = useHasHover();
   const contentRef = useRef<HTMLDivElement>(null);
@@ -120,6 +208,9 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const mouseStart = useRef<{ x: number; y: number } | null>(null);
   const wasDrag = useRef(false);
   const paragraphRefs = useRef<Record<number, HTMLParagraphElement | null>>({});
+  // Ref mirror of activeSelection so callbacks can read the latest value
+  // without being re-created every time the selection changes.
+  const activeSelectionRef = useRef<{ paraIdx: number; range: HRange } | null>(null);
   const activeLang = isAuthenticated ? user?.targetLanguage : guestPrefs.targetLanguage;
   const activeLevel = isAuthenticated ? user?.cefrLevel : guestPrefs.cefrLevel;
   const prevLangRef = useRef(activeLang);
@@ -152,12 +243,17 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
     if (isRefresh) {
       setIsContentRefreshing(true);
       setHighlightsByPara({});
+      activeSelectionRef.current = null;
       setActiveSelection(null);
       setSelectedText(null);
       setSelectionContext('');
+      setSelectionExtendedContext('');
       window.getSelection()?.removeAllRanges();
     } else {
       setContentLoading(true);
+      // Clear the previous article's content_id so the audio module cannot
+      // briefly associate the new article with stale audio state.
+      setContentId(null);
     }
 
     setQuotaExceeded(false);
@@ -168,7 +264,11 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
           const result = await getArticleContent(articleId);
           if (cancelled) return;
           if (result.error) setError(result.content);
-          else { setContent(result.content); setArticleViewId(result.articleViewId); }
+          else {
+            setContent(result.content);
+            setArticleViewId(result.articleViewId);
+            setContentId(result.contentId ?? null);
+          }
         } else {
           const result = await getGuestArticleContent(articleId, guestPrefs.targetLanguage, guestPrefs.cefrLevel);
           if (cancelled) return;
@@ -179,6 +279,8 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
         if (cancelled) return;
         if (err instanceof GuestQuotaError) {
           setQuotaExceeded(true);
+        } else if (err instanceof FreeTierQuotaError) {
+          setFreeTierQuota({ detail: err.detail, resetsAt: err.resetsAt });
         } else {
           setError('Failed to load article content.');
         }
@@ -187,6 +289,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
           setContentLoading(false);
           setIsContentRefreshing(false);
           setHighlightsByPara({});
+          activeSelectionRef.current = null;
           setActiveSelection(null);
         }
       }
@@ -291,32 +394,54 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   }, [article?.headlineFamiliar]);
 
   // ── Commit a selection: save highlight + open translation ──────────────────
+  //
+  // `highlightsByPara` stores "locked" ranges (previously-translated, no
+  // longer active). `activeSelection` is the currently-selected range.
+  // Together they render as the visible highlights. When the user commits a
+  // NEW selection (tap/click/native drag) we push the previous active range
+  // into the locked set so it stays highlighted alongside the new one.
 
-  const commitSelection = useCallback((text: string, ctx: string, paraIdx?: number, range?: HRange) => {
-    if (paraIdx !== undefined && range) {
-      setHighlightsByPara(prev => ({
-        ...prev,
-        [paraIdx]: [...(prev[paraIdx] || []), range],
-      }));
-      setActiveSelection({ paraIdx, range });
-    } else {
-      setActiveSelection(null);
-    }
-    setTranslationPending(false);
-    setSelectedText(text);
-    setSelectionContext(ctx);
-  }, []);
-
-  // ── Handle-driven selection change (drag to expand/contract) ────────────────
-
-  const handleSelectionChange = useCallback((text: string, paraIdx: number, range: HRange) => {
-    setActiveSelection({ paraIdx, range });
+  const lockActive = useCallback((active: { paraIdx: number; range: HRange } | null) => {
+    if (!active) return;
     setHighlightsByPara(prev => ({
       ...prev,
-      [paraIdx]: [range],
+      [active.paraIdx]: mergeRanges([...(prev[active.paraIdx] || []), active.range]),
     }));
+  }, []);
+
+  const commitSelection = useCallback((text: string, ctx: string, paraIdx?: number, range?: HRange) => {
+    lockActive(activeSelectionRef.current);
+
+    const nextActive = (paraIdx !== undefined && range) ? { paraIdx, range } : null;
+    activeSelectionRef.current = nextActive;
+    setActiveSelection(nextActive);
+
+    setTranslationPending(false);
     setSelectedText(text);
-    setSelectionContext(paragraphs[paraIdx] || text);
+
+    const { sentence, extended } = getSentenceContext(ctx, text);
+    setSelectionContext(sentence);
+    setSelectionExtendedContext(extended);
+
+    window.getSelection()?.removeAllRanges();
+  }, [lockActive]);
+
+  // ── Handle-driven selection change (drag to expand/contract) ────────────────
+  // The user is live-editing the current active range, so we only update
+  // activeSelection. We do NOT lock the previous active range — that would
+  // leave phantom highlights behind as the selection grows/shrinks.
+
+  const handleSelectionChange = useCallback((text: string, paraIdx: number, range: HRange) => {
+    const next = { paraIdx, range };
+    activeSelectionRef.current = next;
+    setActiveSelection(next);
+    setSelectedText(text);
+
+    const paraText = paragraphs[paraIdx] || text;
+    const { sentence, extended } = getSentenceContext(paraText, text);
+    setSelectionContext(sentence);
+    setSelectionExtendedContext(extended);
+
     window.getSelection()?.removeAllRanges();
   }, [paragraphs]);
 
@@ -476,12 +601,15 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   // ── Close translation ──────────────────────────────────────────────────────
 
   const closeTranslation = useCallback(() => {
+    lockActive(activeSelectionRef.current);
+    activeSelectionRef.current = null;
     setSelectedText(null);
     setSelectionContext('');
+    setSelectionExtendedContext('');
     setActiveSelection(null);
     setTranslationPending(false);
     window.getSelection()?.removeAllRanges();
-  }, []);
+  }, [lockActive]);
 
   const imageUrl = article?.imageLinks?.[0];
 
@@ -489,6 +617,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
 
   return (
     <>
+      <OpenInBrowserBanner />
       <section className="py-lg">
         <div className="max-w-[800px] mx-auto px-md">
           {isLoading && (
@@ -534,16 +663,12 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                     className={`flex-shrink-0 mt-[6px] bg-transparent border-none cursor-pointer transition-colors duration-200 ${showHeadlineTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
                     aria-label={showHeadlineTranslation ? 'Show original headline' : 'Translate headline'}
                   >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                      <path d="M12 17h.01" />
-                    </svg>
+                    <MessageCircleQuestion size={22} strokeWidth={2} />
                   </button>
                 )}
               </div>
 
-              <div className={`flex items-center gap-md text-body-md text-text-secondary ${quotaExceeded ? 'mb-md' : 'mb-xl'}`}>
+              <div className={`flex items-center gap-md text-body-md text-text-secondary ${(quotaExceeded || freeTierQuota) ? 'mb-md' : 'mb-md'}`}>
                 {article.publishedDate && <span>{article.publishedDate}</span>}
                 {article.cefrLevelHeadline && (
                   <span className="bg-background px-[8px] py-[2px] rounded text-[12px] font-medium">
@@ -551,6 +676,37 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                   </span>
                 )}
               </div>
+
+              {isAuthenticated && !quotaExceeded && !freeTierQuota && !error && (
+                <div
+                  className={
+                    audioPinnedWhilePlaying
+                      ? 'sticky top-[101px] z-40 -mx-4 px-4 py-2 mb-md sm:mx-0 sm:px-0 bg-background/95 backdrop-blur-sm'
+                      : '-mx-4 px-4 py-2 mb-md sm:mx-0 sm:px-0'
+                  }
+                >
+                  <ArticleAudioPlayer
+                    articleId={articleId}
+                    contentId={contentId}
+                    summaryAudioAvailable={article.audioGenerated}
+                    onPlaybackStickyChange={setAudioPinnedWhilePlaying}
+                  />
+                </div>
+              )}
+
+              {isAuthenticated && !isPremium && dailyUsage?.articles && !freeTierQuota && !contentLoading && content && (
+                <div className="flex items-center gap-[6px] mb-md">
+                  <span className="text-[12px] text-text-secondary">
+                    {dailyUsage.articles.limit - dailyUsage.articles.used > 0
+                      ? `${dailyUsage.articles.limit - dailyUsage.articles.used} of ${dailyUsage.articles.limit} articles remaining today`
+                      : 'No articles remaining today'
+                    }
+                  </span>
+                  <Link href="/premium" className="text-[12px] font-medium text-primary-light hover:text-primary transition-colors">
+                    Upgrade
+                  </Link>
+                </div>
+              )}
 
               {!quotaExceeded && !contentLoading && content && (
                 <TranslationDemoBanner hasInteracted={!!selectedText} />
@@ -582,10 +738,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                       <div className="absolute inset-0 flex items-start justify-center pt-xl animate-fadeIn">
                         <div className="flex flex-col items-center text-center">
                           <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mb-lg">
-                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary animate-writing">
-                              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                              <path d="m15 5 4 4" />
-                            </svg>
+                            <PenLine size={26} strokeWidth={1.5} className="text-primary animate-writing" />
                           </div>
                           <h2 className="text-display-sm text-primary mb-sm">
                             Writing your article to your level
@@ -607,10 +760,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                   showGeneratingMsg ? (
                     <div className="flex flex-col items-center text-center py-xl animate-fadeIn select-none pointer-events-none">
                       <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mb-lg">
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary animate-writing">
-                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-                          <path d="m15 5 4 4" />
-                        </svg>
+                        <PenLine size={26} strokeWidth={1.5} className="text-primary animate-writing" />
                       </div>
                       <h2 className="text-display-sm text-primary mb-sm">
                         Writing your article to your level
@@ -662,10 +812,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                       <div className="mt-[80px] w-full text-center px-[16px]">
                         {/* Icon */}
                         <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-lg">
-                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-                          </svg>
+                          <BookOpen size={26} strokeWidth={1.5} color="#4A2462" />
                         </div>
 
                         <h2 className="text-display-sm text-primary mb-sm">
@@ -684,9 +831,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                             'Track your vocabulary & progress',
                           ].map((feature) => (
                             <div key={feature} className="flex items-start gap-[10px]">
-                              <svg className="w-[20px] h-[20px] mt-[1px] flex-shrink-0 text-correct" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M20 6L9 17l-5-5" />
-                              </svg>
+                              <Check size={20} strokeWidth={2.5} className="mt-[1px] flex-shrink-0 text-correct" />
                               <span className="text-body-md text-primary">{feature}</span>
                             </div>
                           ))}
@@ -694,42 +839,81 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
 
                         {/* CTA */}
                         <div className="flex justify-center">
-                          <Link
-                            href="/login"
-                            className="btn-primary max-w-[320px] flex items-center justify-center gap-sm text-[16px]"
-                          >
-                            Sign Up Free — Takes 10 Seconds
-                          </Link>
+                          <Button asChild size="lg" className="w-full max-w-[320px]">
+                            <Link href={loginUrl}>Sign up free — takes 10 seconds</Link>
+                          </Button>
                         </div>
 
                         {/* Login link */}
                         <p className="text-body-md text-text-secondary mt-lg">
                           Already have an account?{' '}
-                          <Link href="/login" className="text-primary font-medium hover:underline">
+                          <Link href={loginUrl} className="text-primary font-medium hover:underline">
                             Log in
                           </Link>
                         </p>
                       </div>
                     </div>
                   </div>
+                ) : freeTierQuota ? (
+                  <div className="relative overflow-hidden">
+                    <div
+                      className="select-none pointer-events-none text-[18px] leading-[1.7] text-primary/70 font-outfit"
+                      aria-hidden="true"
+                      style={{ filter: 'blur(4px)', WebkitFilter: 'blur(4px)' }}
+                    >
+                      <p className="mb-md">La situación actual ha generado una serie de reacciones entre los principales actores del sector, quienes han expresado su preocupación por las posibles consecuencias a largo plazo.</p>
+                      <p className="mb-md">Según los expertos consultados, las nuevas regulaciones podrían tener un impacto significativo en la economía regional durante los próximos meses.</p>
+                      <p className="mb-md">El portavoz del gobierno ha declarado que las medidas fueron diseñadas para proteger los intereses de los ciudadanos y garantizar la estabilidad económica.</p>
+                    </div>
+                    <div
+                      className="absolute inset-0 flex flex-col items-center animate-fadeIn"
+                      style={{
+                        background: 'linear-gradient(to bottom, rgba(248,247,250,0) 0%, rgba(248,247,250,0.7) 8%, rgba(248,247,250,0.95) 18%, rgba(248,247,250,1) 28%)',
+                      }}
+                    >
+                      <div className="mt-[80px] w-full text-center px-[16px]">
+                        <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-lg">
+                          <Layers size={26} strokeWidth={1.5} color="#4A2462" />
+                        </div>
+                        <h2 className="text-display-sm text-primary mb-sm">Daily limit reached</h2>
+                        <p className="text-body-lg text-text-secondary mb-lg max-w-[360px] mx-auto leading-[1.6]">
+                          {freeTierQuota.detail}
+                        </p>
+                        <div className="flex justify-center">
+                          <Button asChild size="lg" className="w-full max-w-[320px]">
+                            <Link href="/premium">Go Premium — Unlimited access</Link>
+                          </Button>
+                        </div>
+                        {freeTierQuota.resetsAt && (
+                          <p className="text-body-md text-text-secondary mt-md">
+                            Or come back tomorrow — limits reset at midnight.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ) : content ? (
                   <div className="space-y-md">
-                    {paragraphs.map((paragraph, index) => (
-                      <p
-                        key={index}
-                        ref={(el) => { paragraphRefs.current[index] = el; }}
-                        data-pidx={index}
-                        className="text-[18px] leading-[1.7] text-primary font-outfit cursor-text"
-                        style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
-                        onClick={onWordClick}
-                      >
-                        {renderHighlighted(
-                          paragraph,
-                          highlightsByPara[index] || [],
-                          activeSelection?.paraIdx === index ? activeSelection.range : null,
-                        )}
-                      </p>
-                    ))}
+                    {paragraphs.map((paragraph, index) => {
+                      const locked = highlightsByPara[index] || [];
+                      const isActiveHere = activeSelection?.paraIdx === index;
+                      return (
+                        <p
+                          key={index}
+                          ref={(el) => { paragraphRefs.current[index] = el; }}
+                          data-pidx={index}
+                          className="text-[18px] leading-[1.7] text-primary font-outfit cursor-text"
+                          style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
+                          onClick={onWordClick}
+                        >
+                          {renderHighlighted(
+                            paragraph,
+                            locked,
+                            isActiveHere ? activeSelection.range : null,
+                          )}
+                        </p>
+                      );
+                    })}
                   </div>
                 ) : null}
 
@@ -745,18 +929,14 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 )}
               </div>
 
-              {hasPassedHalf && !contentLoading && !quotaExceeded && (
-                <div className="mt-xl pt-lg border-t border-border">
-                  <Link
-                    href={`/practice/quiz?articleId=${articleId}${articleViewId ? `&viewId=${articleViewId}` : ''}${!isAuthenticated ? '&guest=1' : ''}`}
-                    className="btn-primary w-full flex items-center justify-center gap-sm"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 11l3 3L22 4" />
-                      <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                    </svg>
-                    Article Quiz
-                  </Link>
+              {hasPassedHalf && !contentLoading && !quotaExceeded && !freeTierQuota && (
+                <div className="mt-xl pt-lg border-t border-ui-border">
+                  <Button asChild size="lg" className="w-full">
+                    <Link href={`/practice/quiz?articleId=${articleId}${articleViewId ? `&viewId=${articleViewId}` : ''}${!isAuthenticated ? '&guest=1' : ''}`}>
+                      <ClipboardCheck className="w-5 h-5" />
+                      Article Quiz
+                    </Link>
+                  </Button>
                 </div>
               )}
             </>
@@ -768,6 +948,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
         <TranslationSheet
           selectedText={selectedText}
           context={selectionContext}
+          extendedContext={selectionExtendedContext || undefined}
           onClose={closeTranslation}
           pending={translationPending}
           onTranslateRequest={handleTranslateRequest}

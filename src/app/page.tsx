@@ -2,16 +2,24 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import ArticleCard from '@/components/articles/ArticleCard';
 import ArticleDetail from '@/components/articles/ArticleDetail';
 import AppStoreCTA from '@/components/layout/AppStoreCTA';
+import ReferralCTA from '@/components/layout/ReferralCTA';
 import ScrollableNav from '@/components/layout/ScrollableNav';
 import TopicNav from '@/components/layout/TopicNav';
 import { CATEGORY_ORDER } from '@/config/categories';
+import { SHOW_APP_STORE_PROMO, heroRowArticleCount } from '@/config/site-promos';
 import { useArticles } from '@/contexts/ArticlesContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useReferral } from '@/contexts/ReferralContext';
 import { prefetchPracticeQuestion } from '@/services/practiceCache';
+import { labelFromMap } from '@/lib/translationMap';
 import type { Article } from '@/types/article';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const TRANSLATION_HINT_KEY = 'reetle-translation-hint-dismissed';
 
@@ -26,11 +34,15 @@ export default function HomePage() {
 function HomePageContent() {
   const { articlesData, isLoading, isRefreshing, error, fetchArticles } = useArticles();
   const { isAuthenticated, hasApp } = useAuth();
+  const { isPremium } = useSubscription();
+  const { code: referralCode, isBannerDismissed: referralDismissed } = useReferral();
+  const showReferralCta = Boolean(referralCode) && !isPremium && !referralDismissed;
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedArticleId = searchParams.get('article');
   const [translationHintDismissed, setTranslationHintDismissed] = useState(true);
   const [sectionSubtopicFilters, setSectionSubtopicFilters] = useState<Record<string, string | null>>({});
+  const [activeSectionTopic, setActiveSectionTopic] = useState<string | null>(null);
 
   const MAX_ARTICLES_PER_SECTION = 8;
 
@@ -63,7 +75,11 @@ function HomePageContent() {
   const allArticles = useMemo(() => articlesData?.articles ?? [], [articlesData]);
 
   const articlesByTopic = useMemo(() => {
-    const heroCount = hasApp ? 5 : 4;
+    // Keep in sync with the sidebar slice: when the referral CTA takes a
+    // sidebar slot, the displaced article should promote into its topic
+    // section instead of disappearing. When the CTA is dismissed, the same
+    // article flows back into the sidebar.
+    const heroCount = heroRowArticleCount(hasApp, showReferralCta);
     const remaining = allArticles.slice(heroCount);
     const grouped: Record<string, Article[]> = {};
     for (const article of remaining) {
@@ -81,7 +97,57 @@ function HomePageContent() {
         const subs = Array.from(subSet).sort();
         return { topic: cat, articles, subtopics: subs };
       });
-  }, [allArticles, hasApp]);
+  }, [allArticles, hasApp, showReferralCta]);
+
+  // Track which topic section is currently sticky at the top of the viewport so
+  // we can mirror the underline in the sticky TopicNav as the user scrolls.
+  useEffect(() => {
+    if (selectedArticleId) {
+      setActiveSectionTopic(null);
+      return;
+    }
+
+    let rafId: number | null = null;
+
+    const computeActive = () => {
+      rafId = null;
+      const sections = document.querySelectorAll<HTMLElement>('.topic-section[data-topic]');
+      if (sections.length === 0) {
+        setActiveSectionTopic(null);
+        return;
+      }
+
+      // The TopicNav sits at top:48px with height ~48px, so sticky section
+      // headers begin at ~93px. Treat a section as "active" once its top
+      // has crossed the sticky boundary but its bottom hasn't yet.
+      const threshold = 94;
+      let current: string | null = null;
+
+      for (const section of Array.from(sections)) {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= threshold && rect.bottom > threshold) {
+          current = section.getAttribute('data-topic');
+          break;
+        }
+      }
+
+      setActiveSectionTopic(current);
+    };
+
+    const onScroll = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(computeActive);
+    };
+
+    computeActive();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [selectedArticleId, articlesData]);
 
   const scrollSectionIntoView = useCallback((topic: string, sectionRefs: Record<string, HTMLDivElement | null>) => {
     requestAnimationFrame(() => {
@@ -98,7 +164,7 @@ function HomePageContent() {
 
   return (
     <>
-      <TopicNav />
+      <TopicNav activeSectionTopic={activeSectionTopic} />
 
       {selectedArticleId ? (
         <ArticleDetail
@@ -110,32 +176,38 @@ function HomePageContent() {
           <div className="max-w-[1280px] mx-auto px-md">
             {(isLoading || !articlesData) && !error && (
               <div className="space-y-[24px] max-h-[calc(100vh-140px)] overflow-hidden select-none opacity-60">
-                {/* Hero + sidebar skeleton */}
+                {/* Hero + sidebar skeleton (no text — awaiting API) */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
                   <div className="lg:col-span-7">
                     <div className="bg-white overflow-hidden border border-border">
                       <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                       <div className="p-[16px] sm:p-[20px] blur-[5px]">
                         <div className="flex items-center gap-[8px] mb-[8px]">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-primary bg-primary/8 px-[8px] py-[2px] rounded">Politics</span>
-                          <span className="text-[11px] font-medium text-text-secondary">United Kingdom</span>
-                          <span className="text-[11px] text-text-secondary">2h</span>
+                          <span className="h-[12px] w-[48px] rounded-sm bg-primary/20" />
+                          <span className="h-[12px] w-[72px] rounded-sm bg-text-secondary/20" />
+                          <span className="h-[10px] w-[22px] rounded-sm bg-text-secondary/20" />
                         </div>
-                        <p className="text-[20px] sm:text-[24px] font-semibold leading-[1.25] text-primary">Breaking news headline placeholder text goes here today</p>
+                        <div className="space-y-[6px]">
+                          <div className="h-[20px] w-full max-w-[95%] rounded-sm bg-primary/10" />
+                          <div className="h-[20px] w-[60%] rounded-sm bg-primary/10" />
+                        </div>
                       </div>
                     </div>
                   </div>
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
-                      {['World leaders meet at summit', 'Local team wins championship', 'New policy announcement made', 'Scientists discover high energy source'].map((text, i) => (
+                      {[0, 1, 2, 3].map((i) => (
                         <div key={i} className="bg-white overflow-hidden border border-border flex h-full flex-1">
                           <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                           <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0 blur-[5px]">
                             <div className="flex items-center gap-[6px] mb-[4px]">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Sport</span>
-                              <span className="text-[10px] text-text-secondary">4h</span>
+                              <span className="h-[9px] w-[36px] rounded-sm bg-primary/20" />
+                              <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
                             </div>
-                            <p className="text-[14px] sm:text-[15px] font-semibold leading-[1.3] text-primary">{text}</p>
+                            <div className="space-y-[4px]">
+                              <div className="h-[13px] w-full max-w-[100%] rounded-sm bg-primary/10" />
+                              <div className="h-[13px] w-[85%] rounded-sm bg-primary/10" />
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -143,22 +215,24 @@ function HomePageContent() {
                   </div>
                 </div>
 
-                {/* Topic section skeleton */}
                 <div>
                   <div className="pt-[24px] pb-[12px]">
-                    <span className="text-[18px] font-semibold text-primary blur-[5px] inline-block">Politics</span>
+                    <div className="h-[20px] w-[120px] rounded-sm bg-primary/15 blur-[5px]" />
                     <div className="h-[2px] bg-primary w-full mt-[8px]" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px] pt-[8px]">
-                    {['Economy report shows growth', 'Election results finalised', 'Parliament debates new bill', 'Trade agreement signed'].map((text, i) => (
+                    {[0, 1, 2, 3].map((i) => (
                       <div key={i} className="bg-white overflow-hidden border border-border h-full flex flex-col">
                         <div className="relative overflow-hidden h-[160px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                         <div className="p-[12px] flex-1 flex flex-col blur-[5px]">
                           <div className="flex items-center gap-[6px] mb-[4px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Business</span>
-                            <span className="text-[10px] text-text-secondary">1h</span>
+                            <span className="h-[9px] w-[40px] rounded-sm bg-primary/20" />
+                            <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
                           </div>
-                          <p className="text-[14px] font-semibold leading-[1.3] text-primary">{text}</p>
+                          <div className="space-y-[4px]">
+                            <div className="h-[13px] w-full rounded-sm bg-primary/10" />
+                            <div className="h-[13px] w-[80%] rounded-sm bg-primary/10" />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -168,16 +242,15 @@ function HomePageContent() {
             )}
 
             {error && !isLoading && (
-              <div className="text-center py-[80px]">
-                <p className="text-[16px] text-text-secondary mb-md">{error}</p>
-                <button onClick={fetchArticles} className="btn-primary">
-                  Try Again
-                </button>
+              <div className="text-center py-20">
+                <p className="text-[16px] text-ui-muted-foreground mb-4">{error}</p>
+                <Button onClick={fetchArticles}>Try again</Button>
               </div>
             )}
 
             {!isLoading && !error && allArticles.length > 0 && (
-              <div className="space-y-[32px]">
+              <>
+                <div className="space-y-[32px]">
                 {/* Hero section */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
                   <div className="lg:col-span-7">
@@ -195,7 +268,7 @@ function HomePageContent() {
                   </div>
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
-                      {allArticles.slice(1, hasApp ? 5 : 4).map(article => (
+                      {allArticles.slice(1, heroRowArticleCount(hasApp, showReferralCta)).map(article => (
                         <ArticleCard
                           key={article.articleId}
                           article={article}
@@ -207,7 +280,8 @@ function HomePageContent() {
                           isRefreshing={isRefreshing}
                         />
                       ))}
-                      {!hasApp && <AppStoreCTA />}
+                      {showReferralCta && <ReferralCTA />}
+                      {!hasApp && SHOW_APP_STORE_PROMO && <AppStoreCTA />}
                     </div>
                   </div>
                 </div>
@@ -217,6 +291,7 @@ function HomePageContent() {
                   <TopicSections
                     articlesByTopic={articlesByTopic}
                     articlesData={articlesData}
+                    readMoreLabel={articlesData?.readMoreTranslation ?? ''}
                     sectionSubtopicFilters={sectionSubtopicFilters}
                     setSectionSubtopicFilters={setSectionSubtopicFilters}
                     openArticle={openArticle}
@@ -225,12 +300,13 @@ function HomePageContent() {
                     isRefreshing={isRefreshing}
                   />
                 )}
-              </div>
+                </div>
+              </>
             )}
 
             {!isLoading && !error && articlesData && allArticles.length === 0 && (
-              <div className="text-center py-[80px]">
-                <p className="text-[16px] text-text-secondary">
+              <div className="text-center py-20">
+                <p className="text-[16px] text-ui-muted-foreground">
                   No articles found for this category.
                 </p>
               </div>
@@ -261,6 +337,7 @@ const LAYOUT_CYCLE: SectionLayout[] = ['hero-left', 'grid', 'hero-right', 'row-3
 function TopicSections({
   articlesByTopic,
   articlesData,
+  readMoreLabel,
   sectionSubtopicFilters,
   setSectionSubtopicFilters,
   openArticle,
@@ -269,7 +346,13 @@ function TopicSections({
   isRefreshing,
 }: {
   articlesByTopic: { topic: string; articles: Article[]; subtopics: string[] }[];
-  articlesData: { topicMap: Record<string, string>; subtopicMap: Record<string, string>; geographyMap: Record<string, string> } | null;
+  articlesData: {
+    topicMap: Record<string, string>;
+    subtopicMap: Record<string, string>;
+    geographyMap: Record<string, string>;
+    allTranslation: string;
+  } | null;
+  readMoreLabel: string;
   sectionSubtopicFilters: Record<string, string | null>;
   setSectionSubtopicFilters: React.Dispatch<React.SetStateAction<Record<string, string | null>>>;
   openArticle: (articleId: string) => void;
@@ -391,11 +474,19 @@ function TopicSections({
             className="topic-section"
           >
             <div className="sticky top-[93px] z-[800] bg-background">
-              <div className="pt-[24px] pb-[12px]">
-                <div className="pb-[8px] border-b-[2px] border-primary">
-                  <h2 className={`text-[18px] font-semibold text-primary ${isRefreshing ? 'blur-[3px] select-none' : ''}`}>
-                    {articlesData?.topicMap[topic.toLowerCase()] || articlesData?.topicMap[topic] || topic}
+              <div className="pt-6 pb-3">
+                <div className="pb-2 border-b-2 border-ui-primary flex items-end justify-between gap-3 min-h-[1.5rem]">
+                  <h2 className={cn('text-[18px] font-semibold text-ui-foreground min-w-0', isRefreshing && 'blur-[3px] select-none')}>
+                    {labelFromMap(articlesData?.topicMap, topic) ?? '\u00A0'}
                   </h2>
+                  {readMoreLabel.trim() ? (
+                    <Link
+                      href={`/topic/${topic.toLowerCase()}`}
+                      className={cn('shrink-0 text-[15px] font-semibold text-ui-primary leading-tight hover:underline underline-offset-2 whitespace-nowrap', isRefreshing && 'blur-[3px] select-none pointer-events-none')}
+                    >
+                      {readMoreLabel}
+                    </Link>
+                  ) : null}
                 </div>
               </div>
 
@@ -414,7 +505,7 @@ function TopicSections({
                       }
                     `}
                   >
-                    All
+                    {articlesData?.allTranslation?.trim() ? articlesData.allTranslation : '\u00A0'}
                   </button>
                   {sectionSubtopics.map(sub => (
                     <button
@@ -432,7 +523,7 @@ function TopicSections({
                         ${isRefreshing ? 'blur-[3px] select-none pointer-events-none' : ''}
                       `}
                     >
-                      {articlesData?.subtopicMap[sub] || sub}
+                      {labelFromMap(articlesData?.subtopicMap, sub) ?? '\u00A0'}
                     </button>
                   ))}
                 </ScrollableNav>

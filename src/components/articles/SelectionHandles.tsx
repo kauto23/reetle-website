@@ -12,34 +12,6 @@ interface SelectionHandlesProps {
   onDragEnd?: () => void;
 }
 
-// Find the start of the word containing `offset`.
-// If offset is in whitespace, find the start of the word to the left.
-function wordStartAt(text: string, offset: number): number {
-  let i = Math.min(offset, text.length);
-  // If we're in whitespace or at end, step left to find a word char
-  if (i >= text.length || /\s/.test(text[i])) {
-    while (i > 0 && /\s/.test(text[i - 1])) i--;
-  }
-  // Now walk left through word chars to find the start
-  while (i > 0 && /\S/.test(text[i - 1])) i--;
-  return i;
-}
-
-// Find the end of the word containing `offset`.
-// If offset is in whitespace, find the end of the word to the right.
-function wordEndAt(text: string, offset: number): number {
-  let i = Math.max(offset, 0);
-  // If we're in whitespace, step right to find a word char
-  if (i < text.length && /\s/.test(text[i])) {
-    // Don't jump forward -- stay at the end of the previous word
-    // Only advance if we're already past the selection start
-    return i;
-  }
-  // Walk right through word chars to find the end
-  while (i < text.length && /\S/.test(text[i])) i++;
-  return i;
-}
-
 function caretOffsetInParagraph(x: number, y: number, paraEl: HTMLElement): number | null {
   const range = document.caretRangeFromPoint?.(x, y);
   if (!range) return null;
@@ -81,7 +53,6 @@ export default function SelectionHandles({
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Find the mark and compute positions
   const updatePos = useCallback(() => {
     const mark = document.querySelector('[data-active-mark]');
     if (!mark) { setPos(null); return; }
@@ -101,12 +72,10 @@ export default function SelectionHandles({
     });
   }, []);
 
-  // Update on mount and when selection changes
   useEffect(() => {
     updatePos();
   }, [updatePos, selectionRange]);
 
-  // Update on scroll/resize
   useEffect(() => {
     const h = () => updatePos();
     window.addEventListener('scroll', h, true);
@@ -117,7 +86,6 @@ export default function SelectionHandles({
     };
   }, [updatePos]);
 
-  // Drag logic: attach to document directly, hide handles during caretRangeFromPoint
   const startDrag = useCallback((side: 'left' | 'right', pointerId: number, target: HTMLElement) => {
     dragging.current = side;
     hasMoved.current = false;
@@ -126,22 +94,55 @@ export default function SelectionHandles({
     const paraEl = document.querySelector(`[data-pidx="${paragraphIndex}"]`) as HTMLElement | null;
     if (!paraEl) return;
 
+    const prevTouchAction = paraEl.style.touchAction;
+    paraEl.style.touchAction = 'none';
+
     const leftHandle = document.getElementById('sel-handle-left');
     const rightHandle = document.getElementById('sel-handle-right');
+
+    // Track the Y midpoint of the line the handle is currently on,
+    // so vertical finger drift doesn't jump to a different line.
+    let anchorY: number | null = null;
 
     const onMove = (me: PointerEvent) => {
       if (!dragging.current) return;
       me.preventDefault();
       me.stopPropagation();
 
-      // Hide handles so caretRangeFromPoint sees text, not the handles
       if (leftHandle) leftHandle.style.visibility = 'hidden';
       if (rightHandle) rightHandle.style.visibility = 'hidden';
-      // Also hide the translation sheet overlay
       const overlay = document.querySelector('[data-overlay]') as HTMLElement | null;
       if (overlay) overlay.style.visibility = 'hidden';
 
-      const charOffset = caretOffsetInParagraph(me.clientX, me.clientY, paraEl);
+      // On the first move, snapshot the Y midpoint of the current handle's line.
+      // On subsequent moves, use the pointer's X but keep Y locked to the
+      // current selection line so vertical drift doesn't jump lines.
+      if (anchorY === null) {
+        const mark = document.querySelector('[data-active-mark]');
+        if (mark) {
+          const rects = mark.getClientRects();
+          if (rects.length > 0) {
+            const rect = dragging.current === 'left' ? rects[0] : rects[rects.length - 1];
+            anchorY = rect.top + rect.height / 2;
+          }
+        }
+        if (anchorY === null) anchorY = me.clientY;
+      }
+
+      // Use the anchored Y, but allow it to shift to a new line when
+      // the pointer moves far enough vertically (more than one line height)
+      const mark = document.querySelector('[data-active-mark]');
+      let lineH = 30;
+      if (mark) {
+        const rects = mark.getClientRects();
+        if (rects.length > 0) lineH = rects[0].height;
+      }
+      const dy = me.clientY - anchorY;
+      if (Math.abs(dy) > lineH * 0.8) {
+        anchorY = me.clientY;
+      }
+
+      const charOffset = caretOffsetInParagraph(me.clientX, anchorY, paraEl);
 
       if (leftHandle) leftHandle.style.visibility = '';
       if (rightHandle) rightHandle.style.visibility = '';
@@ -153,12 +154,10 @@ export default function SelectionHandles({
       let newEnd = currentRange.current.end;
 
       if (dragging.current === 'left') {
-        const boundary = wordStartAt(paragraphText, charOffset);
-        newStart = Math.min(boundary, currentRange.current.end - 1);
+        newStart = Math.min(charOffset, currentRange.current.end - 1);
       } else {
-        const boundary = wordEndAt(paragraphText, charOffset);
-        if (boundary <= currentRange.current.start) return;
-        newEnd = Math.max(boundary, currentRange.current.start + 1);
+        if (charOffset <= currentRange.current.start) return;
+        newEnd = Math.max(charOffset, currentRange.current.start + 1);
       }
 
       if (newStart === currentRange.current.start && newEnd === currentRange.current.end) return;
@@ -179,20 +178,20 @@ export default function SelectionHandles({
 
     const onUp = () => {
       dragging.current = null;
+      paraEl.style.touchAction = prevTouchAction;
       if (hasMoved.current) onDragEnd?.();
       hasMoved.current = false;
       document.removeEventListener('pointermove', onMove, true);
       document.removeEventListener('pointerup', onUp, true);
     };
 
-    // Use capture phase so we get events before anything else
     document.addEventListener('pointermove', onMove, true);
     document.addEventListener('pointerup', onUp, true);
   }, [paragraphIndex, paragraphText, onSelectionChange, onDragStart, onDragEnd]);
 
   if (!mounted || !pos) return null;
 
-  const HIT = 24;
+  const HIT = 44;
 
   const hitStyle = (x: number, y: number, isLeft: boolean): React.CSSProperties => ({
     position: 'fixed',
@@ -202,7 +201,7 @@ export default function SelectionHandles({
     height: HIT,
     cursor: 'col-resize',
     touchAction: 'none',
-    zIndex: 9999,
+    zIndex: 10001,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -214,7 +213,7 @@ export default function SelectionHandles({
     top: topY,
     width: 2,
     height: h,
-    zIndex: 9998,
+    zIndex: 10000,
     pointerEvents: 'none',
   });
 

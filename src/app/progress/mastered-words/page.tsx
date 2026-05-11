@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import AuthGuard from '@/components/layout/AuthGuard';
 import { getMasteredWordsStats } from '@/services/api';
 import type { MasteredWordsStatsResponse, MasteredWordEntry } from '@/types/stats';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface FlatMasteredWord extends MasteredWordEntry {
   date: string;
@@ -57,54 +60,54 @@ export default function MasteredWordsPage() {
 
   return (
     <AuthGuard>
-      <section className="py-2xl">
-        <div className="max-w-[600px] mx-auto px-md">
-          <button
+      <section className="py-12 sm:py-16">
+        <div className="max-w-[600px] mx-auto px-4">
+          <Button
             onClick={() => router.back()}
-            className="flex items-center gap-xs text-body-md text-text-secondary hover:text-primary mb-lg cursor-pointer bg-transparent border-none transition-colors"
+            variant="ghost"
+            size="sm"
+            className="mb-6 text-ui-muted-foreground hover:text-ui-foreground -ml-2"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
+            <ChevronLeft className="w-4 h-4" />
             Back to Progress
-          </button>
+          </Button>
 
-          <h1 className="text-display-md text-primary mb-sm">Mastered Words</h1>
+          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-1">Mastered Words</h1>
           {data && (
-            <p className="text-body-md text-text-secondary mb-xl">
+            <p className="text-[14px] text-ui-muted-foreground mb-8">
               {data.total_mastered} words mastered in total
             </p>
           )}
 
           {isLoading && (
-            <div className="space-y-md animate-pulse">
+            <div className="space-y-3">
               {[1, 2, 3, 4, 5].map(i => (
-                <div key={i} className="h-[56px] bg-gray-200 rounded-xl" />
+                <Skeleton key={i} className="h-14 rounded-xl" />
               ))}
             </div>
           )}
 
           {!isLoading && words.length === 0 && (
-            <div className="text-center py-xl">
-              <p className="text-body-lg text-text-secondary">
+            <div className="text-center py-12">
+              <p className="text-[15px] text-ui-muted-foreground">
                 No mastered words yet. Keep practising to master your vocabulary!
               </p>
             </div>
           )}
 
           {!isLoading && sortedDates.map(date => (
-            <div key={date} className="mb-lg">
-              <p className="text-body-md text-text-secondary font-medium mb-sm">
+            <div key={date} className="mb-6">
+              <p className="text-[14px] text-ui-muted-foreground font-medium mb-2">
                 {new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
               </p>
-              <div className="flex flex-col gap-[4px]">
+              <div className="flex flex-col gap-1">
                 {grouped[date].map((word, i) => (
                   <div
                     key={`${word.target_word}-${i}`}
-                    className="flex items-center justify-between p-md bg-surface border border-border rounded-xl"
+                    className="flex items-center justify-between p-4 bg-ui-card border border-ui-border rounded-xl"
                   >
-                    <span className="text-title-md text-primary font-medium">{word.target_word}</span>
-                    <span className="text-body-md text-text-secondary">{word.familiar_word}</span>
+                    <span className="text-[16px] text-ui-foreground font-medium">{word.target_word}</span>
+                    <span className="text-[14px] text-ui-muted-foreground">{word.familiar_word}</span>
                   </div>
                 ))}
               </div>

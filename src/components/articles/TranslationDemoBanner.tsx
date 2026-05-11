@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { MessageCircleQuestion, X } from 'lucide-react';
 import { useHasHover } from '@/hooks/useHasHover';
+import { useIsMobileDevice } from '@/hooks/useIsMobileDevice';
 
 const DEMO_DISMISSED_KEY = 'reetle-translation-demo-dismissed';
 
@@ -14,6 +16,7 @@ export default function TranslationDemoBanner({ hasInteracted }: TranslationDemo
   const [showVideo, setShowVideo] = useState(false);
   const hasAutoDismissed = useRef(false);
   const hasHover = useHasHover();
+  const isMobileDevice = useIsMobileDevice();
 
   useEffect(() => {
     if (!localStorage.getItem(DEMO_DISMISSED_KEY)) {
@@ -51,25 +54,14 @@ export default function TranslationDemoBanner({ hasInteracted }: TranslationDemo
     return () => document.removeEventListener('keydown', onKey);
   }, [showVideo, closeVideo]);
 
+  if (isMobileDevice !== false) return null;
   if (!visible && !showVideo) return null;
 
   return (
     <>
       {visible && (
         <div className="flex items-center gap-[10px] bg-primary/[0.06] rounded-lg px-[14px] py-[10px] mb-md animate-fadeIn">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-primary/60 flex-shrink-0"
-          >
-            <path d="m4 4 7.07 17 2.51-7.39L21 11.07z" />
-          </svg>
+          <MessageCircleQuestion size={18} strokeWidth={2} className="text-primary/60 flex-shrink-0" />
 
           <p className="flex-1 text-[14px] text-primary leading-snug">
             {hasHover
@@ -89,10 +81,7 @@ export default function TranslationDemoBanner({ hasInteracted }: TranslationDemo
             className="w-[24px] h-[24px] flex-shrink-0 flex items-center justify-center rounded-full bg-transparent hover:bg-primary/10 border-none cursor-pointer transition-colors"
             aria-label="Dismiss tip"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary/40">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={14} strokeWidth={2.5} className="text-primary/40" />
           </button>
         </div>
       )}
@@ -110,10 +99,7 @@ export default function TranslationDemoBanner({ hasInteracted }: TranslationDemo
               className="absolute top-[8px] right-[8px] z-10 w-[28px] h-[28px] flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 border-none cursor-pointer transition-colors"
               aria-label="Close video"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <X size={14} strokeWidth={2.5} color="white" />
             </button>
 
             <video

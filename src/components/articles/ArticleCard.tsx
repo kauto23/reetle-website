@@ -2,8 +2,13 @@
 
 import { useState, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { Check, Image as ImageIcon, MessageCircleQuestion, X } from 'lucide-react';
 import type { Article } from '@/types/article';
 import { useHasHover } from '@/hooks/useHasHover';
+import { labelFromMap } from '@/lib/translationMap';
+import ArticleQueueButton from '@/components/articles/ArticleQueueButton';
+import { usePlayAllAudio } from '@/contexts/PlayAllAudioContext';
+import { cn } from '@/lib/utils';
 
 interface ArticleCardProps {
   article: Article;
@@ -21,27 +26,110 @@ interface ArticleCardProps {
 
 const refreshBlur = 'blur-[3px] select-none pointer-events-none';
 
-export default function ArticleCard({ article, variant = 'grid', topicMap = {}, subtopicMap = {}, geographyMap = {}, onArticleClick, showTranslationHint, onDismissTranslationHint, hideTopicLabel = false, isRefreshing = false }: ArticleCardProps) {
+const cardBase =
+  'bg-ui-card overflow-hidden border border-ui-border rounded-lg transition-shadow duration-200 hover:shadow-md';
+
+function ImagePlaceholder({ size = 32 }: { size?: number }) {
+  return (
+    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-ui-primary/10 to-ui-primary/5">
+      <ImageIcon className="text-ui-primary opacity-20" style={{ width: size, height: size }} strokeWidth={1} />
+    </div>
+  );
+}
+
+function ReadBadge({ size = 'md' }: { size?: 'sm' | 'md' }) {
+  if (size === 'sm') {
+    return (
+      <div className="absolute top-[8px] right-[8px] bg-correct text-white text-[10px] font-semibold px-[6px] py-[2px] rounded-full flex items-center gap-[3px]">
+        <Check className="w-2.5 h-2.5" strokeWidth={3} />
+        Read
+      </div>
+    );
+  }
+  return (
+    <div className="absolute top-[10px] right-[10px] bg-correct text-white text-[11px] font-semibold px-[8px] py-[3px] rounded-full flex items-center gap-[4px]">
+      <Check className="w-3 h-3" strokeWidth={3} />
+      Read
+    </div>
+  );
+}
+
+function TopicLabel({ label, size = 'sm', isRefreshing }: { label: string; size?: 'xs' | 'sm'; isRefreshing?: boolean }) {
+  return (
+    <span className={cn(
+      'font-bold uppercase tracking-wider text-ui-primary',
+      size === 'xs' ? 'text-[10px]' : 'text-[11px]',
+      size === 'sm' && 'bg-ui-primary/10 px-2 py-0.5 rounded',
+      isRefreshing && refreshBlur
+    )}>
+      {label}
+    </span>
+  );
+}
+
+function HeadlineRow({
+  article,
+  showTranslation,
+  toggleTranslation,
+  isRefreshing,
+  iconSize = 14,
+}: {
+  article: Article;
+  showTranslation: boolean;
+  toggleTranslation: (e: React.MouseEvent) => void;
+  isRefreshing: boolean;
+  iconSize?: number;
+}) {
+  if (isRefreshing) return null;
+  return (
+    <span className="ml-auto flex items-center gap-1 shrink-0">
+      <ArticleQueueButton article={article} size={iconSize >= 18 ? 'md' : 'sm'} />
+      {article.headlineFamiliar && (
+        <button
+          onClick={toggleTranslation}
+          className={cn(
+            'flex-shrink-0 inline-flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors duration-200 hover:text-ui-primary p-2 rounded-md',
+            showTranslation ? 'text-ui-primary' : 'text-ui-muted-foreground/60'
+          )}
+          aria-label={showTranslation ? 'Show original' : 'Translate headline'}
+        >
+          <MessageCircleQuestion style={{ width: iconSize, height: iconSize }} />
+        </button>
+      )}
+    </span>
+  );
+}
+
+export default function ArticleCard({
+  article,
+  variant = 'grid',
+  topicMap,
+  subtopicMap,
+  geographyMap,
+  onArticleClick,
+  showTranslationHint,
+  onDismissTranslationHint,
+  hideTopicLabel = false,
+  isRefreshing = false,
+}: ArticleCardProps) {
   const [showTranslation, setShowTranslation] = useState(false);
   const [imgError, setImgError] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasHover = useHasHover();
+  const playAll = usePlayAllAudio();
+  const isNowPlaying = playAll.isCurrentArticleInPlayAll(article.articleId) && playAll.isPlaying;
+  const nowPlayingClass = isNowPlaying ? 'border-primary animate-nowPlayingGlow [animation-duration:2.5s]' : '';
 
   const imageUrl = article.imageLinks?.[0] || null;
-  const topicLabel = article.topic
-    ? (topicMap[article.topic] || topicMap[article.topic.toLowerCase()] || article.topic.charAt(0).toUpperCase() + article.topic.slice(1))
-    : null;
+  const topicLabel = labelFromMap(topicMap, article.topic);
   const metaText = article.subtopic
-    ? (subtopicMap[article.subtopic] || article.subtopic)
-    : article.geography
-      ? (geographyMap[article.geography] || article.geography)
-      : null;
+    ? labelFromMap(subtopicMap, article.subtopic)
+    : labelFromMap(geographyMap, article.geography);
+  const geoLabel = labelFromMap(geographyMap, article.geography);
 
   const handleHeadlineMouseEnter = useCallback(() => {
     if (!hasHover || !article.headlineFamiliar) return;
-    hoverTimerRef.current = setTimeout(() => {
-      setShowTranslation(true);
-    }, 500);
+    hoverTimerRef.current = setTimeout(() => setShowTranslation(true), 500);
   }, [hasHover, article.headlineFamiliar]);
 
   const handleHeadlineMouseLeave = useCallback(() => {
@@ -60,114 +148,74 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
   }, [article.headlineFamiliar]);
 
   const showImage = imageUrl && !imgError;
-
-  // Click handler for article navigation
   const handleClick = onArticleClick
     ? (e: React.MouseEvent) => { e.preventDefault(); onArticleClick(article.articleId); }
     : undefined;
 
-  // HERO variant - large lead story
+  const headlineProps = {
+    onMouseEnter: hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined,
+    onMouseLeave: hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined,
+    title: hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined,
+  };
+
+  const headlineColor = showTranslation ? 'text-primary-light' : 'text-primary';
+
   if (variant === 'hero') {
     return (
-      <Link
-        href={`/article?id=${article.articleId}`}
-        className="block no-underline group"
-        onClick={handleClick}
-      >
-        <article className={`bg-white overflow-hidden border border-border ${article.read ? 'opacity-70' : ''}`}>
-          <div className={`relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] ${!showImage ? 'bg-gradient-to-br from-primary/10 to-primary/5' : ''}`}>
+      <Link href={`/article?id=${article.articleId}`} className="block no-underline group" onClick={handleClick}>
+        <article className={cn(cardBase, article.read && 'opacity-70', nowPlayingClass)}>
+          <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px]">
             {showImage ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="eager"
-                  onError={() => setImgError(true)}
-                />
-              </>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl!} alt="" className="w-full h-full object-cover" loading="eager" onError={() => setImgError(true)} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
-                </svg>
-              </div>
+              <ImagePlaceholder size={48} />
             )}
-            {article.read && (
-              <div className="absolute top-[10px] right-[10px] bg-correct text-white text-[11px] font-semibold px-[8px] py-[3px] rounded-full flex items-center gap-[4px]">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Read
-              </div>
-            )}
+            {article.read && <ReadBadge />}
             {showTranslationHint && (
-              <div className="absolute bottom-0 left-0 right-0 flex items-center gap-[8px] px-[16px] sm:px-[20px] py-[8px] bg-primary/90 backdrop-blur-sm">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/90 shrink-0">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
+              <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-4 sm:px-5 py-2 bg-ui-primary/90 backdrop-blur-sm">
+          <MessageCircleQuestion className="w-4 h-4 text-white/90 shrink-0" />
                 <span className="text-[12px] sm:text-[13px] text-white/90 font-medium flex-1">
                   {hasHover
                     ? 'Hover over a headline to see its translation'
-                    : <>Tap <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-2px]"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg> next to a headline to see its translation</>
-                  }
+                    : <>Tap <MessageCircleQuestion className="inline w-3 h-3 align-[-2px]" /> next to a headline to see its translation</>}
                 </span>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onDismissTranslationHint?.();
-                  }}
-                  className="p-[4px] rounded-full hover:bg-white/20 transition-colors duration-150 cursor-pointer shrink-0"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDismissTranslationHint?.(); }}
+                  className="p-2 -m-1 rounded-full hover:bg-white/20 transition-colors duration-150 cursor-pointer shrink-0 inline-flex items-center justify-center"
                   aria-label="Dismiss hint"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
+                  <X className="w-3.5 h-3.5 text-white/70" />
                 </button>
               </div>
             )}
           </div>
-          <div className="p-[16px] sm:p-[20px]">
-            <div className="flex items-center gap-[8px] mb-[8px]">
-              {topicLabel && (
-                <span className={`text-[11px] font-bold uppercase tracking-wider text-primary bg-primary/8 px-[8px] py-[2px] rounded ${isRefreshing ? refreshBlur : ''}`}>
-                  {topicLabel}
-                </span>
-              )}
-              {metaText && (
-                <span className={`text-[11px] font-medium text-text-secondary ${isRefreshing ? refreshBlur : ''}`}>
-                  {metaText}
-                </span>
-              )}
-              {article.hoursSinceMostRecent && (
-                <span className="text-[11px] text-text-secondary">{article.hoursSinceMostRecent}</span>
-              )}
-              {!hasHover && article.headlineFamiliar && !isRefreshing && (
-                <button
-                  onClick={toggleTranslation}
-                  className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
-                  aria-label={showTranslation ? 'Show original' : 'Translate headline'}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <path d="M12 17h.01" />
-                  </svg>
-                </button>
-              )}
+          <div className="p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-2 min-w-0">
+              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-2">
+                {topicLabel && <TopicLabel label={topicLabel} isRefreshing={isRefreshing} />}
+                {metaText && (
+                  <span className={cn('text-[11px] font-medium text-ui-muted-foreground truncate', isRefreshing && refreshBlur)}>
+                    {metaText}
+                  </span>
+                )}
+                {article.hoursSinceMostRecent && (
+                  <span className="article-time-label shrink-0 whitespace-nowrap text-[11px] text-ui-muted-foreground hidden sm:inline">
+                    {article.hoursSinceMostRecent}
+                  </span>
+                )}
+              </div>
+              <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={18} />
             </div>
             <h2
-              className={`relative text-[20px] sm:text-[24px] font-semibold leading-[1.25] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-              onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
-              onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
-              title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
+              className={cn(
+                'relative text-[20px] sm:text-[24px] font-semibold leading-[1.25] transition-colors duration-300 overflow-hidden',
+                headlineColor,
+                isRefreshing && refreshBlur
+              )}
+              {...headlineProps}
             >
-              <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
+              <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
                 {article.headline}
               </span>
               {showTranslation && !isRefreshing && (
@@ -180,73 +228,44 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
     );
   }
 
-  // SIDEBAR variant - horizontal compact card
   if (variant === 'sidebar') {
     return (
-      <Link
-        href={`/article?id=${article.articleId}`}
-        className="block no-underline group flex-1"
-        onClick={handleClick}
-      >
-        <article className={`bg-white overflow-hidden border border-border flex h-full ${article.read ? 'opacity-70' : ''}`}>
-          <div className={`relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden ${!showImage ? 'bg-gradient-to-br from-primary/10 to-primary/5' : ''}`}>
+      <Link href={`/article?id=${article.articleId}`} className="block no-underline group flex-1" onClick={handleClick}>
+        <article className={cn(cardBase, 'flex h-full', article.read && 'opacity-70', nowPlayingClass)}>
+          <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden">
             {showImage ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={() => setImgError(true)}
-                />
-              </>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl!} alt="" className="w-full h-full object-cover" loading="lazy" onError={() => setImgError(true)} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center min-h-[100px]">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
-                </svg>
-              </div>
+              <ImagePlaceholder size={28} />
             )}
             {article.read && (
-              <div className="absolute top-[6px] right-[6px] w-[22px] h-[22px] bg-correct rounded-full flex items-center justify-center">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+              <div className="absolute top-1.5 right-1.5 w-[22px] h-[22px] bg-correct rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-white" strokeWidth={3} />
               </div>
             )}
           </div>
-          <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0">
-            <div className="flex items-center gap-[6px] mb-[4px]">
-              {topicLabel && (
-                <span className={`text-[10px] font-bold uppercase tracking-wider text-primary ${isRefreshing ? refreshBlur : ''}`}>
-                  {topicLabel}
-                </span>
-              )}
-              {article.hoursSinceMostRecent && (
-                <span className="text-[10px] text-text-secondary">{article.hoursSinceMostRecent}</span>
-              )}
-              {!hasHover && article.headlineFamiliar && !isRefreshing && (
-                <button
-                  onClick={toggleTranslation}
-                  className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
-                  aria-label={showTranslation ? 'Show original' : 'Translate headline'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <path d="M12 17h.01" />
-                  </svg>
-                </button>
-              )}
+          <div className="p-3 flex flex-col justify-center flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1 min-w-0">
+              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-1.5">
+                {topicLabel && <TopicLabel label={topicLabel} size="xs" isRefreshing={isRefreshing} />}
+                {article.hoursSinceMostRecent && (
+                  <span className="article-time-label shrink-0 whitespace-nowrap text-[10px] text-ui-muted-foreground hidden sm:inline">
+                    {article.hoursSinceMostRecent}
+                  </span>
+                )}
+              </div>
+              <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={14} />
             </div>
             <h3
-              className={`relative text-[14px] sm:text-[15px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-              onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
-              onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
-              title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
+              className={cn(
+                'relative text-[14px] sm:text-[15px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden',
+                headlineColor,
+                isRefreshing && refreshBlur
+              )}
+              {...headlineProps}
             >
-              <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
+              <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
                 {article.headline}
               </span>
               {showTranslation && !isRefreshing && (
@@ -259,82 +278,42 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
     );
   }
 
-  // FEATURED variant - larger card for section hero/feature layouts
   if (variant === 'featured') {
     return (
-      <Link
-        href={`/article?id=${article.articleId}`}
-        className="block no-underline group h-full"
-        onClick={handleClick}
-      >
-        <article className={`bg-white overflow-hidden border border-border h-full flex flex-col ${article.read ? 'opacity-70' : ''}`}>
-          <div className={`relative overflow-hidden flex-1 min-h-[240px] ${!showImage ? 'bg-gradient-to-br from-primary/10 to-primary/5' : ''}`}>
+      <Link href={`/article?id=${article.articleId}`} className="block no-underline group h-full" onClick={handleClick}>
+        <article className={cn(cardBase, 'h-full flex flex-col', article.read && 'opacity-70', nowPlayingClass)}>
+          <div className="relative overflow-hidden flex-1 min-h-[240px]">
             {showImage ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={() => setImgError(true)}
-                />
-              </>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl!} alt="" className="w-full h-full object-cover" loading="lazy" onError={() => setImgError(true)} />
             ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
-                </svg>
-              </div>
+              <ImagePlaceholder size={40} />
             )}
-            {article.read && (
-              <div className="absolute top-[8px] right-[8px] bg-correct text-white text-[10px] font-semibold px-[6px] py-[2px] rounded-full flex items-center gap-[3px]">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Read
-              </div>
-            )}
+            {article.read && <ReadBadge size="sm" />}
           </div>
-          <div className="p-[16px] flex flex-col">
-            <div className="flex items-center gap-[6px] mb-[6px]">
-              {hideTopicLabel ? (
-                article.geography && (
-                  <span className={`text-[11px] font-bold uppercase tracking-wider text-primary ${isRefreshing ? refreshBlur : ''}`}>
-                    {geographyMap[article.geography] || article.geography}
+          <div className="p-4 flex flex-col">
+            <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
+              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-1.5">
+                {hideTopicLabel
+                  ? geoLabel && <TopicLabel label={geoLabel} size="xs" isRefreshing={isRefreshing} />
+                  : topicLabel && <TopicLabel label={topicLabel} size="xs" isRefreshing={isRefreshing} />}
+                {article.hoursSinceMostRecent && (
+                  <span className="article-time-label shrink-0 whitespace-nowrap text-[11px] text-ui-muted-foreground hidden sm:inline">
+                    {article.hoursSinceMostRecent}
                   </span>
-                )
-              ) : (
-                topicLabel && (
-                  <span className={`text-[11px] font-bold uppercase tracking-wider text-primary ${isRefreshing ? refreshBlur : ''}`}>
-                    {topicLabel}
-                  </span>
-                )
-              )}
-              {article.hoursSinceMostRecent && (
-                <span className="text-[11px] text-text-secondary">{article.hoursSinceMostRecent}</span>
-              )}
-              {!hasHover && article.headlineFamiliar && !isRefreshing && (
-                <button
-                  onClick={toggleTranslation}
-                  className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
-                  aria-label={showTranslation ? 'Show original' : 'Translate headline'}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <path d="M12 17h.01" />
-                  </svg>
-                </button>
-              )}
+                )}
+              </div>
+              <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={14} />
             </div>
             <h3
-              className={`relative text-[16px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-              onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
-              onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
-              title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
+              className={cn(
+                'relative text-[16px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden',
+                headlineColor,
+                isRefreshing && refreshBlur
+              )}
+              {...headlineProps}
             >
-              <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
+              <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
                 {article.headline}
               </span>
               {showTranslation && !isRefreshing && (
@@ -342,7 +321,7 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
               )}
             </h3>
             {!hideTopicLabel && metaText && (
-              <span className={`text-[11px] mt-auto pt-[8px] text-text-secondary ${isRefreshing ? refreshBlur : ''}`}>
+              <span className={cn('text-[11px] mt-auto pt-2 text-ui-muted-foreground truncate', isRefreshing && refreshBlur)}>
                 {metaText}
               </span>
             )}
@@ -352,81 +331,41 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
     );
   }
 
-  // GRID variant - standard card
   return (
-    <Link
-      href={`/article?id=${article.articleId}`}
-      className="block no-underline group"
-      onClick={handleClick}
-    >
-      <article className={`bg-white overflow-hidden border border-border h-full flex flex-col ${article.read ? 'opacity-70' : ''}`}>
-        <div className={`relative overflow-hidden h-[160px] ${!showImage ? 'bg-gradient-to-br from-primary/10 to-primary/5' : ''}`}>
+    <Link href={`/article?id=${article.articleId}`} className="block no-underline group" onClick={handleClick}>
+      <article className={cn(cardBase, 'h-full flex flex-col', article.read && 'opacity-70', nowPlayingClass)}>
+        <div className="relative overflow-hidden h-[160px]">
           {showImage ? (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt=""
-                className="w-full h-full object-cover"
-                loading="lazy"
-                onError={() => setImgError(true)}
-              />
-            </>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageUrl!} alt="" className="w-full h-full object-cover" loading="lazy" onError={() => setImgError(true)} />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
-              </svg>
-            </div>
+            <ImagePlaceholder />
           )}
-          {article.read && (
-            <div className="absolute top-[8px] right-[8px] bg-correct text-white text-[10px] font-semibold px-[6px] py-[2px] rounded-full flex items-center gap-[3px]">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              Read
-            </div>
-          )}
+          {article.read && <ReadBadge size="sm" />}
         </div>
-        <div className="p-[12px] flex-1 flex flex-col">
-          <div className="flex items-center gap-[6px] mb-[4px]">
-            {hideTopicLabel ? (
-              article.geography && (
-                <span className={`text-[10px] font-bold uppercase tracking-wider text-primary ${isRefreshing ? refreshBlur : ''}`}>
-                  {geographyMap[article.geography] || article.geography}
-                </span>
-              )
-            ) : (
-              topicLabel && (
-                <span className={`text-[10px] font-bold uppercase tracking-wider text-primary ${isRefreshing ? refreshBlur : ''}`}>
-                  {topicLabel}
-                </span>
-              )
-            )}
-            {article.hoursSinceMostRecent && (
-              <span className="text-[10px] text-text-secondary">{article.hoursSinceMostRecent}</span>
-            )}
-            {!hasHover && article.headlineFamiliar && !isRefreshing && (
-              <button
-                onClick={toggleTranslation}
-                className={`ml-auto flex-shrink-0 bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
-                aria-label={showTranslation ? 'Show original' : 'Translate headline'}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <path d="M12 17h.01" />
-                </svg>
-              </button>
-            )}
+        <div className="p-3 flex-1 flex flex-col">
+            <div className="flex items-center gap-1.5 mb-1 min-w-0">
+              <div className="article-card-meta-left flex min-w-0 flex-1 items-center gap-1.5">
+                {hideTopicLabel
+                  ? geoLabel && <TopicLabel label={geoLabel} size="xs" isRefreshing={isRefreshing} />
+                  : topicLabel && <TopicLabel label={topicLabel} size="xs" isRefreshing={isRefreshing} />}
+                {article.hoursSinceMostRecent && (
+                  <span className="article-time-label shrink-0 whitespace-nowrap text-[10px] text-ui-muted-foreground hidden sm:inline">
+                    {article.hoursSinceMostRecent}
+                  </span>
+                )}
+              </div>
+            <HeadlineRow article={article} showTranslation={showTranslation} toggleTranslation={toggleTranslation} isRefreshing={isRefreshing} iconSize={14} />
           </div>
           <h3
-            className={`relative text-[14px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden ${showTranslation ? 'text-primary-light' : 'text-primary'} ${isRefreshing ? refreshBlur : ''}`}
-            onMouseEnter={hasHover && !isRefreshing ? handleHeadlineMouseEnter : undefined}
-            onMouseLeave={hasHover && !isRefreshing ? handleHeadlineMouseLeave : undefined}
-            title={hasHover && !showTranslation ? (article.headlineFamiliar || undefined) : undefined}
+            className={cn(
+              'relative text-[14px] font-semibold leading-[1.3] transition-colors duration-300 overflow-hidden',
+              headlineColor,
+              isRefreshing && refreshBlur
+            )}
+            {...headlineProps}
           >
-            <span className={`line-clamp-3 ${showTranslation && !isRefreshing ? 'invisible' : ''}`} aria-hidden={showTranslation && !isRefreshing}>
+            <span className={cn('line-clamp-3', showTranslation && !isRefreshing && 'invisible')} aria-hidden={showTranslation && !isRefreshing}>
               {article.headline}
             </span>
             {showTranslation && !isRefreshing && (
@@ -434,7 +373,7 @@ export default function ArticleCard({ article, variant = 'grid', topicMap = {}, 
             )}
           </h3>
           {!hideTopicLabel && metaText && (
-            <span className={`text-[10px] mt-auto pt-[8px] text-text-secondary ${isRefreshing ? refreshBlur : ''}`}>
+            <span className={cn('text-[10px] mt-auto pt-2 text-ui-muted-foreground', isRefreshing && refreshBlur)}>
               {metaText}
             </span>
           )}

@@ -4,10 +4,14 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { Check, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { getTargetLanguages } from '@/services/api';
+import { useLoginUrl } from '@/hooks/useLoginUrl';
 import type { TargetLanguage } from '@/types/user';
+import { cn } from '@/lib/utils';
 
 const CEFR_LEVELS = [
   { code: 'A1', name: 'Beginner', description: 'Basic phrases and greetings' },
@@ -24,6 +28,8 @@ export default function Header() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isAuthenticated, logout } = useAuth();
+  const { isPremium } = useSubscription();
+  const loginUrl = useLoginUrl();
   const { preferences, setTargetLanguage, setCefrLevel } = useGuestPreferences();
   const [languages, setLanguages] = useState<TargetLanguage[]>([]);
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
@@ -86,9 +92,9 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-[1000]">
+    <header className="sticky top-0" style={{ zIndex: 'var(--z-header)' }}>
       {/* Top bar */}
-      <nav className="bg-primary text-white">
+      <nav className="bg-ui-primary text-white">
         <div className="max-w-[1280px] mx-auto px-md">
           <div className="flex justify-between items-center h-[48px]">
             {/* Logo */}
@@ -132,6 +138,15 @@ export default function Header() {
                   <Link href="/profile" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Profile
                   </Link>
+                  {isPremium ? (
+                    <span className="text-[11px] font-semibold text-white bg-white/20 px-[10px] py-[4px] rounded-full ml-[4px] select-none">
+                      Premium
+                    </span>
+                  ) : (
+                    <Link href="/premium" className="text-[12px] font-semibold text-primary bg-white px-[12px] py-[5px] rounded-full ml-[4px] hover:bg-white/90 transition-colors">
+                      Go Premium
+                    </Link>
+                  )}
                   <div className="w-[1px] h-[20px] bg-white/20 mx-[6px]" />
                   <button
                     onClick={logout}
@@ -145,97 +160,89 @@ export default function Header() {
                   {/* Language selector */}
                   <button
                     onClick={() => toggleDropdown('language')}
-                    className={`
-                      text-[14px] font-medium px-[14px] py-[8px] rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-[6px]
-                      ${openDropdown === 'language' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}
-                    `}
+                    className={cn(
+                      'text-[14px] font-medium px-3.5 py-2 rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
+                      openDropdown === 'language' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
+                    )}
                   >
                     <span>{currentLangName}</span>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${openDropdown === 'language' ? 'rotate-180' : ''}`}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', openDropdown === 'language' && 'rotate-180')} strokeWidth={3} />
                   </button>
 
                   {/* Level selector */}
                   <button
                     onClick={() => toggleDropdown('level')}
-                    className={`
-                      text-[14px] font-medium px-[14px] py-[8px] rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-[6px]
-                      ${openDropdown === 'level' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'}
-                    `}
+                    className={cn(
+                      'text-[14px] font-medium px-3.5 py-2 rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
+                      openDropdown === 'level' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
+                    )}
                   >
                     <span>{currentLevel?.name || preferences.cefrLevel}</span>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${openDropdown === 'level' ? 'rotate-180' : ''}`}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', openDropdown === 'level' && 'rotate-180')} strokeWidth={3} />
                   </button>
 
                   <div className="w-[1px] h-[20px] bg-white/20 mx-[6px]" />
 
-                  <Link href="/login" className="text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
+                  <Link href={loginUrl} className="text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Log In
                   </Link>
 
                   {/* Language dropdown */}
                   {openDropdown === 'language' && (
-                    <div className="absolute right-0 top-full mt-[4px] w-[240px] bg-white rounded-md border border-border shadow-lg overflow-hidden z-[1100]">
-                      <div className="max-h-[320px] overflow-y-auto py-[4px]">
-                        {languages.map(lang => (
-                          <button
-                            key={lang.code}
-                            onClick={() => handleLanguageSelect(lang.code)}
-                            className={`
-                              flex items-center justify-between w-full px-[14px] py-[10px] text-[14px] text-left cursor-pointer border-none transition-colors duration-100
-                              ${preferences.targetLanguage === lang.code
-                                ? 'bg-primary/5 text-primary font-medium'
-                                : 'bg-white text-primary hover:bg-background'
-                              }
-                            `}
-                          >
-                            <div className="min-w-0">
-                              <p className="text-[14px] leading-tight">{lang.name}</p>
-                              <p className="text-[12px] text-text-secondary leading-tight mt-[2px]">{lang.native_name}</p>
-                            </div>
-                            {preferences.targetLanguage === lang.code && (
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0 ml-[8px]">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                          </button>
-                        ))}
+                    <div className="absolute right-0 top-full mt-1 w-[240px] bg-ui-card rounded-md border border-ui-border shadow-lg overflow-hidden z-[1100]">
+                      <div className="max-h-[320px] overflow-y-auto py-1">
+                        {languages.map(lang => {
+                          const selected = preferences.targetLanguage === lang.code;
+                          return (
+                            <button
+                              key={lang.code}
+                              onClick={() => handleLanguageSelect(lang.code)}
+                              className={cn(
+                                'flex items-center justify-between w-full px-3.5 py-2.5 text-left cursor-pointer border-none transition-colors duration-100',
+                                selected
+                                  ? 'bg-ui-primary/5 text-ui-primary font-medium'
+                                  : 'bg-ui-card text-ui-foreground hover:bg-ui-muted'
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-[14px] leading-tight">{lang.name}</p>
+                                <p className="text-[12px] text-ui-muted-foreground leading-tight mt-0.5">{lang.native_name}</p>
+                              </div>
+                              {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
                   {/* Level dropdown */}
                   {openDropdown === 'level' && (
-                    <div className="absolute right-0 top-full mt-[4px] w-[260px] bg-white rounded-md border border-border shadow-lg overflow-hidden z-[1100]">
-                      <div className="py-[4px]">
-                        {CEFR_LEVELS.map(level => (
-                          <button
-                            key={level.code}
-                            onClick={() => handleLevelSelect(level.code)}
-                            className={`
-                              flex items-center justify-between w-full px-[14px] py-[10px] text-left cursor-pointer border-none transition-colors duration-100
-                              ${preferences.cefrLevel === level.code
-                                ? 'bg-primary/5 text-primary font-medium'
-                                : 'bg-white text-primary hover:bg-background'
-                              }
-                            `}
-                          >
-                            <div className="min-w-0">
-                              <p className="text-[14px] leading-tight">
-                                {level.name} <span className="text-text-secondary font-normal">({level.code})</span>
-                              </p>
-                              <p className="text-[12px] text-text-secondary leading-tight mt-[2px]">{level.description}</p>
-                            </div>
-                            {preferences.cefrLevel === level.code && (
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0 ml-[8px]">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                          </button>
-                        ))}
+                    <div className="absolute right-0 top-full mt-1 w-[260px] bg-ui-card rounded-md border border-ui-border shadow-lg overflow-hidden z-[1100]">
+                      <div className="py-1">
+                        {CEFR_LEVELS.map(level => {
+                          const selected = preferences.cefrLevel === level.code;
+                          return (
+                            <button
+                              key={level.code}
+                              onClick={() => handleLevelSelect(level.code)}
+                              className={cn(
+                                'flex items-center justify-between w-full px-3.5 py-2.5 text-left cursor-pointer border-none transition-colors duration-100',
+                                selected
+                                  ? 'bg-ui-primary/5 text-ui-primary font-medium'
+                                  : 'bg-ui-card text-ui-foreground hover:bg-ui-muted'
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-[14px] leading-tight">
+                                  {level.name} <span className="text-ui-muted-foreground font-normal">({level.code})</span>
+                                </p>
+                                <p className="text-[12px] text-ui-muted-foreground leading-tight mt-0.5">{level.description}</p>
+                              </div>
+                              {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -281,6 +288,13 @@ export default function Header() {
                         Profile
                       </Link>
                     </li>
+                    {!isPremium && (
+                      <li>
+                        <Link href="/premium" className="block py-[10px] text-[15px] font-semibold text-white" onClick={() => setMobileMenuOpen(false)}>
+                          Go Premium
+                        </Link>
+                      </li>
+                    )}
                     <li className="border-t border-white/10 mt-sm pt-sm">
                       <button
                         onClick={() => { logout(); setMobileMenuOpen(false); }}
@@ -338,7 +352,7 @@ export default function Header() {
                       </div>
                     </li>
                     <li className="border-t border-white/10 mt-sm pt-sm">
-                      <Link href="/login" className="block text-center bg-white/10 text-white font-medium py-[10px] rounded-md" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href={loginUrl} className="block text-center bg-white/10 text-white font-medium py-[10px] rounded-md" onClick={() => setMobileMenuOpen(false)}>
                         Log In
                       </Link>
                     </li>

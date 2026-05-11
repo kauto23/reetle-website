@@ -1,0 +1,14 @@
+# https://www.robotstxt.org/robotstxt.html
+
+User-agent: *
+Allow: /
+
+# Facebook / Meta crawlers (explicit allow is optional when * is already Allow: /)
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Facebot
+Allow: /
+
+# Optional: if you add a sitemap later
+# Sitemap: https://reetle.co/sitemap.xml

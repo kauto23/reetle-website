@@ -7,6 +7,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Legacy brand tokens. These keep existing utility classes working
+        // (text-primary, bg-surface, border-border, etc.) during the
+        // shadcn-style design-system migration.
         primary: {
           DEFAULT: '#4A2462',
           dark: '#2D1832',
@@ -30,6 +33,49 @@ const config: Config = {
           DEFAULT: '#F87171',
           bg: '#FEE2E2',
           text: '#991B1B',
+        },
+
+        // Shadcn-style semantic tokens backed by CSS variables in
+        // src/app/globals.css. New primitives in src/components/ui consume
+        // these names so theming changes flow through one source of truth.
+        ui: {
+          background: 'hsl(var(--background))',
+          foreground: 'hsl(var(--foreground))',
+          card: {
+            DEFAULT: 'hsl(var(--card))',
+            foreground: 'hsl(var(--card-foreground))',
+          },
+          popover: {
+            DEFAULT: 'hsl(var(--popover))',
+            foreground: 'hsl(var(--popover-foreground))',
+          },
+          primary: {
+            DEFAULT: 'hsl(var(--primary))',
+            foreground: 'hsl(var(--primary-foreground))',
+          },
+          secondary: {
+            DEFAULT: 'hsl(var(--secondary))',
+            foreground: 'hsl(var(--secondary-foreground))',
+          },
+          muted: {
+            DEFAULT: 'hsl(var(--muted))',
+            foreground: 'hsl(var(--muted-foreground))',
+          },
+          accent: {
+            DEFAULT: 'hsl(var(--accent))',
+            foreground: 'hsl(var(--accent-foreground))',
+          },
+          destructive: {
+            DEFAULT: 'hsl(var(--destructive))',
+            foreground: 'hsl(var(--destructive-foreground))',
+          },
+          success: {
+            DEFAULT: 'hsl(var(--success))',
+            foreground: 'hsl(var(--success-foreground))',
+          },
+          border: 'hsl(var(--border))',
+          input: 'hsl(var(--input))',
+          ring: 'hsl(var(--ring))',
         },
       },
       fontFamily: {
@@ -90,9 +136,61 @@ const config: Config = {
           '60%': { transform: 'translateX(-1px) rotate(-1deg)' },
           '80%': { transform: 'translateX(1px) rotate(1deg)' },
         },
+        bounceDot: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-50%)' },
+        },
         progress: {
           '0%': { width: '0%' },
           '100%': { width: '100%' },
+        },
+        /** Staggered, non-linear fill for "preparing audio" — reaches 100% at 10s. */
+        audioPrepareProgress: {
+          '0%': { width: '0%' },
+          '4%': { width: '5%' },
+          '8%': { width: '10%' },
+          '12%': { width: '10%' },
+          '18%': { width: '22%' },
+          '25%': { width: '31%' },
+          '30%': { width: '31%' },
+          '38%': { width: '45%' },
+          '46%': { width: '54%' },
+          '51%': { width: '54%' },
+          '59%': { width: '65%' },
+          '67%': { width: '74%' },
+          '73%': { width: '74%' },
+          '81%': { width: '84%' },
+          '89%': { width: '91%' },
+          '95%': { width: '95%' },
+          '100%': { width: '100%' },
+        },
+        audioWave: {
+          '0%, 100%': { transform: 'scaleY(0.45)' },
+          '50%': { transform: 'scaleY(1)' },
+        },
+        marquee: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+        'accordion-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-accordion-content-height)' },
+        },
+        'accordion-up': {
+          from: { height: 'var(--radix-accordion-content-height)' },
+          to: { height: '0' },
+        },
+        'collapsible-down': {
+          from: { height: '0' },
+          to: { height: 'var(--radix-collapsible-content-height)' },
+        },
+        'collapsible-up': {
+          from: { height: 'var(--radix-collapsible-content-height)' },
+          to: { height: '0' },
+        },
+        nowPlayingGlow: {
+          '0%, 100%': { borderColor: 'rgba(74, 36, 98, 0.85)' },
+          '50%':       { borderColor: 'rgba(74, 36, 98, 0.25)' },
         },
       },
       animation: {
@@ -102,11 +200,20 @@ const config: Config = {
         translationPopIn: 'translationPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         spin: 'spin 1s linear infinite',
         writing: 'writing 1.5s ease-in-out infinite',
+        bounceDot: 'bounceDot 0.6s ease-in-out infinite',
         progress: 'progress 20s linear forwards',
+        audioPrepareProgress: 'audioPrepareProgress 10s linear forwards',
+        audioWave: 'audioWave 0.9s ease-in-out infinite',
+        marquee: 'marquee var(--marquee-duration, 12s) linear infinite',
+        'accordion-down': 'accordion-down 0.2s ease-out',
+        'accordion-up': 'accordion-up 0.2s ease-out',
+        'collapsible-down': 'collapsible-down 0.2s ease-out',
+        'collapsible-up': 'collapsible-up 0.2s ease-out',
+        nowPlayingGlow: 'nowPlayingGlow 2.5s ease-in-out infinite',
       },
     },
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 };
 
 export default config;

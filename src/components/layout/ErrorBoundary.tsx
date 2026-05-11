@@ -1,6 +1,8 @@
 'use client';
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   children: ReactNode;
@@ -33,24 +35,17 @@ export default class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="flex flex-col items-center justify-center min-h-[40vh] px-md text-center">
-          <div className="w-[56px] h-[56px] bg-incorrect-bg rounded-full flex items-center justify-center mb-lg">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#991B1B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="15" y1="9" x2="9" y2="15" />
-              <line x1="9" y1="9" x2="15" y2="15" />
-            </svg>
+        <div className="flex flex-col items-center justify-center min-h-[40vh] px-4 text-center">
+          <div className="w-14 h-14 bg-incorrect-bg rounded-full flex items-center justify-center mb-6">
+            <AlertCircle className="w-7 h-7 text-incorrect-text" />
           </div>
-          <h2 className="text-display-sm text-primary mb-sm">Something went wrong</h2>
-          <p className="text-body-lg text-text-secondary mb-lg max-w-[400px]">
+          <h2 className="text-[24px] font-semibold text-ui-foreground mb-2">Something went wrong</h2>
+          <p className="text-[15px] text-ui-muted-foreground mb-6 max-w-[400px]">
             An unexpected error occurred. Please refresh the page and try again.
           </p>
-          <button
-            onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
-            className="btn-primary"
-          >
-            Refresh Page
-          </button>
+          <Button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}>
+            Refresh page
+          </Button>
         </div>
       );
     }

@@ -6,9 +6,10 @@ import ArticleCard from '@/components/articles/ArticleCard';
 import ArticleDetail from '@/components/articles/ArticleDetail';
 import AppStoreCTA from '@/components/layout/AppStoreCTA';
 import TopicNav from '@/components/layout/TopicNav';
-import { CATEGORY_ORDER } from '@/config/categories';
 import { useArticles } from '@/contexts/ArticlesContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { SHOW_APP_STORE_PROMO, heroRowArticleCount } from '@/config/site-promos';
+import { Button } from '@/components/ui/button';
 
 export default function TopicPageClient() {
   return (
@@ -34,10 +35,6 @@ function TopicPageContent() {
 
   const allArticles = useMemo(() => articlesData?.articles ?? [], [articlesData]);
 
-  const topicName = useMemo(() => {
-    return CATEGORY_ORDER.find(c => c.toLowerCase() === slug.toLowerCase()) || slug;
-  }, [slug]);
-
   const { filteredArticles, subtopics } = useMemo(() => {
     const topicLower = slug.toLowerCase();
     const topicFiltered = allArticles.filter(a => a.topic.toLowerCase() === topicLower);
@@ -54,8 +51,7 @@ function TopicPageContent() {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [router, slug]);
 
-  const topicLabel = articlesData?.topicMap[slug.toLowerCase()] || articlesData?.topicMap[topicName] || topicName;
-  const heroCount = hasApp ? 5 : 4;
+  const heroCount = heroRowArticleCount(hasApp);
 
   return (
     <>
@@ -75,32 +71,37 @@ function TopicPageContent() {
           <div className="max-w-[1280px] mx-auto px-md">
             {(isLoading || !articlesData) && !error && (
               <div className="space-y-[24px] max-h-[calc(100vh-140px)] overflow-hidden select-none opacity-60">
-                {/* Hero + sidebar skeleton */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
                   <div className="lg:col-span-7">
                     <div className="bg-white overflow-hidden border border-border">
                       <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                       <div className="p-[16px] sm:p-[20px] blur-[5px]">
                         <div className="flex items-center gap-[8px] mb-[8px]">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-primary bg-primary/8 px-[8px] py-[2px] rounded">Politics</span>
-                          <span className="text-[11px] font-medium text-text-secondary">United Kingdom</span>
-                          <span className="text-[11px] text-text-secondary">2h</span>
+                          <span className="h-[12px] w-[48px] rounded-sm bg-primary/20" />
+                          <span className="h-[12px] w-[72px] rounded-sm bg-text-secondary/20" />
+                          <span className="h-[10px] w-[22px] rounded-sm bg-text-secondary/20" />
                         </div>
-                        <p className="text-[20px] sm:text-[24px] font-semibold leading-[1.25] text-primary">Breaking news headline placeholder text goes here today</p>
+                        <div className="space-y-[6px]">
+                          <div className="h-[20px] w-full max-w-[95%] rounded-sm bg-primary/10" />
+                          <div className="h-[20px] w-[60%] rounded-sm bg-primary/10" />
+                        </div>
                       </div>
                     </div>
                   </div>
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
-                      {['World leaders meet at summit', 'Local team wins championship', 'New policy announcement made'].map((text, i) => (
+                      {[0, 1, 2].map((i) => (
                         <div key={i} className="bg-white overflow-hidden border border-border flex h-full flex-1">
                           <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                           <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0 blur-[5px]">
                             <div className="flex items-center gap-[6px] mb-[4px]">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Sport</span>
-                              <span className="text-[10px] text-text-secondary">4h</span>
+                              <span className="h-[9px] w-[36px] rounded-sm bg-primary/20" />
+                              <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
                             </div>
-                            <p className="text-[14px] sm:text-[15px] font-semibold leading-[1.3] text-primary">{text}</p>
+                            <div className="space-y-[4px]">
+                              <div className="h-[13px] w-full max-w-[100%] rounded-sm bg-primary/10" />
+                              <div className="h-[13px] w-[85%] rounded-sm bg-primary/10" />
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -108,22 +109,20 @@ function TopicPageContent() {
                   </div>
                 </div>
 
-                {/* Grid section skeleton */}
                 <div>
-                  <div className="pt-[24px] pb-[12px]">
-                    <span className="text-[18px] font-semibold text-primary blur-[5px] inline-block">Politics</span>
-                    <div className="h-[2px] bg-primary w-full mt-[8px]" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px] pt-[8px]">
-                    {['Economy report shows growth', 'Election results finalised', 'Parliament debates new bill', 'Trade agreement signed'].map((text, i) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
+                    {[0, 1, 2, 3].map((i) => (
                       <div key={i} className="bg-white overflow-hidden border border-border h-full flex flex-col">
                         <div className="relative overflow-hidden h-[160px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                         <div className="p-[12px] flex-1 flex flex-col blur-[5px]">
                           <div className="flex items-center gap-[6px] mb-[4px]">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Business</span>
-                            <span className="text-[10px] text-text-secondary">1h</span>
+                            <span className="h-[9px] w-[40px] rounded-sm bg-primary/20" />
+                            <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
                           </div>
-                          <p className="text-[14px] font-semibold leading-[1.3] text-primary">{text}</p>
+                          <div className="space-y-[4px]">
+                            <div className="h-[13px] w-full rounded-sm bg-primary/10" />
+                            <div className="h-[13px] w-[80%] rounded-sm bg-primary/10" />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -133,16 +132,15 @@ function TopicPageContent() {
             )}
 
             {error && !isLoading && (
-              <div className="text-center py-[80px]">
-                <p className="text-[16px] text-text-secondary mb-md">{error}</p>
-                <button onClick={fetchArticles} className="btn-primary">
-                  Try Again
-                </button>
+              <div className="text-center py-20">
+                <p className="text-[16px] text-ui-muted-foreground mb-4">{error}</p>
+                <Button onClick={fetchArticles}>Try again</Button>
               </div>
             )}
 
             {!isLoading && !error && filteredArticles.length > 0 && (
-              <div className="space-y-[32px]">
+              <>
+                <div className="space-y-[32px]">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
                   <div className="lg:col-span-7">
                     <ArticleCard
@@ -169,43 +167,34 @@ function TopicPageContent() {
                           isRefreshing={isRefreshing}
                         />
                       ))}
-                      {!hasApp && <AppStoreCTA />}
+                      {!hasApp && SHOW_APP_STORE_PROMO && <AppStoreCTA />}
                     </div>
                   </div>
                 </div>
 
                 {filteredArticles.length > heroCount && (
-                  <>
-                    <div className="border-t-[2px] border-primary/10" />
-                    <div>
-                      <div className="mb-[16px] pb-[8px] border-b-[2px] border-primary">
-                        <h2 className={`text-[18px] font-semibold text-primary ${isRefreshing ? 'blur-[3px] select-none' : ''}`}>
-                          {topicLabel}
-                        </h2>
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
-                        {filteredArticles.slice(heroCount).map(article => (
-                          <ArticleCard
-                            key={article.articleId}
-                            article={article}
-                            variant="grid"
-                            topicMap={articlesData?.topicMap}
-                            subtopicMap={articlesData?.subtopicMap}
-                            geographyMap={articlesData?.geographyMap}
-                            onArticleClick={openArticle}
-                            isRefreshing={isRefreshing}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
+                    {filteredArticles.slice(heroCount).map(article => (
+                      <ArticleCard
+                        key={article.articleId}
+                        article={article}
+                        variant="grid"
+                        topicMap={articlesData?.topicMap}
+                        subtopicMap={articlesData?.subtopicMap}
+                        geographyMap={articlesData?.geographyMap}
+                        onArticleClick={openArticle}
+                        isRefreshing={isRefreshing}
+                      />
+                    ))}
+                  </div>
                 )}
-              </div>
+                </div>
+              </>
             )}
 
             {!isLoading && !error && articlesData && filteredArticles.length === 0 && (
-              <div className="text-center py-[80px]">
-                <p className="text-[16px] text-text-secondary">
+              <div className="text-center py-20">
+                <p className="text-[16px] text-ui-muted-foreground">
                   No articles found for this category.
                 </p>
               </div>

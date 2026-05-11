@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PracticeQuestion } from '@/types/practice';
 import { useHasHover } from '@/hooks/useHasHover';
@@ -86,25 +86,14 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
   const [showConfetti, setShowConfetti] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasHover = useHasHover();
-  const nextButtonRef = useRef<HTMLDivElement>(null);
-  const [isButtonInView, setIsButtonInView] = useState(true);
   const masteryMessage = useMemo(() => MASTERY_MESSAGES[Math.floor(Math.random() * MASTERY_MESSAGES.length)], []);
 
-  useEffect(() => {
-    if (!hasAnswered || !onNext) {
-      setIsButtonInView(true);
-      return;
-    }
-    const el = nextButtonRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsButtonInView(entry.isIntersecting),
-      { threshold: 0.5 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasAnswered, onNext]);
+  const choiceCount = question.answerChoices.length;
+  const revealDelay = (slot: number) => 0.06 + slot * 0.06;
+  const questionTranslationSlot = choiceCount;
+  const feedbackSlot = choiceCount + 1;
+  const masterySlot = choiceCount + 2;
+  const buttonSlot = choiceCount + 3;
 
   const handleQuestionMouseEnter = useCallback(() => {
     if (!hasHover || !question.questionFamiliar) return;
@@ -143,12 +132,7 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
     ? question.questionComplete
     : question.question;
 
-  const choiceCount = question.answerChoices.length;
-  const revealDelay = (slot: number) => 0.06 + slot * 0.06;
-  const questionTranslationSlot = choiceCount;
-  const feedbackSlot = choiceCount + 1;
-  const masterySlot = choiceCount + 2;
-  const buttonSlot = choiceCount + 3;
+  const showNextBar = hasAnswered && !!onNext;
 
   return (
     <motion.div
@@ -321,7 +305,7 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
                   )}
                 </motion.span>
 
-                <div className="flex-1 min-w-0 flex items-baseline justify-between gap-sm">
+                <div className="flex-1 min-w-0">
                   <p className={`text-[16px] font-medium leading-snug ${
                     showCorrectState ? 'text-correct-text' : showIncorrectState ? 'text-incorrect-text' : 'text-primary'
                   }`}>
@@ -330,7 +314,7 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
                   <AnimatePresence>
                     {hasAnswered && choice.textFamiliar && (
                       <motion.p
-                        className="text-[13px] text-text-secondary whitespace-nowrap text-right"
+                        className="text-[13px] text-text-secondary mt-[2px] leading-snug"
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: revealDelay(index), duration: 0.4, ease: easeOut }}
@@ -346,7 +330,7 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
         })}
       </motion.div>
 
-      {/* Post-answer group: feedback, mastery, next button */}
+      {/* Post-answer group: feedback, mastery (next action is fixed to viewport bottom) */}
       <AnimatePresence>
         {hasAnswered && (
           <motion.div
@@ -412,51 +396,31 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
                 </div>
               </motion.div>
             )}
-
-            {onNext && (
-              <div ref={nextButtonRef}>
-                <motion.button
-                  onClick={onNext}
-                  className="btn-primary w-full"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: revealDelay(buttonSlot), duration: 0.4, ease: easeOut }}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {nextLabel}
-                </motion.button>
-              </div>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {hasAnswered && onNext && !isButtonInView && (
-          <motion.div
-            className="fixed bottom-0 left-0 right-0 z-50 px-md pt-sm"
-            style={{
-              paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
-              background: 'linear-gradient(to top, var(--color-background) 60%, transparent)',
-            }}
-            initial={{ opacity: 0, y: 20 }}
+      {showNextBar && (
+        <div
+          className="z-[950] mt-md"
+          style={{
+            position: 'sticky',
+            bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+          <motion.button
+            onClick={onNext}
+            className="btn-primary w-full shadow-[0_8px_32px_rgba(45,24,50,0.25)]"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
+            transition={{ delay: revealDelay(buttonSlot), duration: 0.35, ease: easeOut }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <div className="max-w-[600px] mx-auto">
-              <motion.button
-                onClick={onNext}
-                className="btn-primary w-full shadow-lg"
-                whileTap={{ scale: 0.98 }}
-              >
-                {nextLabel}
-              </motion.button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {nextLabel}
+          </motion.button>
+        </div>
+      )}
     </motion.div>
   );
 }

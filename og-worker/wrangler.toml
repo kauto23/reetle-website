@@ -1,0 +1,9 @@
+name = "reetle-og-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Route is also configured in the dashboard; this keeps CLI deploys aligned.
+# If deploy complains, comment this block and manage routes only in the dashboard.
+routes = [
+  { pattern = "reetle.co/*", zone_name = "reetle.co" }
+]

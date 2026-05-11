@@ -3,10 +3,40 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import {
+  BarChart3,
+  Check,
+  ChevronRight,
+  ClipboardList,
+  Copy,
+  Link2,
+  Loader2,
+  ShieldCheck,
+} from 'lucide-react';
 import AuthGuard from '@/components/layout/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTargetLanguages } from '@/services/api';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { getTargetLanguages, getReferralCode, cancelSubscription } from '@/services/api';
 import type { TargetLanguage } from '@/types/user';
+import type { ReferralInfo } from '@/types/subscription';
+import { buildReferralUrl } from '@/lib/referralShare';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 const FLAG_MAP: Record<string, string> = {
   spanish: '\u{1F1EA}\u{1F1F8}',
@@ -21,30 +51,12 @@ const FLAG_MAP: Record<string, string> = {
   korean: '\u{1F1F0}\u{1F1F7}',
 };
 
-// Map language codes to display names (for when the API stores short codes)
 const LANGUAGE_NAMES: Record<string, string> = {
-  es: 'Spanish',
-  fr: 'French',
-  de: 'German',
-  it: 'Italian',
-  pt: 'Portuguese',
-  nl: 'Dutch',
-  ru: 'Russian',
-  ja: 'Japanese',
-  zh: 'Chinese',
-  ko: 'Korean',
-  en: 'English',
-  spanish: 'Spanish',
-  french: 'French',
-  german: 'German',
-  italian: 'Italian',
-  portuguese: 'Portuguese',
-  dutch: 'Dutch',
-  russian: 'Russian',
-  japanese: 'Japanese',
-  chinese: 'Chinese',
-  korean: 'Korean',
-  english: 'English',
+  es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese',
+  nl: 'Dutch', ru: 'Russian', ja: 'Japanese', zh: 'Chinese', ko: 'Korean', en: 'English',
+  spanish: 'Spanish', french: 'French', german: 'German', italian: 'Italian',
+  portuguese: 'Portuguese', dutch: 'Dutch', russian: 'Russian', japanese: 'Japanese',
+  chinese: 'Chinese', korean: 'Korean', english: 'English',
 };
 
 function getLanguageDisplayName(code: string | null): string {
@@ -75,11 +87,23 @@ const CEFR_LEVELS: CefrLevel[] = [
 
 export default function ProfilePage() {
   const { user, logout, deleteAccount, updateLanguage, updateCefrLevel } = useAuth();
+  const { isPremium, platform, expirationDate, refreshStatus } = useSubscription();
   const router = useRouter();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Language editing
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [cancelSuccess, setCancelSuccess] = useState<{
+    message: string;
+    requiresUserAction: boolean;
+    managementUrl?: string;
+  } | null>(null);
+
+  const [referral, setReferral] = useState<ReferralInfo | null>(null);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
   const [editingLanguage, setEditingLanguage] = useState(false);
   const [languages, setLanguages] = useState<TargetLanguage[]>([]);
   const [languagesLoaded, setLanguagesLoaded] = useState(false);
@@ -87,13 +111,11 @@ export default function ProfilePage() {
   const [isSavingLanguage, setIsSavingLanguage] = useState(false);
   const [languageError, setLanguageError] = useState<string | null>(null);
 
-  // CEFR level editing
   const [editingLevel, setEditingLevel] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [isSavingLevel, setIsSavingLevel] = useState(false);
   const [levelError, setLevelError] = useState<string | null>(null);
 
-  // Load languages when editing is opened
   const loadLanguages = useCallback(async () => {
     if (languagesLoaded) return;
     setLanguageError(null);
@@ -112,10 +134,18 @@ export default function ProfilePage() {
   }, [languagesLoaded]);
 
   useEffect(() => {
-    if (editingLanguage && !languagesLoaded) {
-      loadLanguages();
-    }
+    if (editingLanguage && !languagesLoaded) loadLanguages();
   }, [editingLanguage, languagesLoaded, loadLanguages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setReferralLoading(true);
+    getReferralCode()
+      .then(data => { if (!cancelled) setReferral(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setReferralLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleToggleLanguageEdit = () => {
     setEditingLevel(false);
@@ -140,6 +170,14 @@ export default function ProfilePage() {
       if (success) {
         setEditingLanguage(false);
         setSelectedLanguage(null);
+        // Confirm the save and signal that downstream content (articles
+        // feed, any active audio queue) is being refreshed for the new
+        // language. The actual queue teardown is handled inside
+        // `PlayAllAudioContext` when it observes the auth-context update.
+        toast.success(`Now learning ${getLanguageDisplayName(selectedLanguage)}`, {
+          description: 'Your articles and audio are being updated.',
+          duration: 4000,
+        });
       } else {
         setLanguageError('Failed to update language. Please try again.');
       }
@@ -159,6 +197,10 @@ export default function ProfilePage() {
       if (success) {
         setEditingLevel(false);
         setSelectedLevel(null);
+        toast.success(`Level set to ${selectedLevel}`, {
+          description: 'Your articles and audio are being updated.',
+          duration: 4000,
+        });
       } else {
         setLevelError('Failed to update level. Please try again.');
       }
@@ -166,6 +208,39 @@ export default function ProfilePage() {
       setLevelError('An error occurred. Please try again.');
     } finally {
       setIsSavingLevel(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      const result = await cancelSubscription();
+      const endDate = new Date(result.is_premium_until).toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'long', year: 'numeric',
+      });
+      if (result.requires_user_action && result.management_url) {
+        window.open(result.management_url, '_blank', 'noopener,noreferrer');
+        setCancelSuccess({
+          message: result.message || `Apple subscriptions must be cancelled in Apple's subscription settings. We've opened it for you. Premium remains active until ${endDate}.`,
+          requiresUserAction: true,
+          managementUrl: result.management_url,
+        });
+      } else {
+        setCancelSuccess({
+          message: `Your premium access will end on ${endDate}.`,
+          requiresUserAction: false,
+        });
+      }
+      await refreshStatus();
+    } catch (err) {
+      const code = err instanceof Error ? err.message : 'unknown_error';
+      let friendly = 'Could not cancel your subscription. Please try again.';
+      if (code === 'no_active_subscription') friendly = 'No active subscription found.';
+      else if (code === 'not_user_cancellable') friendly = 'This subscription is managed externally and cannot be cancelled here.';
+      setCancelError(friendly);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -182,265 +257,398 @@ export default function ProfilePage() {
       alert('An error occurred. Please try again.');
     } finally {
       setIsDeleting(false);
-      setShowDeleteConfirm(false);
     }
   };
 
   return (
     <AuthGuard>
-      <section className="py-2xl">
-        <div className="max-w-[560px] mx-auto px-md">
-          <h1 className="text-display-md text-primary mb-xl text-center">Profile</h1>
+      <section className="py-10 sm:py-14">
+        <div className="max-w-[600px] mx-auto px-4 space-y-6">
+          <div className="text-center mb-2">
+            <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground">Profile</h1>
+          </div>
 
-          {/* User info */}
-          <div className="card hover:transform-none mb-lg" style={{ animation: 'none' }}>
-            <div className="flex items-center gap-md mb-lg">
-              <div className="w-[56px] h-[56px] bg-primary rounded-full flex items-center justify-center text-white text-[24px] font-semibold shrink-0">
-                {user?.email?.[0]?.toUpperCase() || 'U'}
-              </div>
-              <div>
-                <p className="text-title-lg text-primary">{user?.email || 'User'}</p>
-                {user?.cefrLevel && (
-                  <p className="text-body-md text-text-secondary">Level {user.cefrLevel}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="border-t border-border pt-[4px]">
-              {/* Learning Language */}
-              <div className="flex items-center justify-between py-[14px] border-b border-border">
-                <div>
-                  <span className="text-[13px] text-text-secondary block mb-[2px]">Learning</span>
-                  <span className="text-[15px] text-primary font-medium">
-                    {getLanguageFlag(user?.targetLanguage || null)}{' '}
-                    {getLanguageDisplayName(user?.targetLanguage || null)}
-                  </span>
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-14 h-14 bg-ui-primary rounded-full flex items-center justify-center text-ui-primary-foreground text-2xl font-semibold shrink-0">
+                  {user?.email?.[0]?.toUpperCase() || 'U'}
                 </div>
-                <button
-                  onClick={handleToggleLanguageEdit}
-                  className="text-[13px] font-medium text-primary-light hover:text-primary cursor-pointer bg-transparent border border-primary-light rounded-full px-[14px] py-[6px] transition-colors"
-                >
-                  {editingLanguage ? 'Cancel' : 'Change'}
-                </button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[16px] font-semibold text-ui-foreground truncate">{user?.email || 'User'}</p>
+                  {user?.cefrLevel && (
+                    <p className="text-[13px] text-ui-muted-foreground">Level {user.cefrLevel}</p>
+                  )}
+                </div>
               </div>
 
-              {/* Language editor */}
+              <Separator />
+
+              <div className="flex items-center justify-between py-4">
+                <div className="min-w-0">
+                  <p className="text-[12px] text-ui-muted-foreground mb-0.5">Learning</p>
+                  <p className="text-[15px] font-medium text-ui-foreground">
+                    <span className="mr-1">{getLanguageFlag(user?.targetLanguage || null)}</span>
+                    {getLanguageDisplayName(user?.targetLanguage || null)}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleToggleLanguageEdit} className="rounded-full">
+                  {editingLanguage ? 'Cancel' : 'Change'}
+                </Button>
+              </div>
+
               {editingLanguage && (
-                <div className="py-[16px] animate-fadeIn">
+                <div className="pb-4 animate-fadeIn">
                   {languages.length === 0 && !languageError && (
-                    <div className="flex justify-center py-[20px]">
-                      <div className="loading-spinner" />
+                    <div className="flex justify-center py-5">
+                      <Loader2 className="h-5 w-5 animate-spin text-ui-primary" />
                     </div>
                   )}
                   {languages.length > 0 && (
                     <>
-                      <div className="flex flex-col gap-[6px] max-h-[260px] overflow-y-auto mb-[12px]">
-                        {languages.map((lang) => (
-                          <button
-                            key={lang.code}
-                            onClick={() => setSelectedLanguage(lang.code)}
-                            className={`
-                              flex items-center gap-[10px] p-[10px] rounded-lg border transition-all duration-200 cursor-pointer text-left w-full
-                              ${selectedLanguage === lang.code
-                                ? 'border-primary bg-white shadow-sm'
-                                : 'border-border bg-surface hover:border-primary-light'
-                              }
-                            `}
-                          >
-                            <span className="text-[22px] leading-none">{FLAG_MAP[lang.code] || ''}</span>
-                            <div className="flex-1">
-                              <p className="text-[14px] font-medium text-primary">{lang.name}</p>
-                            </div>
-                            <div className={`
-                              w-[20px] h-[20px] rounded-full border-2 flex items-center justify-center shrink-0
-                              ${selectedLanguage === lang.code ? 'border-primary bg-primary' : 'border-border'}
-                            `}>
-                              {selectedLanguage === lang.code && (
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
+                      <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto mb-3">
+                        {languages.map((lang) => {
+                          const selected = selectedLanguage === lang.code;
+                          return (
+                            <button
+                              key={lang.code}
+                              onClick={() => setSelectedLanguage(lang.code)}
+                              className={cn(
+                                'flex items-center gap-3 p-2.5 rounded-md border transition-all text-left w-full',
+                                selected
+                                  ? 'border-ui-primary bg-ui-card shadow-sm'
+                                  : 'border-ui-border bg-ui-card hover:border-primary-light'
                               )}
-                            </div>
-                          </button>
-                        ))}
+                            >
+                              <span className="text-[22px] leading-none">{FLAG_MAP[lang.code] || ''}</span>
+                              <span className="flex-1 text-[14px] font-medium text-ui-foreground">{lang.name}</span>
+                              <span className={cn(
+                                'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
+                                selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
+                              )}>
+                                {selected && <Check className="w-3 h-3 text-ui-primary-foreground" strokeWidth={3} />}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
-                      <button
+                      <Button
                         onClick={handleSaveLanguage}
                         disabled={!selectedLanguage || isSavingLanguage}
-                        className={`btn-primary w-full text-[14px] py-[10px] ${(!selectedLanguage || isSavingLanguage) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className="w-full"
                       >
+                        {isSavingLanguage && <Loader2 className="h-4 w-4 animate-spin" />}
                         {isSavingLanguage ? 'Saving...' : 'Save Language'}
-                      </button>
+                      </Button>
                     </>
                   )}
                   {languageError && (
-                    <div className="text-center py-[8px]">
-                      <p className="text-[13px] text-incorrect mb-[8px]">{languageError}</p>
-                      <button
-                        onClick={() => { setLanguagesLoaded(false); loadLanguages(); }}
-                        className="text-[13px] font-medium text-primary-light hover:text-primary cursor-pointer bg-transparent border-none"
-                      >
+                    <div className="text-center py-2">
+                      <p className="text-[13px] text-incorrect mb-2">{languageError}</p>
+                      <Button variant="link" onClick={() => { setLanguagesLoaded(false); loadLanguages(); }}>
                         Try again
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* CEFR Level */}
-              <div className="flex items-center justify-between py-[14px]">
+              <Separator />
+
+              <div className="flex items-center justify-between py-4">
                 <div>
-                  <span className="text-[13px] text-text-secondary block mb-[2px]">CEFR Level</span>
-                  <span className="text-[15px] text-primary font-medium">{user?.cefrLevel || 'Not set'}</span>
+                  <p className="text-[12px] text-ui-muted-foreground mb-0.5">CEFR Level</p>
+                  <p className="text-[15px] font-medium text-ui-foreground">{user?.cefrLevel || 'Not set'}</p>
                 </div>
-                <button
-                  onClick={handleToggleLevelEdit}
-                  className="text-[13px] font-medium text-primary-light hover:text-primary cursor-pointer bg-transparent border border-primary-light rounded-full px-[14px] py-[6px] transition-colors"
-                >
+                <Button variant="outline" size="sm" onClick={handleToggleLevelEdit} className="rounded-full">
                   {editingLevel ? 'Cancel' : 'Change'}
-                </button>
+                </Button>
               </div>
 
-              {/* Level editor */}
               {editingLevel && (
-                <div className="py-[16px] animate-fadeIn">
-                  <div className="flex flex-col gap-[6px] mb-[12px]">
-                    {CEFR_LEVELS.map((level) => (
-                      <button
-                        key={level.code}
-                        onClick={() => level.available && setSelectedLevel(level.code)}
-                        disabled={!level.available}
-                        className={`
-                          flex items-center gap-[10px] p-[10px] rounded-lg border transition-all duration-200 text-left w-full
-                          ${!level.available
-                            ? 'opacity-50 cursor-not-allowed border-border bg-gray-50'
-                            : selectedLevel === level.code
-                              ? 'border-primary bg-white shadow-sm cursor-pointer'
-                              : 'border-border bg-surface hover:border-primary-light cursor-pointer'
-                          }
-                        `}
-                      >
-                        <div className={`
-                          w-[36px] h-[36px] rounded-md flex items-center justify-center font-semibold text-[13px] shrink-0
-                          ${selectedLevel === level.code
-                            ? 'bg-primary text-white'
-                            : !level.available
-                              ? 'bg-gray-200 text-gray-400'
-                              : 'bg-background text-primary'
-                          }
-                        `}>
-                          {level.code}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-medium text-primary">{level.name}</p>
-                          <p className="text-[12px] text-text-secondary">{level.description}</p>
-                        </div>
-                        {!level.available ? (
-                          <span className="text-[11px] font-medium text-text-secondary bg-gray-200 px-[6px] py-[2px] rounded-full shrink-0">
-                            Soon
-                          </span>
-                        ) : (
-                          <div className={`
-                            w-[20px] h-[20px] rounded-full border-2 flex items-center justify-center shrink-0
-                            ${selectedLevel === level.code ? 'border-primary bg-primary' : 'border-border'}
-                          `}>
-                            {selectedLevel === level.code && (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
+                <div className="pb-4 animate-fadeIn">
+                  <div className="flex flex-col gap-1.5 mb-3">
+                    {CEFR_LEVELS.map((level) => {
+                      const selected = selectedLevel === level.code;
+                      return (
+                        <button
+                          key={level.code}
+                          onClick={() => level.available && setSelectedLevel(level.code)}
+                          disabled={!level.available}
+                          className={cn(
+                            'flex items-center gap-3 p-2.5 rounded-md border transition-all text-left w-full',
+                            !level.available && 'opacity-50 cursor-not-allowed border-ui-border bg-ui-muted/30',
+                            level.available && selected && 'border-ui-primary bg-ui-card shadow-sm cursor-pointer',
+                            level.available && !selected && 'border-ui-border bg-ui-card hover:border-primary-light cursor-pointer'
+                          )}
+                        >
+                          <div className={cn(
+                            'w-9 h-9 rounded-md flex items-center justify-center font-semibold text-[13px] shrink-0',
+                            selected
+                              ? 'bg-ui-primary text-ui-primary-foreground'
+                              : !level.available
+                                ? 'bg-ui-muted text-ui-muted-foreground'
+                                : 'bg-ui-background text-ui-foreground'
+                          )}>
+                            {level.code}
                           </div>
-                        )}
-                      </button>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-medium text-ui-foreground">{level.name}</p>
+                            <p className="text-[12px] text-ui-muted-foreground">{level.description}</p>
+                          </div>
+                          {!level.available ? (
+                            <Badge variant="muted">Soon</Badge>
+                          ) : (
+                            <span className={cn(
+                              'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
+                              selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
+                            )}>
+                              {selected && <Check className="w-3 h-3 text-ui-primary-foreground" strokeWidth={3} />}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                   {levelError && (
-                    <p className="text-[13px] text-incorrect text-center mb-[8px]">{levelError}</p>
+                    <p className="text-[13px] text-incorrect text-center mb-2">{levelError}</p>
                   )}
-                  <button
-                    onClick={handleSaveLevel}
-                    disabled={!selectedLevel || isSavingLevel}
-                    className={`btn-primary w-full text-[14px] py-[10px] ${(!selectedLevel || isSavingLevel) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
+                  <Button onClick={handleSaveLevel} disabled={!selectedLevel || isSavingLevel} className="w-full">
+                    {isSavingLevel && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isSavingLevel ? 'Saving...' : 'Save Level'}
-                  </button>
+                  </Button>
                   <Link
                     href="/assessment"
-                    className="block text-center mt-[10px] text-primary-light hover:text-primary text-[13px] font-medium transition-colors"
+                    className="block text-center mt-2.5 text-primary-light hover:text-ui-primary text-[13px] font-medium transition-colors"
                   >
                     Not sure? Take a quick assessment
                   </Link>
                 </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Links */}
-          <div className="flex flex-col gap-[8px] mb-lg">
-            <Link href="/progress" className="card hover:transform-none flex items-center justify-between" style={{ animation: 'none' }}>
-              <div className="flex items-center gap-md">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 20V10" /><path d="M12 20V4" /><path d="M6 20v-6" />
-                </svg>
-                <span className="text-title-md text-primary">Progress & Statistics</span>
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-[16px]">Subscription</CardTitle>
+                {isPremium ? <Badge variant="success">Premium</Badge> : <Badge variant="muted">Free</Badge>}
               </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666276" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </Link>
+            </CardHeader>
+            <CardContent>
+              {isPremium ? (
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    {platform && (
+                      <p className="text-[13px] text-ui-muted-foreground">
+                        Via <span className="capitalize">{platform}</span>
+                      </p>
+                    )}
+                    {expirationDate && (
+                      <p className="text-[13px] text-ui-muted-foreground">
+                        Renews {new Date(expirationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                    )}
+                  </div>
 
-            <Link href="/assessment" className="card hover:transform-none flex items-center justify-between" style={{ animation: 'none' }}>
-              <div className="flex items-center gap-md">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
-                </svg>
-                <span className="text-title-md text-primary">Retake Level Assessment</span>
-              </div>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666276" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </Link>
-          </div>
+                  {cancelSuccess && (
+                    <div className="rounded-md border border-ui-border bg-ui-muted/30 p-3 space-y-2">
+                      <p className="text-[13px] text-ui-foreground">{cancelSuccess.message}</p>
+                      {cancelSuccess.requiresUserAction && cancelSuccess.managementUrl && (
+                        <Button asChild size="sm" variant="outline">
+                          <a href={cancelSuccess.managementUrl} target="_blank" rel="noopener noreferrer">
+                            Open Apple subscription settings
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  )}
 
-          {/* Actions */}
-          <div className="flex flex-col gap-md">
-            <button
-              onClick={() => { logout(); router.replace('/'); }}
-              className="btn-secondary w-full"
-            >
-              Log Out
-            </button>
+                  {cancelError && (
+                    <p className="text-[13px] text-incorrect">{cancelError}</p>
+                  )}
 
-            {!showDeleteConfirm ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-body-md text-text-secondary hover:text-incorrect text-center cursor-pointer bg-transparent border-none py-sm transition-colors"
-              >
-                Delete Account
-              </button>
-            ) : (
-              <div className="card border-incorrect hover:transform-none" style={{ animation: 'none' }}>
-                <p className="text-body-md text-primary mb-md text-center">
-                  Are you sure? This will permanently delete your account and all progress.
-                </p>
-                <div className="flex gap-md">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    className="btn-secondary flex-1"
-                    disabled={isDeleting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting}
-                    className="flex-1 bg-incorrect text-white border-none rounded-md px-[24px] py-[16px] text-[16px] font-medium cursor-pointer transition-all duration-200 disabled:opacity-50"
-                  >
-                    {isDeleting ? 'Deleting...' : 'Delete'}
-                  </button>
+                  {platform !== 'referral' && !cancelSuccess && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-ui-muted-foreground">
+                          Cancel subscription
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Cancel subscription?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {expirationDate ? (
+                              <>You&apos;ll keep premium access until {new Date(expirationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}, then your account will switch to the free tier.</>
+                            ) : (
+                              <>You&apos;ll keep premium access until the end of your current billing period, then your account will switch to the free tier.</>
+                            )}
+                            {platform === 'apple' && (
+                              <>{' '}Apple subscriptions are cancelled in Apple&apos;s subscription settings. We&apos;ll open the page for you.</>
+                            )}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={isCancelling}>Keep subscription</AlertDialogCancel>
+                          <AlertDialogAction
+                            disabled={isCancelling}
+                            onClick={handleCancelSubscription}
+                          >
+                            {isCancelling ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Cancelling...
+                              </>
+                            ) : (
+                              'Cancel subscription'
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div>
+                  <p className="text-[13px] text-ui-muted-foreground mb-3">
+                    Upgrade for unlimited articles, audio, and practice.
+                  </p>
+                  <Button asChild size="sm">
+                    <Link href="/premium">Go Premium</Link>
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[16px]">Invite Friends</CardTitle>
+              <CardDescription>
+                Share your code. When a friend upgrades, you both get 30 days free.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {referralLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-ui-primary" />
+                </div>
+              ) : referral ? (
+                (() => {
+                  const referralUrl = buildReferralUrl(referral.code);
+                  return (
+                    <div className="space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-ui-background border border-ui-border rounded-md px-3.5 py-2.5 text-[18px] font-semibold text-ui-primary tracking-widest text-center select-all font-mono">
+                          {referral.code}
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(referral.code);
+                            setCodeCopied(true);
+                            setTimeout(() => setCodeCopied(false), 2000);
+                          }}
+                        >
+                          {codeCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {codeCopied ? 'Copied' : 'Copy'}
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="flex-1 bg-ui-background border border-ui-border rounded-md px-3 py-2 text-[12px] text-ui-muted-foreground truncate select-all"
+                          title={referralUrl}
+                        >
+                          {referralUrl}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            navigator.clipboard.writeText(referralUrl);
+                            setLinkCopied(true);
+                            setTimeout(() => setLinkCopied(false), 2000);
+                          }}
+                        >
+                          {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+                          {linkCopied ? 'Copied' : 'Copy link'}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <p className="text-[13px] text-ui-muted-foreground">Unable to load your referral code.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-2">
+            <Link href="/progress">
+              <Card className="hover:bg-ui-muted/30 transition-colors">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="w-5 h-5 text-ui-primary" />
+                    <span className="text-[15px] font-medium text-ui-foreground">Progress &amp; Statistics</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-ui-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
+            <Link href="/assessment">
+              <Card className="hover:bg-ui-muted/30 transition-colors">
+                <CardContent className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <ClipboardList className="w-5 h-5 text-ui-primary" />
+                    <span className="text-[15px] font-medium text-ui-foreground">Retake Level Assessment</span>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-ui-muted-foreground" />
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+
+          <div className="flex flex-col gap-3 pt-2">
+            <Button variant="outline" size="lg" onClick={() => { logout(); router.replace('/'); }}>
+              Log Out
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" className="text-ui-muted-foreground hover:text-incorrect">
+                  Delete Account
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShieldCheck className="w-5 h-5 text-incorrect" />
+                    <AlertDialogTitle>Delete account?</AlertDialogTitle>
+                  </div>
+                  <AlertDialogDescription>
+                    This will permanently delete your account and all progress. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={isDeleting}
+                    onClick={handleDeleteAccount}
+                    className="bg-incorrect hover:bg-incorrect/90 text-white"
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete account'
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </section>

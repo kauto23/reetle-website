@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 export default function ArticlesRedirect() {
   const router = useRouter();
@@ -18,7 +19,7 @@ export default function ArticlesRedirect() {
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="loading-spinner" />
+      <Loader2 className="h-9 w-9 animate-spin text-ui-primary" />
     </div>
   );
 }

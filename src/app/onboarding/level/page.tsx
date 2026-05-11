@@ -3,7 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Check, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface CefrLevel {
   code: string;
@@ -33,7 +37,6 @@ export default function CefrLevelSelectionPage() {
       router.replace('/login');
       return;
     }
-    // If user doesn't have a target language yet, send them back
     if (!authLoading && isAuthenticated && user && !user.targetLanguage) {
       router.replace('/onboarding/language');
     }
@@ -41,10 +44,8 @@ export default function CefrLevelSelectionPage() {
 
   const handleContinue = async () => {
     if (!selectedLevel || !user) return;
-
     setIsSaving(true);
     setError(null);
-
     try {
       const success = await updateCefrLevel(selectedLevel);
       if (success) {
@@ -62,121 +63,101 @@ export default function CefrLevelSelectionPage() {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="loading-spinner" />
+        <Loader2 className="h-9 w-9 animate-spin text-ui-primary" />
       </div>
     );
   }
 
   return (
-    <section className="py-2xl">
-      <div className="max-w-[500px] mx-auto px-md">
-        {/* Header */}
-        <div className="text-center mb-xl">
-          <h1 className="text-display-md text-primary mb-sm">What&apos;s your level?</h1>
-          <p className="text-body-lg text-text-secondary">
+    <section className="py-12 sm:py-16">
+      <div className="max-w-[500px] mx-auto px-4">
+        <div className="text-center mb-8">
+          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">
+            What&apos;s your level?
+          </h1>
+          <p className="text-[15px] text-ui-muted-foreground">
             Select your current proficiency level. This helps us personalise your articles.
           </p>
         </div>
 
-        {/* Level list */}
-        <div className="flex flex-col gap-[8px] mb-lg">
-          {CEFR_LEVELS.map((level, index) => (
-            <button
-              key={level.code}
-              onClick={() => level.available && setSelectedLevel(level.code)}
-              disabled={!level.available}
-              className={`
-                flex items-center gap-md p-md rounded-xl border transition-all duration-200 text-left w-full
-                ${!level.available
-                  ? 'opacity-50 cursor-not-allowed border-border bg-gray-50'
-                  : selectedLevel === level.code
-                    ? 'border-primary bg-white shadow-md cursor-pointer'
-                    : 'border-border bg-surface hover:border-primary-light hover:bg-white cursor-pointer'
-                }
-              `}
-              style={{
-                animation: `fadeInUp 0.4s ease ${index * 0.05}s both`,
-              }}
-            >
-              {/* Level badge */}
-              <div className={`
-                w-[48px] h-[48px] rounded-lg flex items-center justify-center font-semibold text-[16px] shrink-0
-                ${selectedLevel === level.code
-                  ? 'bg-primary text-white'
-                  : !level.available
-                    ? 'bg-gray-200 text-gray-400'
-                    : 'bg-background text-primary'
-                }
-              `}>
-                {level.code}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-title-md text-primary">{level.name}</p>
-                <p className="text-body-md text-text-secondary">{level.description}</p>
-              </div>
-
-              {/* Status indicator */}
-              {!level.available ? (
-                <span className="text-[12px] font-medium text-text-secondary bg-gray-200 px-[8px] py-[2px] rounded-full shrink-0">
-                  Soon
-                </span>
-              ) : (
-                <div className={`
-                  w-[24px] h-[24px] rounded-full border-2 flex items-center justify-center transition-all duration-200 shrink-0
-                  ${selectedLevel === level.code ? 'border-primary bg-primary' : 'border-border'}
-                `}>
-                  {selectedLevel === level.code && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  )}
+        <div className="flex flex-col gap-2 mb-6">
+          {CEFR_LEVELS.map((level, index) => {
+            const selected = selectedLevel === level.code;
+            return (
+              <button
+                key={level.code}
+                onClick={() => level.available && setSelectedLevel(level.code)}
+                disabled={!level.available}
+                className={cn(
+                  'flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 text-left w-full',
+                  !level.available && 'opacity-50 cursor-not-allowed border-ui-border bg-ui-muted/30',
+                  level.available && selected && 'border-ui-primary bg-ui-card shadow-md cursor-pointer',
+                  level.available && !selected && 'border-ui-border bg-ui-card hover:border-primary-light hover:shadow-sm cursor-pointer'
+                )}
+                style={{ animation: `fadeInUp 0.4s ease ${index * 0.05}s both` }}
+              >
+                <div className={cn(
+                  'w-12 h-12 rounded-lg flex items-center justify-center font-semibold text-[16px] shrink-0',
+                  selected
+                    ? 'bg-ui-primary text-white'
+                    : !level.available
+                      ? 'bg-ui-muted text-ui-muted-foreground'
+                      : 'bg-ui-background text-ui-foreground'
+                )}>
+                  {level.code}
                 </div>
-              )}
-            </button>
-          ))}
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-[16px] font-medium text-ui-foreground">{level.name}</p>
+                  <p className="text-[13px] text-ui-muted-foreground">{level.description}</p>
+                </div>
+
+                {!level.available ? (
+                  <Badge variant="muted">Soon</Badge>
+                ) : (
+                  <div className={cn(
+                    'w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 shrink-0',
+                    selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
+                  )}>
+                    {selected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Assessment option */}
         <Link
           href="/assessment"
-          className="block text-center py-md text-primary-light hover:text-primary text-body-lg font-medium transition-colors mb-lg"
+          className="block text-center py-3 text-primary-light hover:text-ui-primary text-[15px] font-medium transition-colors mb-6"
         >
           Not sure? Take a quick quiz (~1 minute)
         </Link>
 
         {error && (
-          <div className="mb-md p-md bg-incorrect-bg rounded-lg">
-            <p className="text-body-md text-incorrect-text text-center">{error}</p>
+          <div className="mb-4 p-4 bg-incorrect-bg rounded-md border border-incorrect/30">
+            <p className="text-[14px] text-incorrect-text text-center">{error}</p>
           </div>
         )}
 
-        {/* Continue button */}
-        <button
+        <Button
           onClick={handleContinue}
           disabled={!selectedLevel || isSaving}
-          className={`
-            btn-primary w-full flex items-center justify-center gap-sm
-            ${(!selectedLevel || isSaving) ? 'opacity-50 cursor-not-allowed' : ''}
-          `}
+          size="lg"
+          className="w-full"
         >
-          {isSaving ? (
-            <>
-              <div className="loading-spinner !w-[18px] !h-[18px] !border-white !border-t-transparent" />
-              Saving...
-            </>
-          ) : (
-            'Continue'
-          )}
-        </button>
+          {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+          {isSaving ? 'Saving...' : 'Continue'}
+        </Button>
 
-        {/* Back button */}
-        <button
+        <Button
           onClick={() => router.back()}
-          className="w-full text-center mt-md text-body-md text-text-secondary hover:text-primary transition-colors cursor-pointer bg-transparent border-none"
+          variant="ghost"
+          size="sm"
+          className="w-full mt-3 text-ui-muted-foreground"
         >
           ← Back to language selection
-        </button>
+        </Button>
       </div>
     </section>
   );

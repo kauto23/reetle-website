@@ -3,6 +3,70 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Reetle design tokens.
+   *
+   * These CSS variables back the shadcn-style primitives in src/components/ui.
+   * The legacy Tailwind colors in tailwind.config.ts (primary, surface, border,
+   * text-primary, text-secondary, accent, correct, incorrect) still work and
+   * point at the same brand colors, so existing utility classes keep
+   * functioning during the design-system migration.
+   *
+   * Format: space-separated HSL triplets so we can use `hsl(var(--token) / a)`.
+   */
+  :root {
+    --background: 260 17% 97%;
+    --foreground: 285 36% 14%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 285 36% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 285 36% 14%;
+
+    --primary: 277 46% 26%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 260 17% 95%;
+    --secondary-foreground: 285 36% 14%;
+
+    --muted: 260 9% 92%;
+    --muted-foreground: 252 9% 42%;
+
+    --accent: 0 100% 94%;
+    --accent-foreground: 285 36% 14%;
+
+    --destructive: 0 84% 65%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 158 64% 52%;
+    --success-foreground: 158 50% 18%;
+
+    --border: 260 9% 90%;
+    --input: 260 9% 90%;
+    --ring: 277 46% 26%;
+
+    --radius: 0.5rem;
+
+    /*
+     * Elevation / z-index ladder. Centralizing these keeps stickies, audio
+     * bars, dialogs, sheets, toasts, and the network/offline banner in a
+     * predictable stacking order across the app.
+     */
+    --z-header: 1000;
+    --z-topic-nav: 900;
+    --z-article-audio: 950;
+    --z-play-all: 1000;
+    --z-mobile-nudge: 1100;
+    --z-dialog: 1200;
+    --z-sheet: 1200;
+    --z-translation-backdrop: 9998;
+    --z-translation-handles: 10000;
+    --z-translation-sheet: 10010;
+    --z-toast: 11000;
+    --z-network-status: 12000;
+  }
+
   * {
     margin: 0;
     padding: 0;
@@ -39,7 +103,11 @@
 }
 
 @layer components {
-  /* Buttons */
+  /*
+   * Legacy compatibility classes. Prefer the typed primitives in
+   * src/components/ui/* (e.g. <Button>, <Card>) for new code. These remain so
+   * existing call sites keep rendering while migration progresses.
+   */
   .btn-primary {
     @apply inline-block bg-primary text-white border-none rounded-md px-[24px] py-[16px] text-[16px] font-medium cursor-pointer transition-all duration-200 text-center;
   }
@@ -75,7 +143,6 @@
     @apply px-[16px] py-[10px] text-[14px];
   }
 
-  /* Card */
   .card {
     @apply bg-surface border border-border p-[24px] my-[8px] transition-all duration-200;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -85,15 +152,29 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 
-  /* Loading spinner */
   .loading-spinner {
     @apply border-2 border-border rounded-full w-[24px] h-[24px] mx-auto animate-spin;
     border-top-color: theme('colors.primary.DEFAULT');
   }
+
+  /**
+   * Article card metadata: hide "time since" when the space left of the
+   * action icons (play / queue / translate) is too narrow—avoids "14 min"
+   * breaking across lines. The flex child that holds topic + time is the
+   * query container so width reflects remaining space, not full card width.
+   */
+  .article-card-meta-left {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 118px) {
+    .article-time-label {
+      display: none;
+    }
+  }
 }
 
 @layer utilities {
-  /* Hide scrollbar for category nav */
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -102,7 +183,6 @@
     display: none;
   }
 
-  /* Line clamp utilities */
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;

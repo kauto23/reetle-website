@@ -4,12 +4,16 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, Check, Loader2 } from 'lucide-react';
 import QuestionCard from '@/components/practice/QuestionCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
 import { getArticleQuestions, getGuestArticleQuestions, submitPracticeAnswer } from '@/services/api';
 import { consumeQuizCache } from '@/services/quizCache';
+import { useLoginUrl } from '@/hooks/useLoginUrl';
 import type { PracticeQuestion } from '@/types/practice';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 
 const PRACTICE_HINT_KEY = 'reetle-practice-hint-dismissed';
 
@@ -18,6 +22,7 @@ function ArticleQuizContent() {
   const router = useRouter();
   const { isAuthenticated } = useAuth();
   const { preferences: guestPrefs } = useGuestPreferences();
+  const loginUrl = useLoginUrl();
   const articleId = searchParams.get('articleId') || '';
   const viewIdStr = searchParams.get('viewId');
   const articleViewId = viewIdStr ? parseInt(viewIdStr, 10) : undefined;
@@ -90,88 +95,71 @@ function ArticleQuizContent() {
   const totalQuestions = questions.length;
 
   return (
-    <section className="min-h-[calc(100dvh-80px)] py-md relative overflow-hidden">
+    <section className="min-h-[calc(100dvh-80px)] py-md relative">
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/[0.03] pointer-events-none" />
 
       <div className="max-w-[600px] mx-auto px-md relative">
         {/* Loading */}
         {isLoading && (
           <motion.div
-            className="flex flex-col items-center justify-center py-2xl gap-md"
+            className="flex flex-col items-center justify-center py-16 gap-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
           >
-            <div className="relative w-[40px] h-[40px]">
-              <div className="absolute inset-0 rounded-full border-2 border-primary/10" />
-              <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-            </div>
-            <p className="text-body-md text-text-secondary">Loading quiz...</p>
+            <Loader2 className="w-9 h-9 text-ui-primary animate-spin" />
+            <p className="text-[14px] text-ui-muted-foreground">Loading quiz...</p>
           </motion.div>
         )}
 
         {/* Error */}
         {error && !isLoading && (
           <motion.div
-            className="text-center py-xl"
+            className="text-center py-12"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
           >
-            <div className="w-[56px] h-[56px] bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-md">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#991B1B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+            <div className="w-14 h-14 bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-7 h-7 text-incorrect-text" />
             </div>
-            <p className="text-body-lg text-text-secondary mb-lg">{error}</p>
-            <div className="flex flex-col sm:flex-row gap-md justify-center">
-              <motion.button
-                onClick={fetchQuestions}
-                className="btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Try Again
-              </motion.button>
-              <Link href="/" className="btn-secondary">Back to Articles</Link>
+            <p className="text-[15px] text-ui-muted-foreground mb-6">{error}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={fetchQuestions}>Try again</Button>
+              <Button variant="outline" asChild>
+                <Link href="/">Back to articles</Link>
+              </Button>
             </div>
           </motion.div>
         )}
 
         {/* Completion */}
         {isComplete && (
-          <div className="text-center py-xl animate-fadeIn">
-            <div className="w-[80px] h-[80px] bg-correct rounded-full flex items-center justify-center mx-auto mb-lg">
-              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
+          <div className="text-center py-12 animate-fadeIn">
+            <div className="w-20 h-20 bg-correct rounded-full flex items-center justify-center mx-auto mb-6">
+              <Check className="w-10 h-10 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="text-display-md text-primary mb-sm">Quiz Complete!</h1>
-            <p className="text-body-lg text-text-secondary mb-lg">
+            <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Quiz complete!</h1>
+            <p className="text-[15px] text-ui-muted-foreground mb-6">
               You got {correctCount} out of {totalQuestions} correct.
             </p>
 
-            {/* Score bar */}
-            <div className="w-full bg-gray-200 rounded-full h-[8px] mb-xl">
-              <div
-                className="bg-correct h-[8px] rounded-full transition-all duration-500"
-                style={{ width: `${totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0}%` }}
-              />
-            </div>
+            <Progress
+              value={totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0}
+              className="mb-8 [&>div]:bg-correct"
+            />
 
-            <div className="flex flex-col sm:flex-row gap-md">
-              <Link href="/" className="btn-primary flex-1">
-                Continue Reading
-              </Link>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button asChild className="flex-1">
+                <Link href="/">Continue reading</Link>
+              </Button>
               {isAuthenticated ? (
-                <Link href="/practice" className="btn-secondary flex-1">
-                  More Practice
-                </Link>
+                <Button asChild variant="outline" className="flex-1">
+                  <Link href="/practice">More practice</Link>
+                </Button>
               ) : (
-                <Link href="/login" className="btn-secondary flex-1">
-                  Sign Up Free
-                </Link>
+                <Button asChild variant="outline" className="flex-1">
+                  <Link href={loginUrl}>Sign up free</Link>
+                </Button>
               )}
             </div>
           </div>
@@ -180,18 +168,12 @@ function ArticleQuizContent() {
         {/* Quiz in progress */}
         {!isLoading && !error && !isComplete && questions.length > 0 && (
           <>
-            {/* Progress bar */}
-            <div className="mb-lg">
-              <div className="flex justify-between text-body-md text-text-secondary mb-sm">
+            <div className="mb-6">
+              <div className="flex justify-between text-[13px] text-ui-muted-foreground mb-2">
                 <span>Question {currentIndex + 1} of {totalQuestions}</span>
                 <span className="text-correct-text">{correctCount} correct</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-[4px]">
-                <div
-                  className="bg-primary h-[4px] rounded-full transition-all duration-300"
-                  style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
-                />
-              </div>
+              <Progress value={((currentIndex + 1) / totalQuestions) * 100} className="h-1" />
             </div>
 
             <AnimatePresence mode="wait">
@@ -216,10 +198,7 @@ export default function ArticleQuizPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="relative w-[40px] h-[40px]">
-          <div className="absolute inset-0 rounded-full border-2 border-primary/10" />
-          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-        </div>
+        <Loader2 className="h-9 w-9 animate-spin text-ui-primary" />
       </div>
     }>
       <ArticleQuizContent />

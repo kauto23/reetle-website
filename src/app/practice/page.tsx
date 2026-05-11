@@ -3,18 +3,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuthGuard from '@/components/layout/AuthGuard';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import QuestionCard from '@/components/practice/QuestionCard';
-import { getPracticeQuestion, submitPracticeAnswer, NoPracticeQuestionsError } from '@/services/api';
+import Link from 'next/link';
+import { AlertCircle, HelpCircle, Loader2, Sparkles } from 'lucide-react';
+import { getPracticeQuestion, submitPracticeAnswer, NoPracticeQuestionsError, FreeTierQuotaError } from '@/services/api';
 import { consumeCachedPracticeQuestion } from '@/services/practiceCache';
 import type { PracticeQuestion } from '@/types/practice';
+import { Button } from '@/components/ui/button';
 
 const PRACTICE_HINT_KEY = 'reetle-practice-hint-dismissed';
 
 export default function PracticePage() {
+  const { isPremium, dailyUsage } = useSubscription();
   const [question, setQuestion] = useState<PracticeQuestion | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [noQuestionsReason, setNoQuestionsReason] = useState<string | null>(null);
+  const [freeTierQuota, setFreeTierQuota] = useState<{ detail: string; resetsAt: string } | null>(null);
   const [hintDismissed, setHintDismissed] = useState(true);
   const [questionKey, setQuestionKey] = useState(0);
   const nextQuestionRef = useRef<PracticeQuestion | null>(null);
@@ -28,12 +34,15 @@ export default function PracticePage() {
     setIsLoading(true);
     setError(null);
     setNoQuestionsReason(null);
+    setFreeTierQuota(null);
     try {
       const q = await getPracticeQuestion();
       setQuestion(q);
       setQuestionKey(prev => prev + 1);
     } catch (err) {
-      if (err instanceof NoPracticeQuestionsError) {
+      if (err instanceof FreeTierQuotaError) {
+        setFreeTierQuota({ detail: err.detail, resetsAt: err.resetsAt });
+      } else if (err instanceof NoPracticeQuestionsError) {
         if (err.reason === 'no_unsure_words') {
           setNoQuestionsReason('You haven\'t translated any words yet. Read some articles and tap words you don\'t know to build your practice queue.');
         } else if (err.reason === 'all_words_mastered') {
@@ -115,64 +124,84 @@ export default function PracticePage() {
 
   return (
     <AuthGuard>
-      <section className="min-h-[calc(100dvh-80px)] py-md relative overflow-hidden">
+      <section className="min-h-[calc(100dvh-80px)] py-md relative">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/[0.03] pointer-events-none" />
 
         <div className="max-w-[600px] mx-auto px-md relative">
+          {!isPremium && dailyUsage?.practice && !freeTierQuota && !isLoading && question && (
+            <div className="flex items-center justify-center gap-1.5 mb-4">
+              <span className="text-[12px] text-ui-muted-foreground">
+                {dailyUsage.practice.limit - dailyUsage.practice.used > 0
+                  ? `${dailyUsage.practice.limit - dailyUsage.practice.used} of ${dailyUsage.practice.limit} questions remaining today`
+                  : 'No questions remaining today'
+                }
+              </span>
+              <Link href="/premium" className="text-[12px] font-medium text-primary-light hover:text-ui-primary transition-colors">
+                Upgrade
+              </Link>
+            </div>
+          )}
+
           {isLoading && (
             <motion.div
-              className="flex flex-col items-center justify-center py-2xl gap-md"
+              className="flex flex-col items-center justify-center py-16 gap-4"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.15 }}
             >
-              <div className="relative w-[40px] h-[40px]">
-                <div className="absolute inset-0 rounded-full border-2 border-primary/10" />
-                <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
-              </div>
-              <p className="text-body-md text-text-secondary">Loading question...</p>
+              <Loader2 className="w-9 h-9 text-ui-primary animate-spin" />
+              <p className="text-[14px] text-ui-muted-foreground">Loading question...</p>
             </motion.div>
           )}
 
           {error && !isLoading && (
             <motion.div
-              className="text-center py-xl"
+              className="text-center py-12"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <div className="w-[56px] h-[56px] bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-md">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#991B1B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
+              <div className="w-14 h-14 bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-7 h-7 text-incorrect-text" />
               </div>
-              <p className="text-body-lg text-text-secondary mb-lg">{error}</p>
-              <motion.button
-                onClick={fetchQuestion}
-                className="btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Try Again
-              </motion.button>
+              <p className="text-[15px] text-ui-muted-foreground mb-6">{error}</p>
+              <Button onClick={fetchQuestion}>Try again</Button>
             </motion.div>
           )}
 
           {noQuestionsReason && !isLoading && (
             <motion.div
-              className="text-center py-xl"
+              className="text-center py-12"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
             >
-              <div className="w-[56px] h-[56px] bg-background rounded-2xl flex items-center justify-center mx-auto mb-md border border-border">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#666276" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                  <line x1="12" y1="17" x2="12.01" y2="17" />
-                </svg>
+              <div className="w-14 h-14 bg-ui-muted rounded-2xl flex items-center justify-center mx-auto mb-4 border border-ui-border">
+                <HelpCircle className="w-7 h-7 text-ui-muted-foreground" />
               </div>
-              <p className="text-body-lg text-text-secondary mb-lg max-w-[400px] mx-auto">{noQuestionsReason}</p>
+              <p className="text-[15px] text-ui-muted-foreground mb-6 max-w-[400px] mx-auto">{noQuestionsReason}</p>
+            </motion.div>
+          )}
+
+          {freeTierQuota && !isLoading && (
+            <motion.div
+              className="text-center py-12"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="w-14 h-14 bg-ui-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-7 h-7 text-ui-primary" />
+              </div>
+              <h2 className="text-[24px] font-semibold text-ui-foreground mb-2">Daily limit reached</h2>
+              <p className="text-[15px] text-ui-muted-foreground mb-6 max-w-[400px] mx-auto">
+                {freeTierQuota.detail}
+              </p>
+              <Button asChild>
+                <Link href="/premium">Go Premium — Unlimited practice</Link>
+              </Button>
+              {freeTierQuota.resetsAt && (
+                <p className="text-[14px] text-ui-muted-foreground mt-4">
+                  Or come back tomorrow — limits reset at midnight.
+                </p>
+              )}
             </motion.div>
           )}
 

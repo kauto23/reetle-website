@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { BookOpen, ChevronRight, Library } from 'lucide-react';
 import AuthGuard from '@/components/layout/AuthGuard';
 import { getQuestionStats, getMasteredWordsStats, getArticleStats } from '@/services/api';
 import type {
@@ -11,6 +12,10 @@ import type {
   ArticleStatsResponse,
   MasteredWordEntry,
 } from '@/types/stats';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false });
 const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false });
@@ -104,28 +109,32 @@ function ActivityTooltip({ active, payload, label }: { active?: boolean; payload
 
 function StatCardSkeleton() {
   return (
-    <div className="card animate-pulse hover:transform-none" style={{ animation: 'none' }}>
-      <div className="h-[80px] bg-gray-200 rounded-lg w-[80px] mx-auto mb-sm" />
-      <div className="h-[28px] bg-gray-200 rounded w-1/3 mx-auto mb-xs" />
-      <div className="h-[14px] bg-gray-200 rounded w-2/3 mx-auto" />
-    </div>
+    <Card>
+      <CardContent className="p-6">
+        <Skeleton className="h-[80px] w-[80px] rounded-full mx-auto mb-3" />
+        <Skeleton className="h-7 w-1/3 mx-auto mb-1" />
+        <Skeleton className="h-3.5 w-2/3 mx-auto" />
+      </CardContent>
+    </Card>
   );
 }
 
 function ChartSkeleton() {
   return (
-    <div className="card hover:transform-none animate-pulse" style={{ animation: 'none' }}>
-      <div className="h-[20px] bg-gray-200 rounded w-1/4 mb-md" />
-      <div className="flex items-end gap-[6px] h-[200px]">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1 bg-gray-200 rounded-t"
-            style={{ height: `${30 + Math.random() * 60}%` }}
-          />
-        ))}
-      </div>
-    </div>
+    <Card>
+      <CardContent className="p-6">
+        <Skeleton className="h-5 w-1/4 mb-4" />
+        <div className="flex items-end gap-1.5 h-[200px]">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton
+              key={i}
+              className="flex-1 rounded-t"
+              style={{ height: `${30 + (i * 13) % 60}%` }}
+            />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -209,38 +218,35 @@ export default function ProgressPage() {
 
   return (
     <AuthGuard>
-      <section className="py-2xl">
-        <div className="max-w-[860px] mx-auto px-md">
-          {/* Header */}
-          <h1 className="text-display-md text-primary mb-md text-center">Your Progress</h1>
+      <section className="py-12 sm:py-16">
+        <div className="max-w-[860px] mx-auto px-4">
+          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-4 text-center">Your Progress</h1>
 
-          {/* Period toggle */}
-          <div className="flex justify-center gap-[4px] mb-xl bg-background rounded-full p-[4px] w-fit mx-auto border border-border">
-            <button
-              onClick={() => setTimeRange('7')}
-              className={`px-[20px] py-[8px] rounded-full text-[14px] font-medium transition-all border-none cursor-pointer ${
-                timeRange === '7'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'bg-transparent text-text-secondary hover:text-primary'
-              }`}
+          <div className="flex justify-center mb-8">
+            <ToggleGroup
+              type="single"
+              value={timeRange}
+              onValueChange={(v) => v && setTimeRange(v as TimeRange)}
+              className="bg-ui-background rounded-full p-1 border border-ui-border gap-0"
             >
-              This Week
-            </button>
-            <button
-              onClick={() => setTimeRange('30')}
-              className={`px-[20px] py-[8px] rounded-full text-[14px] font-medium transition-all border-none cursor-pointer ${
-                timeRange === '30'
-                  ? 'bg-primary text-white shadow-sm'
-                  : 'bg-transparent text-text-secondary hover:text-primary'
-              }`}
-            >
-              This Month
-            </button>
+              <ToggleGroupItem
+                value="7"
+                className="px-5 py-1.5 rounded-full text-[14px] data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
+              >
+                This Week
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="30"
+                className="px-5 py-1.5 rounded-full text-[14px] data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
+              >
+                This Month
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
 
           {isLoading ? (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-md mb-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
                 <StatCardSkeleton />
                 <StatCardSkeleton />
                 <StatCardSkeleton />
@@ -248,164 +254,163 @@ export default function ProgressPage() {
               <ChartSkeleton />
             </>
           ) : isEmptyState ? (
-            /* ---- Empty state ---- */
-            <div className="card text-center py-2xl hover:transform-none" style={{ animation: 'none' }}>
-              <div className="text-[48px] mb-md">📚</div>
-              <h2 className="text-title-lg text-primary mb-sm">No activity {periodLabel}</h2>
-              <p className="text-body-md text-text-secondary mb-xl max-w-[400px] mx-auto">
-                Start reading articles and practising vocabulary to see your progress here.
-              </p>
-              <div className="flex justify-center gap-md flex-wrap">
-                <Link href="/" className="btn-primary btn-sm">
-                  Start Reading
-                </Link>
-                <Link href="/practice" className="btn-secondary btn-sm">
-                  Practice Vocabulary
-                </Link>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="text-[48px] mb-4">📚</div>
+                <h2 className="text-[18px] font-semibold text-ui-foreground mb-2">No activity {periodLabel}</h2>
+                <p className="text-[14px] text-ui-muted-foreground mb-6 max-w-[400px] mx-auto">
+                  Start reading articles and practising vocabulary to see your progress here.
+                </p>
+                <div className="flex justify-center gap-3 flex-wrap">
+                  <Button asChild size="sm">
+                    <Link href="/">Start reading</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/practice">Practice vocabulary</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ) : (
             <>
-              {/* ---- Stat cards ---- */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-md mb-xl">
-                {/* Practice card */}
-                <div className="card text-center hover:transform-none" style={{ animation: 'none' }}>
-                  {periodQuestions > 0 ? (
-                    <AccuracyRing accuracy={periodAccuracy} size={96} strokeWidth={7} />
-                  ) : (
-                    <div className="w-[96px] h-[96px] rounded-full border-[7px] border-border mx-auto flex items-center justify-center">
-                      <span className="text-text-secondary text-[18px] font-semibold">--</span>
-                    </div>
-                  )}
-                  <p className="text-[28px] font-bold text-primary mt-sm">{periodQuestions}</p>
-                  <p className="text-body-md text-text-secondary">Questions Practiced</p>
-                  {periodQuestions > 0 && (
-                    <div className="flex justify-center gap-md mt-xs text-[12px]">
-                      <span className="text-correct-text">{periodCorrect} correct</span>
-                      <span className="text-incorrect-text">{periodIncorrect} incorrect</span>
-                    </div>
-                  )}
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    {periodQuestions > 0 ? (
+                      <AccuracyRing accuracy={periodAccuracy} size={96} strokeWidth={7} />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full border-[7px] border-ui-border mx-auto flex items-center justify-center">
+                        <span className="text-ui-muted-foreground text-[18px] font-semibold">--</span>
+                      </div>
+                    )}
+                    <p className="text-[28px] font-bold text-ui-foreground mt-3">{periodQuestions}</p>
+                    <p className="text-[14px] text-ui-muted-foreground">Questions practiced</p>
+                    {periodQuestions > 0 && (
+                      <div className="flex justify-center gap-3 mt-1 text-[12px]">
+                        <span className="text-correct-text">{periodCorrect} correct</span>
+                        <span className="text-incorrect-text">{periodIncorrect} incorrect</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-                {/* Words mastered card */}
-                <div className="card text-center hover:transform-none flex flex-col justify-center" style={{ animation: 'none' }}>
-                  <div className="w-[96px] h-[96px] rounded-full bg-primary/5 mx-auto flex items-center justify-center mb-sm">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <p className="text-[28px] font-bold text-primary">{periodWordsMastered}</p>
-                  <p className="text-body-md text-text-secondary">Words Mastered</p>
-                  <p className="text-[12px] text-text-secondary mt-xs">{totalWordsMastered} total</p>
-                </div>
+                <Card>
+                  <CardContent className="p-6 text-center flex flex-col justify-center">
+                    <div className="w-24 h-24 rounded-full bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
+                      <Library className="w-10 h-10 text-ui-primary" strokeWidth={1.5} />
+                    </div>
+                    <p className="text-[28px] font-bold text-ui-foreground">{periodWordsMastered}</p>
+                    <p className="text-[14px] text-ui-muted-foreground">Words mastered</p>
+                    <p className="text-[12px] text-ui-muted-foreground mt-1">{totalWordsMastered} total</p>
+                  </CardContent>
+                </Card>
 
-                {/* Articles read card */}
-                <div className="card text-center hover:transform-none flex flex-col justify-center" style={{ animation: 'none' }}>
-                  <div className="w-[96px] h-[96px] rounded-full bg-primary/5 mx-auto flex items-center justify-center mb-sm">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4A2462" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2" />
-                      <path d="M7 10h4M7 14h6" />
-                    </svg>
-                  </div>
-                  <p className="text-[28px] font-bold text-primary">{periodArticles}</p>
-                  <p className="text-body-md text-text-secondary">Articles Read</p>
-                  <p className="text-[12px] text-text-secondary mt-xs">{totalArticles} total</p>
-                </div>
+                <Card>
+                  <CardContent className="p-6 text-center flex flex-col justify-center">
+                    <div className="w-24 h-24 rounded-full bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
+                      <BookOpen className="w-10 h-10 text-ui-primary" strokeWidth={1.5} />
+                    </div>
+                    <p className="text-[28px] font-bold text-ui-foreground">{periodArticles}</p>
+                    <p className="text-[14px] text-ui-muted-foreground">Articles read</p>
+                    <p className="text-[12px] text-ui-muted-foreground mt-1">{totalArticles} total</p>
+                  </CardContent>
+                </Card>
               </div>
 
-              {/* ---- Daily Activity Chart ---- */}
               {chartData.length > 0 ? (
-                <div className="card hover:transform-none mb-lg" style={{ animation: 'none' }}>
-                  <h2 className="text-title-lg text-primary mb-md">Daily Activity</h2>
-                  <div className="flex gap-md mb-md text-[12px]">
-                    <span className="flex items-center gap-[4px]">
-                      <span className="inline-block w-[10px] h-[10px] rounded-sm bg-correct" />
-                      Correct
-                    </span>
-                    <span className="flex items-center gap-[4px]">
-                      <span className="inline-block w-[10px] h-[10px] rounded-sm bg-incorrect" />
-                      Incorrect
-                    </span>
-                  </div>
-                  <div className="w-full h-[260px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} barCategoryGap="20%">
-                        <XAxis
-                          dataKey="date"
-                          tick={{ fontSize: 11, fill: '#666276' }}
-                          axisLine={{ stroke: '#E5E3E8' }}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11, fill: '#666276' }}
-                          axisLine={false}
-                          tickLine={false}
-                          allowDecimals={false}
-                        />
-                        <Tooltip content={<ActivityTooltip />} cursor={{ fill: 'rgba(74,36,98,0.04)' }} />
-                        <Bar dataKey="correct" stackId="activity" fill="#34D399" name="Correct" radius={[0, 0, 0, 0]} />
-                        <Bar dataKey="incorrect" stackId="activity" fill="#F87171" name="Incorrect" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
+                <Card className="mb-6">
+                  <CardContent className="p-6">
+                    <h2 className="text-[18px] font-semibold text-ui-foreground mb-4">Daily Activity</h2>
+                    <div className="flex gap-4 mb-4 text-[12px] text-ui-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-correct" />
+                        Correct
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-incorrect" />
+                        Incorrect
+                      </span>
+                    </div>
+                    <div className="w-full h-[260px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} barCategoryGap="20%">
+                          <XAxis
+                            dataKey="date"
+                            tick={{ fontSize: 11, fill: '#666276' }}
+                            axisLine={{ stroke: '#E5E3E8' }}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 11, fill: '#666276' }}
+                            axisLine={false}
+                            tickLine={false}
+                            allowDecimals={false}
+                          />
+                          <Tooltip content={<ActivityTooltip />} cursor={{ fill: 'rgba(74,36,98,0.04)' }} />
+                          <Bar dataKey="correct" stackId="activity" fill="#34D399" name="Correct" radius={[0, 0, 0, 0]} />
+                          <Bar dataKey="incorrect" stackId="activity" fill="#F87171" name="Incorrect" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
-                <div className="card hover:transform-none mb-lg text-center py-xl" style={{ animation: 'none' }}>
-                  <p className="text-body-md text-text-secondary">No practice activity {periodLabel}.</p>
-                  <Link href="/practice" className="text-primary text-body-md font-medium mt-sm inline-block hover:underline">
-                    Start practising
-                  </Link>
-                </div>
+                <Card className="mb-6">
+                  <CardContent className="p-8 text-center">
+                    <p className="text-[14px] text-ui-muted-foreground">No practice activity {periodLabel}.</p>
+                    <Button asChild variant="link" className="mt-2">
+                      <Link href="/practice">Start practising</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
               )}
 
-              {/* ---- Recently Mastered Words ---- */}
-              <div className="card hover:transform-none mb-lg" style={{ animation: 'none' }}>
-                <div className="flex items-center justify-between mb-md">
-                  <h2 className="text-title-lg text-primary">Recently Mastered Words</h2>
-                  {totalWordsMastered > 0 && (
-                    <Link
-                      href="/progress/mastered-words"
-                      className="text-body-md text-primary font-medium hover:underline flex items-center gap-[4px]"
-                    >
-                      View all
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </Link>
-                  )}
-                </div>
-                {recentMasteredWords.length > 0 ? (
-                  <div className="flex flex-col gap-[6px]">
-                    {recentMasteredWords.map((word, i) => (
-                      <div
-                        key={`${word.target_word}-${i}`}
-                        className="flex items-center justify-between py-[10px] px-md bg-background rounded-lg"
+              <Card className="mb-6">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-[18px] font-semibold text-ui-foreground">Recently mastered words</h2>
+                    {totalWordsMastered > 0 && (
+                      <Link
+                        href="/progress/mastered-words"
+                        className="text-[14px] text-ui-primary font-medium hover:underline flex items-center gap-1"
                       >
-                        <div className="flex items-center gap-[8px]">
-                          <span className="text-title-md text-primary">{word.target_word}</span>
-                          <span className="text-text-secondary text-body-md">→</span>
-                          <span className="text-body-md text-text-secondary">{word.familiar_word}</span>
-                        </div>
-                        <span className="text-[12px] text-text-secondary whitespace-nowrap">
-                          {formatDateReadable(word.date)}
-                        </span>
-                      </div>
-                    ))}
+                        View all
+                        <ChevronRight className="w-4 h-4" />
+                      </Link>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-body-md text-text-secondary text-center py-md">
-                    No words mastered {periodLabel}. Keep practising to grow your vocabulary!
-                  </p>
-                )}
-              </div>
+                  {recentMasteredWords.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
+                      {recentMasteredWords.map((word, i) => (
+                        <div
+                          key={`${word.target_word}-${i}`}
+                          className="flex items-center justify-between py-2.5 px-4 bg-ui-background rounded-md"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-[16px] font-medium text-ui-foreground">{word.target_word}</span>
+                            <span className="text-ui-muted-foreground">→</span>
+                            <span className="text-[14px] text-ui-muted-foreground">{word.familiar_word}</span>
+                          </div>
+                          <span className="text-[12px] text-ui-muted-foreground whitespace-nowrap">
+                            {formatDateReadable(word.date)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[14px] text-ui-muted-foreground text-center py-4">
+                      No words mastered {periodLabel}. Keep practising to grow your vocabulary!
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
 
-              {/* ---- All-Time Summary ---- */}
-              <div className="flex justify-center items-center gap-[6px] text-[13px] text-text-secondary flex-wrap py-sm">
+              <div className="flex justify-center items-center gap-1.5 text-[13px] text-ui-muted-foreground flex-wrap py-3">
                 <span>All time:</span>
                 <span className="font-medium">{totalQuestions}</span> questions
-                <span className="text-border">·</span>
+                <span className="text-ui-border">·</span>
                 <span className="font-medium">{totalWordsMastered}</span> words
-                <span className="text-border">·</span>
+                <span className="text-ui-border">·</span>
                 <span className="font-medium">{totalArticles}</span> articles
               </div>
             </>

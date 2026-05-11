@@ -13,6 +13,9 @@ export interface Article {
   content: string | null;
   read: boolean;
   contentGenerated: boolean;
+  audioGenerated: boolean;
+  audioUrl: string | null;
+  contentId: string | null;
   position: number | null;
 }
 
@@ -22,4 +25,6 @@ export interface ArticlesResponse {
   subtopicMap: Record<string, string>;
   geographyMap: Record<string, string>;
   allTranslation: string;
+  /** From `translations_map.read_more` — localized "Read more" for topic page links */
+  readMoreTranslation?: string;
 }

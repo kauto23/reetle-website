@@ -4,6 +4,7 @@ import type { Article, ArticlesResponse } from '@/types/article';
 import type { PracticeQuestion } from '@/types/practice';
 import type { AssessmentQuestion, AssessmentSummary } from '@/types/assessment';
 import type { Translation } from '@/types/translation';
+import type { SubscriptionStatus, ReferralInfo, ReferralApplyResponse, CancelSubscriptionResponse } from '@/types/subscription';
 
 // Token storage
 const TOKEN_KEY = 'reetle_access_token';
@@ -86,6 +87,21 @@ export class NoPracticeQuestionsError extends Error {
   }
 }
 
+export class FreeTierQuotaError extends Error {
+  used: number;
+  limit: number;
+  detail: string;
+  resetsAt: string;
+  constructor(message: string, used: number, limit: number, detail: string, resetsAt: string) {
+    super(message);
+    this.name = 'FreeTierQuotaError';
+    this.used = used;
+    this.limit = limit;
+    this.detail = detail;
+    this.resetsAt = resetsAt;
+  }
+}
+
 // Callbacks
 let onTokenExpired: (() => void) | null = null;
 
@@ -115,10 +131,21 @@ async function checkForExpiredToken(response: Response): Promise<void> {
   }
 }
 
-function checkRateLimit(response: Response): void {
+async function checkRateLimit(response: Response): Promise<void> {
   if (response.status === 429) {
-    const retryAfter = parseInt(response.headers.get('Retry-After') || '60', 10);
-    throw new RateLimitError(retryAfter);
+    const body = await response.clone().json().catch(() => ({}));
+    if (body.error === 'Daily limit reached' && body.used !== undefined) {
+      throw new FreeTierQuotaError(
+        body.error,
+        body.used,
+        body.limit,
+        body.detail || 'Upgrade for unlimited access.',
+        body.resets_at || ''
+      );
+    }
+    const retryAfter = body.retry_after
+      ?? parseInt(response.headers.get('Retry-After') || '60', 10);
+    throw new RateLimitError(typeof retryAfter === 'number' ? retryAfter : parseInt(retryAfter, 10) || 60);
   }
 }
 
@@ -161,7 +188,7 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
     body: JSON.stringify(body),
   });
 
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -180,6 +207,7 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
     familiarLanguage: data.familiar_language || null,
     targetLanguage: data.target_language || null,
     deviceToken: data.device_token || null,
+    hasPremium: data.has_premium || false,
   };
 
   return { user, accessToken: data.access_token };
@@ -197,7 +225,7 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
     body: JSON.stringify(body),
   });
 
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -216,6 +244,7 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
     familiarLanguage: data.familiar_language || null,
     targetLanguage: data.target_language || null,
     deviceToken: data.device_token || null,
+    hasPremium: data.has_premium || false,
   };
 
   return { user, accessToken: data.access_token };
@@ -275,7 +304,7 @@ export async function deleteAccount(): Promise<{ success: boolean; message?: str
     headers: getHeaders(),
   });
 
-  checkRateLimit(response);
+  await checkRateLimit(response);
   const data = await response.json();
 
   if (response.ok) {
@@ -327,7 +356,7 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
   } as RequestInit);
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) throw new Error(`Failed to fetch articles: ${response.status}`);
 
@@ -359,6 +388,9 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
       content: item.content ? String(item.content) : null,
       read: Boolean(item.read),
       contentGenerated: Boolean(item.content_generated),
+      audioGenerated: Boolean(item.audio_generated),
+      audioUrl: item.audio_url ? String(item.audio_url) : null,
+      contentId: item.content_id != null ? String(item.content_id) : null,
       position: typeof item.position === 'number' ? item.position : null,
     };
 
@@ -392,11 +424,12 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
     topicMap: (translationsMap.topics || {}) as Record<string, string>,
     subtopicMap: (translationsMap.subtopics || {}) as Record<string, string>,
     geographyMap: (translationsMap.geography || {}) as Record<string, string>,
-    allTranslation: String(translationsMap.all || 'All'),
+    allTranslation: String(translationsMap.all ?? ''),
+    readMoreTranslation: String(translationsMap.read_more ?? ''),
   };
 }
 
-export async function getArticleContent(articleId: string): Promise<{ content: string; articleViewId?: number; error?: boolean }> {
+export async function getArticleContent(articleId: string): Promise<{ content: string; contentId?: string; articleViewId?: number; error?: boolean }> {
   const response = await fetchWithLogging(`${API_BASE_URL}/articles/content/${articleId}`, {
     method: 'POST',
     headers: getHeaders(),
@@ -404,7 +437,7 @@ export async function getArticleContent(articleId: string): Promise<{ content: s
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) {
     return { content: 'Sorry, we could not load the full content for this article.', error: true };
@@ -416,9 +449,78 @@ export async function getArticleContent(articleId: string): Promise<{ content: s
     if (data.article_view_id != null) {
       articleViewId = typeof data.article_view_id === 'number' ? data.article_view_id : parseInt(data.article_view_id, 10);
     }
-    return { content: data.content, articleViewId };
+    const contentId = data.content_id != null ? String(data.content_id) : undefined;
+    return { content: data.content, contentId, articleViewId };
   }
   return { content: data.error || 'Failed to load article content.', error: true };
+}
+
+// ========= ARTICLE AUDIO =========
+
+export type AudioFetchStatus = 'ready' | 'preparing' | 'not_found';
+
+/**
+ * Fetch the signed URL for an article's audio.
+ *
+ * HTTP 200 → audio ready (this call counts as one listen against the user's daily audio allowance)
+ * HTTP 202 → audio is currently being generated; poll again shortly
+ * HTTP 404 → audio has not been generated yet; call generateArticleAudio first
+ *
+ * The returned signed URL is valid for 15 minutes.
+ */
+export async function getArticleAudio(contentId: string): Promise<{ status: AudioFetchStatus; audioUrl?: string }> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/articles/content/${contentId}/audio`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (response.status === 200) {
+    const data = await response.json().catch(() => ({}));
+    const audioUrl = typeof data.audio_url === 'string' ? data.audio_url : undefined;
+    return { status: 'ready', audioUrl };
+  }
+
+  if (response.status === 202) {
+    return { status: 'preparing' };
+  }
+
+  if (response.status === 404) {
+    return { status: 'not_found' };
+  }
+
+  throw new Error(`Failed to fetch article audio: ${response.status}`);
+}
+
+export type AudioGenerateStatus = 'created' | 'exists' | 'preparing';
+
+/**
+ * Request generation of TTS audio for an article content.
+ *
+ * HTTP 201 → audio was generated on this call
+ * HTTP 200 → audio already existed
+ * HTTP 202 → generation is already in progress (concurrent request)
+ *
+ * This call does not itself consume a listen; only a successful GET /audio (HTTP 200)
+ * that returns a signed URL counts against the daily audio allowance.
+ */
+export async function generateArticleAudio(contentId: string): Promise<{ status: AudioGenerateStatus }> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/articles/content/${contentId}/audio`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (response.status === 201) return { status: 'created' };
+  if (response.status === 200) return { status: 'exists' };
+  if (response.status === 202) return { status: 'preparing' };
+
+  const err = await response.json().catch(() => ({}));
+  throw new Error(err.error || `Failed to generate article audio: ${response.status}`);
 }
 
 // ========= GUEST HELPERS =========
@@ -497,6 +599,9 @@ export async function getGuestArticles(options?: { maxArticles?: number; sinceId
       content: item.content ? String(item.content) : null,
       read: false,
       contentGenerated: Boolean(item.content_generated),
+      audioGenerated: Boolean(item.audio_generated),
+      audioUrl: item.audio_url ? String(item.audio_url) : null,
+      contentId: item.content_id != null ? String(item.content_id) : null,
       position: typeof item.position === 'number' ? item.position : null,
     };
 
@@ -529,7 +634,8 @@ export async function getGuestArticles(options?: { maxArticles?: number; sinceId
     topicMap: (translationsMap.topics || {}) as Record<string, string>,
     subtopicMap: (translationsMap.subtopics || {}) as Record<string, string>,
     geographyMap: (translationsMap.geography || {}) as Record<string, string>,
-    allTranslation: String(translationsMap.all || 'All'),
+    allTranslation: String(translationsMap.all ?? ''),
+    readMoreTranslation: String(translationsMap.read_more ?? ''),
   };
 }
 
@@ -658,7 +764,7 @@ export async function getTranslation(words: string, context: string, extendedCon
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) throw new Error(`Failed to get translation: ${response.status}`);
 
@@ -709,7 +815,7 @@ export async function getPracticeQuestion(questionType?: string): Promise<Practi
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   const data = await response.json();
 
@@ -756,7 +862,7 @@ export async function getArticleQuestions(articleId: string, articleViewId?: num
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) throw new Error(`Failed to fetch article questions: ${response.status}`);
 
@@ -784,7 +890,7 @@ export async function startAssessment(): Promise<{ assessmentId: number; questio
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) throw new Error(`Failed to start assessment: ${response.status}`);
 
@@ -812,19 +918,24 @@ export async function submitAssessmentAnswer(assessmentId: number, answerIndex: 
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
 
   if (!response.ok) throw new Error(`Failed to submit answer: ${response.status}`);
 
   const data = await response.json();
 
   if (data.complete) {
+    const statsPayload = data.stats && typeof data.stats === 'object' ? (data.stats as Record<string, unknown>) : null;
+    const totalQuestions = Number(statsPayload?.total_questions ?? data.total_questions) || 0;
+    const correct = Number(statsPayload?.correct ?? data.correct) || 0;
+    const justification = String(data.summary ?? data.justification ?? '');
+
     return {
       complete: true,
       summary: {
         cefrLevel: data.final_level,
-        justification: data.justification || '',
-        stats: { totalQuestions: data.total_questions || 0, correct: data.correct || 0 },
+        justification,
+        stats: { totalQuestions, correct },
         history: data.history || [],
       },
     };
@@ -862,7 +973,7 @@ export async function getQuestionStats(timeframe: StatsTimeframe = 'weekly'): Pr
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
   if (!response.ok) throw new Error('Failed to fetch question stats');
   return response.json();
 }
@@ -875,7 +986,7 @@ export async function getMasteredWordsStats(timeframe: StatsTimeframe = 'weekly'
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
   if (!response.ok) throw new Error('Failed to fetch mastered words stats');
   return response.json();
 }
@@ -888,9 +999,92 @@ export async function getArticleStats(timeframe: StatsTimeframe = 'weekly'): Pro
   });
 
   await checkForExpiredToken(response);
-  checkRateLimit(response);
+  await checkRateLimit(response);
   if (!response.ok) throw new Error('Failed to fetch article stats');
   return response.json();
+}
+
+// ========= SUBSCRIPTIONS =========
+
+export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/subscriptions/status`, {
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+  if (!response.ok) throw new Error('Failed to fetch subscription status');
+  return response.json();
+}
+
+export async function createCheckoutSession(priceId?: string): Promise<{ checkout_url: string }> {
+  const body: Record<string, unknown> = {};
+  if (priceId) body.price_id = priceId;
+
+  const response = await fetchWithLogging(`${API_BASE_URL}/subscriptions/create-checkout-session`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(body),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create checkout session');
+  }
+
+  return response.json();
+}
+
+export async function cancelSubscription(): Promise<CancelSubscriptionResponse> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/subscriptions/cancel`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.code || err.error || 'Failed to cancel subscription');
+  }
+
+  return response.json();
+}
+
+// ========= REFERRALS =========
+
+export async function getReferralCode(): Promise<ReferralInfo> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/referrals/my-code`, {
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+  if (!response.ok) throw new Error('Failed to fetch referral code');
+  return response.json();
+}
+
+export async function applyReferralCode(code: string): Promise<ReferralApplyResponse> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/referrals/apply`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ code }),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return { status: 'error', message: data.message || 'Failed to apply referral code' };
+  }
+
+  return data as ReferralApplyResponse;
 }
 
 // ========= HELPERS =========
@@ -935,8 +1129,9 @@ function parsePracticeQuestion(data: Record<string, unknown>): PracticeQuestion 
 }
 
 function parseAssessmentQuestion(data: Record<string, unknown>, questionNumber?: number): AssessmentQuestion {
+  const text = data.text ?? data.question;
   return {
-    question: String(data.question || ''),
+    question: String(text ?? ''),
     options: Array.isArray(data.options) ? data.options.map(String) : [],
     level: String(data.level || ''),
     questionNumber: questionNumber || Number(data.question_number) || 1,
