@@ -9,6 +9,8 @@ import {
   getSavedUser,
   saveUser,
   clearUser,
+  saveSubscription,
+  clearSubscription,
   setTokenExpiredCallback,
   signInWithGoogle as apiSignInWithGoogle,
   signInWithApple as apiSignInWithApple,
@@ -41,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     clearAccessToken();
     clearUser();
+    clearSubscription();
     setUser(null);
   }, []);
 
@@ -59,18 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const signInWithGoogle = async (idToken: string, email?: string, fullName?: string): Promise<boolean> => {
-    const { user: newUser, accessToken } = await apiSignInWithGoogle(idToken, email, fullName);
+    const { user: newUser, accessToken, subscription } = await apiSignInWithGoogle(idToken, email, fullName);
     saveAccessToken(accessToken);
     saveUser(newUser);
+    // Persist BEFORE setUser so SubscriptionContext finds it when auth flips.
+    if (subscription) saveSubscription(subscription);
     setUser(newUser);
     return true;
   };
 
   const signInWithApple = async (idToken: string, email?: string, fullName?: string): Promise<boolean> => {
     try {
-      const { user: newUser, accessToken } = await apiSignInWithApple(idToken, email, fullName);
+      const { user: newUser, accessToken, subscription } = await apiSignInWithApple(idToken, email, fullName);
       saveAccessToken(accessToken);
       saveUser(newUser);
+      if (subscription) saveSubscription(subscription);
       setUser(newUser);
       return true;
     } catch (error) {
@@ -124,6 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (result.success) {
       clearAccessToken();
       clearUser();
+      clearSubscription();
       setUser(null);
     }
     return result;

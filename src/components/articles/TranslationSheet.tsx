@@ -158,9 +158,9 @@ export default function TranslationSheet({ selectedText, context, extendedContex
     <button
       onClick={handleClose}
       className="w-[36px] h-[36px] flex-shrink-0 flex items-center justify-center
-        rounded-lg border border-border bg-white text-text-secondary
+        rounded-lg border border-border bg-ui-card text-ui-muted-foreground
         shadow-[0_1px_2px_rgba(45,24,50,0.04)]
-        hover:bg-background hover:text-text-primary
+        hover:bg-background hover:text-ui-foreground
         active:scale-[0.98]
         transition-all duration-150"
       aria-label="Close translation"
@@ -173,9 +173,9 @@ export default function TranslationSheet({ selectedText, context, extendedContex
     <button
       onClick={handleClose}
       className="w-[44px] h-[44px] flex-shrink-0 flex items-center justify-center
-        rounded-xl border border-border bg-background text-text-secondary
+        rounded-xl border border-border bg-background text-ui-muted-foreground
         shadow-[0_1px_2px_rgba(45,24,50,0.04)]
-        hover:bg-white hover:text-text-primary
+        hover:bg-ui-card hover:text-ui-foreground
         active:scale-[0.98]
         transition-all duration-150"
       aria-label="Close translation"
@@ -203,7 +203,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
       >
         <div
           className={`pointer-events-auto w-full ${pending ? 'max-w-[720px]' : 'max-w-[480px]'} mx-md mb-lg
-            bg-white rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]
+            bg-ui-card rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]
             border border-border/60
             overflow-y-auto
             transition-all duration-200 ease-out
@@ -222,14 +222,14 @@ export default function TranslationSheet({ selectedText, context, extendedContex
                     rounded-full bg-transparent hover:bg-black/5 border-none cursor-pointer transition-colors"
                   aria-label="Back to translation"
                 >
-                  <ChevronLeft size={14} strokeWidth={2.5} className="text-text-secondary" />
+                  <ChevronLeft size={14} strokeWidth={2.5} className="text-ui-muted-foreground" />
                 </button>
                 <p className="text-title-lg font-semibold text-primary flex-1">
                   {activeNote.title}
                 </p>
                 {closeButton}
               </div>
-              <div className="text-body-md text-text-secondary leading-relaxed">
+              <div className="text-body-md text-ui-muted-foreground leading-relaxed">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   components={{
@@ -265,7 +265,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
                     onClick={onTranslateRequest}
                     className="flex h-[44px] flex-1 items-center justify-center gap-[10px]
                       rounded-xl bg-primary px-md text-body-md font-semibold text-white
-                      border-none cursor-pointer shadow-[0_6px_18px_rgba(74,36,98,0.22)]
+                      border-none cursor-pointer shadow-[0_6px_18px_hsl(var(--primary)/0.22)]
                       hover:bg-primary-dark active:scale-[0.99]
                       transition-all duration-150 disabled:cursor-default disabled:opacity-60"
                     disabled={!onTranslateRequest}
@@ -316,7 +316,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
                     </p>
                     {closeButton}
                   </div>
-                  <p className="text-body-md text-text-secondary leading-relaxed">
+                  <p className="text-body-md text-ui-muted-foreground leading-relaxed">
                     {segments
                       ? segments.map((seg, i) =>
                           seg.note ? (

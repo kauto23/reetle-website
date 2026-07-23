@@ -2,21 +2,27 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { PracticeQuestion } from '@/types/practice';
+import type { PracticeQuestion, PracticeSubmitResult, GrammarFeedbackIncorrect } from '@/types/practice';
+import { feedbackText, hasGrammarDeepFeedback } from '@/types/practice';
 import { useHasHover } from '@/hooks/useHasHover';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
+import { Flag, HelpCircle, Lightbulb, List } from 'lucide-react';
+import { ratePracticeQuestion } from '@/services/api';
+import MarkdownBlock from '@/components/practice/MarkdownBlock';
 
 interface QuestionCardProps {
   question: PracticeQuestion;
-  onAnswer: (isCorrect: boolean) => void;
+  mode?: 'practice' | 'quiz';
+  onAnswer: (selectedIndex: number, isCorrect: boolean) => void;
   onNext?: () => void;
   nextLabel?: string;
   showHint?: boolean;
   onDismissHint?: () => void;
+  submitResult?: PracticeSubmitResult | null;
 }
 
 const easeOut = [0.25, 0.46, 0.45, 0.94] as const;
-
-const ALWAYS_SHOW_MASTERY = false; // Set to true to test mastery animation on every correct answer
 
 const MASTERY_MESSAGES = [
   'This word is locked in. On to the next one!',
@@ -68,37 +74,44 @@ function ConfettiBurst() {
             scale: [1, 0.8, 0.4],
             rotate: p.rotation,
           }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            ease: 'easeOut',
-          }}
+          transition={{ duration: p.duration, delay: p.delay, ease: 'easeOut' }}
         />
       ))}
     </div>
   );
 }
 
-export default function QuestionCard({ question, onAnswer, onNext, nextLabel = 'Next Question', showHint, onDismissHint }: QuestionCardProps) {
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+type FeedbackLevel = 'short' | 'why' | 'how';
+
+export default function QuestionCard({
+  question,
+  mode = 'practice',
+  onAnswer,
+  onNext,
+  nextLabel = 'Next Question',
+  showHint,
+  onDismissHint,
+  submitResult,
+}: QuestionCardProps) {
+  const qd = question.questionData;
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [hasAnswered, setHasAnswered] = useState(false);
   const [showTranslation, setShowTranslation] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [feedbackLevel, setFeedbackLevel] = useState<FeedbackLevel>('short');
+  const [feedbackDismissed, setFeedbackDismissed] = useState(false);
+  const [rated, setRated] = useState(false);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasHover = useHasHover();
   const masteryMessage = useMemo(() => MASTERY_MESSAGES[Math.floor(Math.random() * MASTERY_MESSAGES.length)], []);
 
-  const choiceCount = question.answerChoices.length;
-  const revealDelay = (slot: number) => 0.06 + slot * 0.06;
-  const questionTranslationSlot = choiceCount;
-  const feedbackSlot = choiceCount + 1;
-  const masterySlot = choiceCount + 2;
-  const buttonSlot = choiceCount + 3;
+  const willMaster = question.vocabContext?.willMaster ?? false;
+  const mastered = submitResult?.vocabContext?.mastered ?? false;
 
   const handleQuestionMouseEnter = useCallback(() => {
-    if (!hasHover || !question.questionFamiliar) return;
+    if (!hasHover || !qd.questionFamiliar) return;
     hoverTimerRef.current = setTimeout(() => setShowTranslation(true), 500);
-  }, [hasHover, question.questionFamiliar]);
+  }, [hasHover, qd.questionFamiliar]);
 
   const handleQuestionMouseLeave = useCallback(() => {
     if (hoverTimerRef.current) {
@@ -109,28 +122,46 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
   }, []);
 
   const toggleTranslation = useCallback(() => {
-    if (!question.questionFamiliar) return;
-    setShowTranslation(prev => !prev);
-  }, [question.questionFamiliar]);
+    if (!qd.questionFamiliar) return;
+    setShowTranslation((prev) => !prev);
+  }, [qd.questionFamiliar]);
 
-  const handleSelect = (choiceText: string) => {
+  const handleSelect = (index: number) => {
     if (hasAnswered) return;
-    setSelectedAnswer(choiceText);
+    setSelectedIndex(index);
     setHasAnswered(true);
-    const isCorrect = choiceText === question.correctAnswer;
-    onAnswer(isCorrect);
+    const isCorrect = qd.answerChoices[index]?.text === qd.correctAnswer;
+    onAnswer(index, isCorrect);
 
-    if (choiceText === question.correctAnswer && (ALWAYS_SHOW_MASTERY || question.willMaster)) {
+    if (isCorrect && (willMaster || mastered)) {
       setTimeout(() => setShowConfetti(true), 350);
     }
   };
 
-  const isCorrect = selectedAnswer === question.correctAnswer;
-  const showMastery = isCorrect && (ALWAYS_SHOW_MASTERY || question.willMaster);
+  const isCorrect = selectedIndex != null && qd.answerChoices[selectedIndex]?.text === qd.correctAnswer;
+  const showMastery = isCorrect && (willMaster || mastered);
 
-  const displayQuestion = hasAnswered && question.questionComplete
-    ? question.questionComplete
-    : question.question;
+  const displayQuestion =
+    hasAnswered && qd.questionComplete ? qd.questionComplete : qd.question;
+
+  const serverFeedback = submitResult?.feedback;
+  const localFeedback = isCorrect ? qd.feedback.correct : qd.feedback.incorrect;
+  const activeFeedback = serverFeedback ?? localFeedback;
+  const deepFeedback = hasGrammarDeepFeedback(activeFeedback) ? activeFeedback : null;
+
+  const handleRate = async (feedback: 'good' | 'bad') => {
+    if (rated || !question.domain) return;
+    setRated(true);
+    try {
+      await ratePracticeQuestion({
+        domain: question.domain,
+        questionId: question.questionId,
+        feedback,
+      });
+    } catch {
+      setRated(false);
+    }
+  };
 
   const showNextBar = hasAnswered && !!onNext;
 
@@ -142,34 +173,61 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
       exit={{ opacity: 0, y: -16, transition: { duration: 0.2 } }}
       transition={{ duration: 0.45, ease: easeOut }}
     >
-      {/* Question card + hint banner wrapper */}
-      <motion.div
-        layout
-        transition={{ layout: { duration: 0.3, ease: easeOut } }}
-      >
+      {/* Question card */}
+      <motion.div layout transition={{ layout: { duration: 0.3, ease: easeOut } }}>
         <motion.div
-          className="relative bg-surface rounded-2xl border border-border/50 px-lg py-md overflow-hidden"
-          style={{ boxShadow: '0 4px 24px rgba(45, 24, 50, 0.06), 0 1px 3px rgba(45, 24, 50, 0.04)' }}
+          className={cn(
+            'relative bg-surface rounded-2xl border border-ui-border px-md py-md overflow-hidden',
+            hasAnswered && !isCorrect && 'opacity-90'
+          )}
           onMouseEnter={hasHover && !hasAnswered ? handleQuestionMouseEnter : undefined}
           onMouseLeave={hasHover && !hasAnswered ? handleQuestionMouseLeave : undefined}
-          animate={hasAnswered && !isCorrect ? { x: [0, -8, 8, -6, 6, -3, 3, 0] } : {}}
+          animate={hasAnswered && !isCorrect ? { x: [0, -6, 6, -4, 4, -2, 2, 0] } : {}}
           transition={hasAnswered && !isCorrect ? { duration: 0.45, ease: 'easeInOut' } : {}}
         >
           {showConfetti && <ConfettiBurst />}
 
-          <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary rounded-t-2xl" />
+          {mode === 'practice' && question.domain && (
+            <button
+              type="button"
+              onClick={() => handleRate('bad')}
+              disabled={rated}
+              className="absolute top-sm right-sm z-[2] p-xs text-ui-muted-foreground hover:text-ui-primary transition-colors disabled:opacity-40"
+              aria-label="Report question"
+            >
+              <Flag className="w-4 h-4" />
+            </button>
+          )}
 
-          <div className="flex items-start justify-center gap-[6px] pt-xs relative z-[1]">
-            <p className={`text-[20px] sm:text-[22px] font-semibold leading-relaxed text-center transition-colors duration-300 ${!hasAnswered && showTranslation ? 'text-primary-light' : 'text-primary'}`}>
-              {!hasAnswered && showTranslation && question.questionFamiliar
-                ? question.questionFamiliar
-                : displayQuestion
-              }
+          <div className="flex justify-center mb-sm">
+            <HelpCircle className="w-5 h-5 text-ui-muted-foreground/60" />
+          </div>
+
+          {qd.instruction && (
+            <p className="text-body-sm text-ui-muted-foreground text-center leading-relaxed pb-sm mb-sm border-b border-ui-border/60">
+              {qd.instruction}
             </p>
-            {!hasHover && !hasAnswered && question.questionFamiliar && (
+          )}
+
+          <div className="flex items-start justify-center gap-xs relative z-[1]">
+            <p
+              className={cn(
+                'text-title-lg leading-relaxed text-center transition-colors duration-300 font-semibold',
+                !hasAnswered && showTranslation ? 'text-primary-light' : 'text-ui-primary'
+              )}
+            >
+              {!hasAnswered && showTranslation && qd.questionFamiliar
+                ? qd.questionFamiliar
+                : displayQuestion}
+            </p>
+            {!hasHover && !hasAnswered && qd.questionFamiliar && (
               <button
+                type="button"
                 onClick={toggleTranslation}
-                className={`flex-shrink-0 mt-[5px] bg-transparent border-none cursor-pointer transition-colors duration-200 ${showTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                className={cn(
+                  'flex-shrink-0 mt-[5px] bg-transparent border-none cursor-pointer transition-colors duration-200',
+                  showTranslation ? 'text-ui-primary' : 'text-ui-muted-foreground/50'
+                )}
                 aria-label={showTranslation ? 'Show original' : 'Translate question'}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -181,14 +239,14 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
             )}
           </div>
 
-          {hasAnswered && question.questionCompleteFamiliar && (
+          {hasAnswered && qd.questionCompleteFamiliar && (
             <motion.p
-              className="text-body-md text-text-secondary text-center mt-sm"
-              initial={{ opacity: 0, y: 14 }}
+              className="text-body-sm text-ui-muted-foreground text-center mt-sm italic"
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: revealDelay(questionTranslationSlot), duration: 0.4, ease: easeOut }}
+              transition={{ delay: 0.15, duration: 0.35, ease: easeOut }}
             >
-              {question.questionCompleteFamiliar}
+              {qd.questionCompleteFamiliar}
             </motion.p>
           )}
 
@@ -196,26 +254,21 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
           <AnimatePresence>
             {showHint && (
               <motion.div
-                className="absolute bottom-0 left-0 right-0 flex items-center gap-[8px] px-md py-[10px] bg-primary/90 backdrop-blur-sm rounded-b-2xl z-[2]"
+                className="absolute bottom-0 left-0 right-0 flex items-center gap-xs px-md py-[10px] bg-ui-primary/90 backdrop-blur-sm rounded-b-2xl z-[2]"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
                 transition={{ duration: 0.2 }}
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/90 shrink-0">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20" />
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                </svg>
-                <span className="text-[12px] sm:text-[13px] text-white/90 font-medium flex-1">
+                <span className="text-label-md text-white/90 font-medium flex-1">
                   {hasHover
                     ? 'Hover over the question to see its translation'
-                    : <>Tap <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="inline-block align-[-2px]"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg> to see the question in your language</>
-                  }
+                    : 'Tap the bubble icon to see the question in your language'}
                 </span>
                 <button
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); onDismissHint?.(); }}
-                  className="p-[4px] rounded-full hover:bg-white/20 transition-colors duration-150 cursor-pointer shrink-0"
+                  className="p-xs rounded-full hover:bg-white/20 transition-colors cursor-pointer shrink-0"
                   aria-label="Dismiss hint"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/70">
@@ -230,10 +283,10 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
       </motion.div>
 
       {/* Answer choices */}
-      <motion.div layout className="flex flex-col gap-[8px] mt-sm" transition={{ layout: { duration: 0.3, ease: easeOut } }}>
-        {question.answerChoices.map((choice, index) => {
-          const isSelected = selectedAnswer === choice.text;
-          const isCorrectChoice = choice.text === question.correctAnswer;
+      <motion.div layout className="flex flex-col gap-xs mt-sm" transition={{ layout: { duration: 0.3, ease: easeOut } }}>
+        {qd.answerChoices.map((choice, index) => {
+          const isSelected = selectedIndex === index;
+          const isCorrectChoice = choice.text === qd.correctAnswer;
           const showCorrectState = hasAnswered && isCorrectChoice;
           const showIncorrectState = hasAnswered && isSelected && !isCorrectChoice;
           const isDimmed = hasAnswered && !isSelected && !isCorrectChoice;
@@ -241,183 +294,232 @@ export default function QuestionCard({ question, onAnswer, onNext, nextLabel = '
           return (
             <motion.button
               key={index}
-              onClick={() => handleSelect(choice.text)}
+              type="button"
+              onClick={() => handleSelect(index)}
               disabled={hasAnswered}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{
-                opacity: isDimmed ? 0.4 : 1,
-                y: 0,
-              }}
-              transition={{
-                delay: 0.06 + index * 0.06,
-                duration: 0.4,
-                ease: easeOut,
-              }}
-              whileHover={!hasAnswered ? { scale: 1.015, y: -1 } : {}}
-              whileTap={!hasAnswered ? { scale: 0.985 } : {}}
-              className={`
-                relative p-md rounded-xl border-2 text-left w-full transition-colors duration-200
-                ${!hasAnswered
-                  ? 'border-border/50 bg-surface hover:border-primary-light hover:bg-white cursor-pointer'
-                  : showCorrectState
-                    ? 'border-correct bg-correct-bg cursor-default'
-                    : showIncorrectState
-                      ? 'border-incorrect bg-incorrect-bg cursor-default'
-                      : 'border-border/30 bg-surface cursor-default'
-                }
-              `}
-              style={
-                !hasAnswered ? { boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }
-                : showCorrectState ? { boxShadow: '0 0 0 1px rgba(52, 211, 153, 0.15), 0 4px 16px rgba(52, 211, 153, 0.1)' }
-                : showIncorrectState ? { boxShadow: '0 0 0 1px rgba(248, 113, 113, 0.15), 0 4px 16px rgba(248, 113, 113, 0.1)' }
-                : {}
-              }
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: isDimmed ? 0.45 : 1, y: 0 }}
+              transition={{ delay: 0.05 + index * 0.05, duration: 0.35, ease: easeOut }}
+              whileHover={!hasAnswered && hasHover ? { scale: 1.01 } : undefined}
+              whileTap={!hasAnswered ? { scale: 0.985 } : undefined}
+              className={cn(
+                'relative w-full rounded-2xl border px-md py-sm text-left transition-colors duration-200 flex items-center justify-between gap-sm min-h-[52px]',
+                !hasAnswered && 'border-ui-border bg-surface cursor-pointer hover:border-primary-light',
+                showCorrectState && 'border-correct bg-correct-bg cursor-default',
+                showIncorrectState && 'border-incorrect bg-incorrect-bg cursor-default',
+                isDimmed && 'border-ui-border/40 bg-surface cursor-default'
+              )}
             >
-              <div className="flex items-center gap-md">
-                <motion.span
-                  className={`
-                    w-[36px] h-[36px] rounded-xl flex items-center justify-center text-[14px] font-bold shrink-0 transition-colors duration-300
-                    ${showCorrectState
-                      ? 'bg-correct text-white'
-                      : showIncorrectState
-                        ? 'bg-incorrect text-white'
-                        : 'bg-background text-primary'
-                    }
-                  `}
-                  animate={
-                    showCorrectState ? { scale: [1, 1.2, 1] }
-                    : showIncorrectState ? { scale: [1, 1.2, 1] }
-                    : {}
-                  }
-                  transition={{ duration: 0.3, delay: 0.05 }}
-                >
-                  {showCorrectState ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  ) : showIncorrectState ? (
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  ) : (
-                    String.fromCharCode(65 + index)
-                  )}
-                </motion.span>
-
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[16px] font-medium leading-snug ${
-                    showCorrectState ? 'text-correct-text' : showIncorrectState ? 'text-incorrect-text' : 'text-primary'
-                  }`}>
-                    {choice.text}
-                  </p>
-                  <AnimatePresence>
-                    {hasAnswered && choice.textFamiliar && (
-                      <motion.p
-                        className="text-[13px] text-text-secondary mt-[2px] leading-snug"
-                        initial={{ opacity: 0, y: 14 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: revealDelay(index), duration: 0.4, ease: easeOut }}
-                      >
-                        {choice.textFamiliar}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
+              <span
+                className={cn(
+                  'text-title-md font-semibold',
+                  showCorrectState && 'text-correct-text',
+                  showIncorrectState && 'text-incorrect-text',
+                  !hasAnswered && 'text-ui-primary'
+                )}
+              >
+                {choice.text}
+              </span>
+              <AnimatePresence>
+                {hasAnswered && choice.textFamiliar && (
+                  <motion.span
+                    className="text-body-sm text-ui-muted-foreground text-right max-w-[55%] shrink-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.1 + index * 0.05, duration: 0.3 }}
+                  >
+                    {choice.textFamiliar}
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </motion.button>
           );
         })}
       </motion.div>
 
-      {/* Post-answer group: feedback, mastery (next action is fixed to viewport bottom) */}
+      {/* Post-answer feedback */}
       <AnimatePresence>
-        {hasAnswered && (
+        {hasAnswered && !feedbackDismissed && (
           <motion.div
-            className="flex flex-col gap-sm mt-sm"
-            initial={{ opacity: 0, y: 14 }}
+            key={`answer-footer-${question.questionId}`}
+            className="z-[950] mt-md"
+            style={{ position: 'sticky', bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: revealDelay(feedbackSlot), duration: 0.4, ease: easeOut }}
+            exit={{ opacity: 0, y: 12, transition: { duration: 0.2 } }}
+            transition={{ duration: 0.3, ease: easeOut }}
           >
-            {!(hasAnswered && showMastery) && (
+            {showMastery ? (
               <motion.div
-                className={`p-md rounded-xl ${isCorrect ? 'bg-correct-bg border border-correct/20' : 'bg-incorrect-bg border border-incorrect/20'}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: revealDelay(feedbackSlot), duration: 0.4, ease: easeOut }}
-              >
-                <div className="flex items-start gap-sm">
-                  <div className={`w-[24px] h-[24px] rounded-full flex items-center justify-center shrink-0 mt-[1px] ${isCorrect ? 'bg-correct' : 'bg-incorrect'}`}>
-                    {isCorrect ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
-                    )}
-                  </div>
-                  <div>
-                    <p className={`text-[14px] font-semibold ${isCorrect ? 'text-correct-text' : 'text-incorrect-text'}`}>
-                      {isCorrect ? question.feedback.correct : question.feedback.incorrect}
-                    </p>
-                    {!isCorrect && question.feedback.incorrectFamiliar && (
-                      <p className="text-[13px] text-text-secondary mt-xs">
-                        {question.feedback.incorrectFamiliar}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {showMastery && (
-              <motion.div
-                className="p-md rounded-xl border border-primary/10 overflow-hidden relative"
-                style={{ background: 'linear-gradient(135deg, rgba(74, 36, 98, 0.04), rgba(255, 107, 107, 0.06), rgba(74, 36, 98, 0.04))' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: revealDelay(masterySlot), duration: 0.4, ease: easeOut }}
+                className="p-md rounded-2xl border border-ui-primary/10 overflow-hidden relative mb-sm"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(var(--primary) / 0.04), hsl(var(--accent-coral) / 0.06), hsl(var(--primary) / 0.04))',
+                }}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.4, ease: easeOut }}
               >
                 <div className="flex items-center gap-sm relative z-[1]">
                   <motion.span
-                    className="text-[28px] shrink-0"
+                    className="text-display-md shrink-0"
                     animate={{ rotate: [0, -12, 12, -8, 0], scale: [1, 1.25, 1] }}
-                    transition={{ delay: revealDelay(masterySlot) + 0.3, duration: 0.6 }}
+                    transition={{ delay: 0.3, duration: 0.6 }}
                   >
                     🎉
                   </motion.span>
                   <div>
-                    <p className="text-[15px] font-bold text-primary">Word Mastered!</p>
-                    <p className="text-[13px] text-text-secondary mt-[2px]">{masteryMessage}</p>
+                    <p className="text-title-md font-bold text-ui-primary">Word Mastered!</p>
+                    <p className="text-body-sm text-ui-muted-foreground mt-[2px]">{masteryMessage}</p>
                   </div>
                 </div>
               </motion.div>
+            ) : (
+              <motion.div
+                className={cn(
+                  'relative rounded-2xl border p-md mb-sm shadow-[0_-10px_30px_rgba(28,23,37,0.08)]',
+                  isCorrect ? 'bg-correct-bg border-correct/25' : 'bg-incorrect-bg border-incorrect/25'
+                )}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.35, ease: easeOut }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setFeedbackDismissed(true)}
+                  className={cn(
+                    'absolute top-sm right-sm w-[22px] h-[22px] flex items-center justify-center rounded-full text-label-md opacity-70 hover:opacity-100',
+                    isCorrect ? 'text-correct-text' : 'text-incorrect-text'
+                  )}
+                  aria-label="Dismiss feedback"
+                >
+                  ▾
+                </button>
+
+                {submitResult && (
+                  <div className="flex justify-end mb-xs pr-lg">
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-sm py-[2px] text-label-md font-semibold border',
+                        isCorrect
+                          ? 'bg-correct-bg border-correct/30 text-correct-text'
+                          : 'bg-incorrect-bg border-incorrect/30 text-incorrect-text'
+                      )}
+                    >
+                      New Rating: {Math.round(submitResult.ratingAfter)} (
+                      {submitResult.ratingAfter - submitResult.ratingBefore > 0 ? '+' : ''}
+                      {Math.round(submitResult.ratingAfter - submitResult.ratingBefore)})
+                    </span>
+                  </div>
+                )}
+
+                {feedbackLevel === 'short' && (
+                  <>
+                    <p className={cn('text-body-md leading-relaxed pr-lg', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}>
+                      {feedbackText(activeFeedback)}
+                    </p>
+                    <div className="flex items-center justify-between mt-sm gap-sm">
+                      {showNextBar && (
+                        <button
+                          type="button"
+                          onClick={onNext}
+                          className={cn('text-title-sm font-semibold', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}
+                        >
+                          {nextLabel} ▸
+                        </button>
+                      )}
+                      {deepFeedback?.theWhy && (
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackLevel('why')}
+                          className={cn('inline-flex items-center gap-xs text-title-sm font-semibold ml-auto', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}
+                        >
+                          <Lightbulb className="w-4 h-4" />
+                          Learn why
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {feedbackLevel === 'why' && deepFeedback?.theWhy && (
+                  <>
+                    <MarkdownBlock content={deepFeedback.theWhy} className={isCorrect ? 'text-correct-text' : 'text-incorrect-text'} />
+                    <div className="flex items-center justify-between mt-sm">
+                      <button type="button" onClick={() => setFeedbackLevel('short')} className={cn('text-body-sm', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}>
+                        ◂ Back
+                      </button>
+                      {deepFeedback.theHow && (
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackLevel('how')}
+                          className={cn('inline-flex items-center gap-xs text-title-sm font-semibold', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}
+                        >
+                          <List className="w-4 h-4" />
+                          Show me how
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {feedbackLevel === 'how' && deepFeedback?.theHow && (
+                  <>
+                    <MarkdownBlock content={deepFeedback.theHow} className={isCorrect ? 'text-correct-text' : 'text-incorrect-text'} />
+                    <div className="flex items-center justify-between mt-sm">
+                      <button type="button" onClick={() => setFeedbackLevel('why')} className={cn('text-body-sm', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}>
+                        ◂ Back
+                      </button>
+                      {showNextBar && (
+                        <button type="button" onClick={onNext} className={cn('text-title-sm font-semibold', isCorrect ? 'text-correct-text' : 'text-incorrect-text')}>
+                          {nextLabel} ▸
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            )}
+
+            {showNextBar && (showMastery || feedbackDismissed) && (
+              <motion.button
+                type="button"
+                onClick={onNext}
+                className={cn(buttonVariants(), 'w-full shadow-[0_8px_32px_hsl(var(--primary)/0.25)] border-none')}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.25, duration: 0.35, ease: easeOut }}
+                whileHover={hasHover ? { scale: 1.01 } : undefined}
+                whileTap={{ scale: 0.98 }}
+              >
+                {nextLabel}
+              </motion.button>
             )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {showNextBar && (
-        <div
-          className="z-[950] mt-md"
-          style={{
-            position: 'sticky',
-            bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
-          }}
-        >
+      {hasAnswered && feedbackDismissed && showNextBar && !showMastery && (
+        <div className="mt-md flex gap-xs">
           <motion.button
+            type="button"
             onClick={onNext}
-            className="btn-primary w-full shadow-[0_8px_32px_rgba(45,24,50,0.25)]"
-            initial={{ opacity: 0, y: 16 }}
+            className={cn(buttonVariants(), 'flex-[4] border-none')}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: revealDelay(buttonSlot), duration: 0.35, ease: easeOut }}
-            whileHover={{ scale: 1.01 }}
-            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.3 }}
           >
             {nextLabel}
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={() => setFeedbackDismissed(false)}
+            className="flex-1 border border-ui-border bg-surface text-ui-primary rounded-2xl flex items-center justify-center text-title-md font-bold"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            aria-label="Show feedback"
+          >
+            ?
           </motion.button>
         </div>
       )}

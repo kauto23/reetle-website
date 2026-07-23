@@ -8,10 +8,10 @@ import {
   BarChart3,
   Check,
   ChevronRight,
-  ClipboardList,
   Copy,
   Link2,
   Loader2,
+  RefreshCw,
   ShieldCheck,
 } from 'lucide-react';
 import AuthGuard from '@/components/layout/AuthGuard';
@@ -90,6 +90,7 @@ export default function ProfilePage() {
   const { isPremium, platform, expirationDate, refreshStatus } = useSubscription();
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
 
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -211,6 +212,18 @@ export default function ProfilePage() {
     }
   };
 
+  const handleRefreshStatus = async () => {
+    setIsRefreshingStatus(true);
+    try {
+      await refreshStatus();
+      toast.success('Subscription status refreshed');
+    } catch {
+      toast.error('Could not refresh subscription status. Please try again.');
+    } finally {
+      setIsRefreshingStatus(false);
+    }
+  };
+
   const handleCancelSubscription = async () => {
     setIsCancelling(true);
     setCancelError(null);
@@ -232,7 +245,9 @@ export default function ProfilePage() {
           requiresUserAction: false,
         });
       }
-      await refreshStatus();
+      // Cancellation already succeeded; a failed status refresh shouldn't
+      // surface as a cancellation error.
+      await refreshStatus().catch(() => {});
     } catch (err) {
       const code = err instanceof Error ? err.message : 'unknown_error';
       let friendly = 'Could not cancel your subscription. Please try again.';
@@ -265,13 +280,13 @@ export default function ProfilePage() {
       <section className="py-10 sm:py-14">
         <div className="max-w-[600px] mx-auto px-4 space-y-6">
           <div className="text-center mb-2">
-            <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground">Profile</h1>
+            <h1 className="text-display-md tracking-tight text-ui-foreground">Profile</h1>
           </div>
 
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 bg-ui-primary rounded-full flex items-center justify-center text-ui-primary-foreground text-2xl font-semibold shrink-0">
+                <div className="w-14 h-14 bg-ui-primary rounded-full flex items-center justify-center text-white text-2xl font-semibold shrink-0">
                   {user?.email?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -326,7 +341,7 @@ export default function ProfilePage() {
                                 'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
                                 selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
                               )}>
-                                {selected && <Check className="w-3 h-3 text-ui-primary-foreground" strokeWidth={3} />}
+                                {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                               </span>
                             </button>
                           );
@@ -385,7 +400,7 @@ export default function ProfilePage() {
                           <div className={cn(
                             'w-9 h-9 rounded-md flex items-center justify-center font-semibold text-[13px] shrink-0',
                             selected
-                              ? 'bg-ui-primary text-ui-primary-foreground'
+                              ? 'bg-ui-primary text-white'
                               : !level.available
                                 ? 'bg-ui-muted text-ui-muted-foreground'
                                 : 'bg-ui-background text-ui-foreground'
@@ -403,7 +418,7 @@ export default function ProfilePage() {
                               'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
                               selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
                             )}>
-                              {selected && <Check className="w-3 h-3 text-ui-primary-foreground" strokeWidth={3} />}
+                              {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
                             </span>
                           )}
                         </button>
@@ -417,12 +432,6 @@ export default function ProfilePage() {
                     {isSavingLevel && <Loader2 className="h-4 w-4 animate-spin" />}
                     {isSavingLevel ? 'Saving...' : 'Save Level'}
                   </Button>
-                  <Link
-                    href="/assessment"
-                    className="block text-center mt-2.5 text-primary-light hover:text-ui-primary text-[13px] font-medium transition-colors"
-                  >
-                    Not sure? Take a quick assessment
-                  </Link>
                 </div>
               )}
             </CardContent>
@@ -432,7 +441,20 @@ export default function ProfilePage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-[16px]">Subscription</CardTitle>
-                {isPremium ? <Badge variant="success">Premium</Badge> : <Badge variant="muted">Free</Badge>}
+                <div className="flex items-center gap-1.5">
+                  {isPremium ? <Badge variant="success">Premium</Badge> : <Badge variant="muted">Free</Badge>}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefreshStatus}
+                    disabled={isRefreshingStatus}
+                    className="h-7 w-7 p-0 text-ui-muted-foreground"
+                    aria-label="Refresh subscription status"
+                    title="Refresh subscription status"
+                  >
+                    <RefreshCw className={cn('h-3.5 w-3.5', isRefreshingStatus && 'animate-spin')} />
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -591,17 +613,6 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-3">
                     <BarChart3 className="w-5 h-5 text-ui-primary" />
                     <span className="text-[15px] font-medium text-ui-foreground">Progress &amp; Statistics</span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-ui-muted-foreground" />
-                </CardContent>
-              </Card>
-            </Link>
-            <Link href="/assessment">
-              <Card className="hover:bg-ui-muted/30 transition-colors">
-                <CardContent className="p-5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <ClipboardList className="w-5 h-5 text-ui-primary" />
-                    <span className="text-[15px] font-medium text-ui-foreground">Retake Level Assessment</span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-ui-muted-foreground" />
                 </CardContent>

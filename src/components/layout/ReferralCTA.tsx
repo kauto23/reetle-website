@@ -26,7 +26,7 @@ export default function ReferralCTA() {
   const ctaLabel = isAuthenticated ? 'Redeem now' : 'Sign up to redeem';
 
   return (
-    <div className="relative bg-ui-card overflow-hidden border border-ui-border rounded-lg flex h-full flex-1 transition-shadow hover:shadow-md">
+    <div className="relative bg-ui-card overflow-hidden border border-ui-border rounded-none flex h-full flex-1 transition-shadow hover:shadow-md">
       <button
         onClick={dismissBanner}
         aria-label="Dismiss referral offer"
@@ -36,20 +36,20 @@ export default function ReferralCTA() {
         <X className="w-3 h-3" />
       </button>
 
-      <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-ui-primary flex items-center justify-center">
+      <div className="relative h-[132px] w-[130px] lg:w-[160px] shrink-0 overflow-hidden bg-ui-primary flex items-center justify-center">
         <Gift className="w-10 h-10 text-white opacity-95" strokeWidth={1.6} />
       </div>
 
       <div className="p-3 flex flex-col justify-center flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-ui-primary">
+          <span className="text-label-sm uppercase text-ui-primary">
             Referral offer
           </span>
         </div>
-        <h3 className="text-[14px] sm:text-[15px] font-semibold leading-[1.3] text-ui-foreground mb-1">
+        <h3 className="text-title-sm text-ui-foreground mb-1">
           1 free month of Premium
         </h3>
-        <p className="text-[11px] text-ui-muted-foreground leading-[1.35] mb-2">
+        <p className="text-label-md text-ui-muted-foreground mb-2">
           Code{' '}
           <span className="font-mono font-semibold text-ui-primary tracking-wider">
             {code}
@@ -58,7 +58,7 @@ export default function ReferralCTA() {
         </p>
         <Link
           href={ctaHref}
-          className="group inline-flex items-center gap-1 text-[11px] font-semibold text-ui-primary hover:text-primary-light transition-colors no-underline w-fit"
+          className="group inline-flex items-center gap-1 text-label-md font-semibold text-ui-primary hover:text-primary-light transition-colors no-underline w-fit"
         >
           <span>{ctaLabel}</span>
           <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />

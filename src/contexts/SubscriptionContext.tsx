@@ -1,8 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubscriptionStatus } from '@/services/api';
+import { getSubscriptionStatus, getSavedSubscription, saveSubscription } from '@/services/api';
 import type { SubscriptionStatus, SubscriptionDailyUsage } from '@/types/subscription';
 
 interface SubscriptionContextType {
@@ -16,22 +16,28 @@ interface SubscriptionContextType {
 
 const SubscriptionContext = createContext<SubscriptionContextType | null>(null);
 
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
-
+// Subscription state is seeded from the `subscription` block that every auth
+// endpoint returns (persisted to localStorage at sign-in, see AuthContext).
+// No polling and no fetch on mount — the status endpoint is only hit when a
+// consumer explicitly calls refreshStatus (payment success polling, manual
+// refresh on the profile page, post-cancellation).
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchStatus = useCallback(async () => {
+  // Rethrows on failure so callers (e.g. the profile refresh button) can
+  // surface an error; callers that don't care should catch.
+  const refreshStatus = useCallback(async () => {
     if (!isAuthenticated) return;
     try {
       setIsLoading(true);
       const data = await getSubscriptionStatus();
       setStatus(data);
+      saveSubscription(data);
     } catch (err) {
       console.error('Failed to fetch subscription status:', err);
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -42,14 +48,15 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setStatus(null);
       return;
     }
-
-    fetchStatus();
-
-    intervalRef.current = setInterval(fetchStatus, REFRESH_INTERVAL_MS);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isAuthenticated, fetchStatus]);
+    const saved = getSavedSubscription();
+    if (saved) {
+      setStatus(saved);
+    } else {
+      // Sessions created before subscription state was persisted at sign-in
+      // have no saved block; fetch once to migrate them, then rely on storage.
+      refreshStatus().catch(() => {});
+    }
+  }, [isAuthenticated, refreshStatus]);
 
   return (
     <SubscriptionContext.Provider
@@ -59,7 +66,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         expirationDate: status?.expiration_date ?? null,
         dailyUsage: status?.daily_usage ?? null,
         isLoading,
-        refreshStatus: fetchStatus,
+        refreshStatus,
       }}
     >
       {children}

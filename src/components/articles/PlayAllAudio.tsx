@@ -24,7 +24,11 @@ import { Headphones, Play, Pause, SkipForward, SkipBack, RotateCcw, RotateCw, X,
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlayAllAudio, type QueueItem } from '@/contexts/PlayAllAudioContext';
 import { useLoginUrl } from '@/hooks/useLoginUrl';
+import { AUDIO_PREPARING_DETAIL_MESSAGES } from '@/lib/audioPreparingMessages';
 import type { Article } from '@/types/article';
+import { Button } from '@/components/ui/button';
+
+const PREPARING_MESSAGE_ROTATE_MS = 5000;
 
 function WaveSpinner() {
   return (
@@ -138,7 +142,7 @@ function formatTime(seconds: number): string {
   return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
-const BASE_WRAPPER_BASE = 'border border-border bg-white px-[12px] py-[10px] sm:px-[14px] sm:py-[12px]';
+const BASE_WRAPPER_BASE = 'border border-border bg-ui-card px-[12px] py-[10px] sm:px-[14px] sm:py-[12px]';
 
 interface PlayAllAudioProps {
   articles?: Article[];
@@ -173,6 +177,24 @@ export default function PlayAllAudio({
     setMounted(true);
   }, []);
 
+  // While audio for a user-requested article is still being generated
+  // (pendingPlayback set), the "Now playing" label is replaced with rotating
+  // preparing microcopy, matching the article page's preparing panel.
+  const isPreparingPending =
+    queue.pendingPlayback != null && (queue.mode === 'loading' || queue.mode === 'awaiting_next');
+  const [preparingMessageIndex, setPreparingMessageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isPreparingPending) {
+      setPreparingMessageIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setPreparingMessageIndex(prev => (prev + 1) % AUDIO_PREPARING_DETAIL_MESSAGES.length);
+    }, PREPARING_MESSAGE_ROTATE_MS);
+    return () => clearInterval(interval);
+  }, [isPreparingPending]);
+
   const BASE_WRAPPER_CLASS = `${BASE_WRAPPER_BASE} ${inlineClassName}`.trim();
 
   // Guests: locked CTA, no audio API calls behind the scenes.
@@ -183,18 +205,17 @@ export default function PlayAllAudio({
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-primary">{playAllLabel}</div>
-          <div className="hidden sm:block text-[12px] text-text-secondary mt-[2px]">
+          <div className="text-body-md font-medium text-primary">{playAllLabel}</div>
+          <div className="hidden sm:block text-label-md text-ui-muted-foreground mt-[2px]">
             Sign in to play recent articles back-to-back at your level.
           </div>
         </div>
-        <Link
-          href={loginUrl}
-          className="btn-primary rounded-sm text-[13px] px-[12px] sm:px-[14px] py-[8px] inline-flex items-center gap-[6px] shrink-0 whitespace-nowrap"
-        >
-          <Headphones size={14} />
-          Sign in
-        </Link>
+        <Button asChild variant="default" size="sm" className="rounded-sm px-[12px] sm:px-[14px] py-2 h-auto shrink-0 whitespace-nowrap">
+          <Link href={loginUrl} className="inline-flex items-center gap-[6px]">
+            <Headphones size={14} />
+            Sign in
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -206,15 +227,15 @@ export default function PlayAllAudio({
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-primary mb-[2px]">
+          <div className="text-body-md font-medium text-primary mb-[2px]">
             You&apos;ve reached today&apos;s audio limit
           </div>
-          <div className="text-[12px] text-text-secondary mb-[8px]">
+          <div className="text-label-md text-ui-muted-foreground mb-[8px]">
             Upgrade to Premium for unlimited listening, or come back tomorrow.
           </div>
           <Link
             href="/premium"
-            className="inline-flex items-center gap-[6px] text-[13px] font-medium text-primary-light hover:text-primary transition-colors"
+            className="inline-flex items-center gap-[6px] text-body-sm font-medium text-primary-light hover:text-primary transition-colors"
           >
             Upgrade for unlimited audio
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -225,13 +246,50 @@ export default function PlayAllAudio({
         <button
           type="button"
           onClick={queue.stop}
-          className="text-text-secondary hover:text-primary transition-colors p-[4px] shrink-0"
+          className="text-ui-muted-foreground hover:text-primary transition-colors p-[4px] shrink-0"
           aria-label="Dismiss"
         >
           <X size={14} />
         </button>
       </div>
     );
+  }
+
+  // Free user tapped ▶ on an article without generated audio: the bottom bar
+  // already popped up in its loading state, so it morphs in place into the
+  // Premium upsell instead of a separate toast.
+  if (queue.mode === 'requires_premium') {
+    const premiumBar = (
+      <div className="fixed inset-x-0 bottom-0 z-[1000]">
+        <div className="border-t border-border bg-ui-card px-[12px] pt-[10px] pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
+          <div className="max-w-[1280px] mx-auto flex items-center gap-[10px] sm:gap-[12px]">
+            <div className="hidden sm:flex w-[40px] h-[40px] rounded-full bg-primary/10 items-center justify-center text-primary shrink-0">
+              <Headphones size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-body-md font-medium text-primary">
+                On-demand audio is a Premium feature
+              </div>
+              <div className="text-label-md text-ui-muted-foreground mt-[2px]">
+                This article isn&apos;t narrated yet. Premium members can generate audio for any article instantly.
+              </div>
+            </div>
+            <Button asChild variant="default" size="sm" className="rounded-sm px-[12px] sm:px-[14px] py-2 h-auto shrink-0 whitespace-nowrap">
+              <Link href="/premium">Upgrade</Link>
+            </Button>
+            <button
+              type="button"
+              onClick={queue.stop}
+              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-ui-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+              aria-label="Dismiss"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+    return mounted ? createPortal(premiumBar, document.body) : null;
   }
 
   if (queue.mode === 'empty') {
@@ -241,15 +299,15 @@ export default function PlayAllAudio({
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-primary">No audio ready yet</div>
-          <div className="text-[12px] text-text-secondary">
+          <div className="text-body-md font-medium text-primary">No audio ready yet</div>
+          <div className="text-label-md text-ui-muted-foreground">
             We&apos;re preparing more audio for your level. Check back shortly.
           </div>
         </div>
         <button
           type="button"
           onClick={queue.stop}
-          className="text-text-secondary hover:text-primary transition-colors p-[4px] shrink-0"
+          className="text-ui-muted-foreground hover:text-primary transition-colors p-[4px] shrink-0"
           aria-label="Dismiss"
         >
           <X size={14} />
@@ -265,19 +323,21 @@ export default function PlayAllAudio({
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[14px] font-medium text-primary">All caught up</div>
-          <div className="text-[12px] text-text-secondary">
+          <div className="text-body-md font-medium text-primary">All caught up</div>
+          <div className="text-label-md text-ui-muted-foreground">
             You&apos;ve listened to all available audio. New articles arrive throughout the day.
           </div>
         </div>
-        <button
+        <Button
           type="button"
+          variant="default"
+          size="sm"
+          className="rounded-sm px-[14px] py-2 h-auto inline-flex items-center gap-[6px] shrink-0"
           onClick={() => queue.start(articles)}
-          className="btn-primary rounded-sm text-[13px] px-[14px] py-[8px] inline-flex items-center gap-[6px] shrink-0"
         >
           <Play size={14} fill="currentColor" strokeWidth={0} />
           Restart
-        </button>
+        </Button>
       </div>
     );
   }
@@ -309,8 +369,8 @@ export default function PlayAllAudio({
             <Headphones size={20} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-medium text-primary">You&apos;re up to date</div>
-            <div className="text-[12px] text-text-secondary">
+            <div className="text-body-md font-medium text-primary">You&apos;re up to date</div>
+            <div className="text-label-md text-ui-muted-foreground">
               You&apos;ve already heard the articles in this Play all queue. New audio will appear as more articles are ready.
             </div>
           </div>
@@ -323,7 +383,10 @@ export default function PlayAllAudio({
   }
 
   // Active playback becomes app chrome, so it stays clear of sticky topic headers.
-  const currentDisplay = queue.current ?? queue.pendingPlayback;
+  // `pendingPlayback` wins while set: when the user taps ▶ on an unprepared
+  // article mid-session, `queue.current` still points at the previous track
+  // until real playback starts, which would show the wrong headline.
+  const currentDisplay = queue.pendingPlayback ?? queue.current;
   const articleLink =
     queue.current && queue.mode !== 'loading' && queue.mode !== 'awaiting_next'
       ? `/?article=${encodeURIComponent(queue.current.articleId)}`
@@ -356,7 +419,7 @@ export default function PlayAllAudio({
         <button
           type="button"
           aria-label="Drag to reorder"
-          className="shrink-0 text-text-secondary/30 hover:text-text-secondary/70 transition-colors cursor-grab active:cursor-grabbing touch-none"
+          className="shrink-0 text-ui-muted-foreground/30 hover:text-ui-muted-foreground/70 transition-colors cursor-grab active:cursor-grabbing touch-none"
           style={{ touchAction: 'none' }}
           onPointerDown={(e) => {
             e.preventDefault();
@@ -414,11 +477,11 @@ export default function PlayAllAudio({
           className="min-w-0 flex-1 text-left"
           aria-label={`Play ${item.headline}`}
         >
-          <div className={`text-[13px] font-medium leading-snug truncate ${muted ? 'text-text-secondary' : 'text-primary'}`}>
+          <div className={`text-body-sm font-medium leading-snug truncate ${muted ? 'text-ui-muted-foreground' : 'text-primary'}`}>
             {item.headline}
           </div>
           {item.topic && (
-            <div className={`text-[11px] truncate mt-[1px] ${muted ? 'text-text-secondary/80' : 'text-text-secondary'}`}>
+            <div className={`text-label-sm truncate mt-[1px] ${muted ? 'text-ui-muted-foreground/80' : 'text-ui-muted-foreground'}`}>
               {item.topic}
             </div>
           )}
@@ -426,7 +489,7 @@ export default function PlayAllAudio({
         <button
           type="button"
           onClick={() => queue.removeFromQueue(item.articleId)}
-          className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-text-secondary/50 hover:text-primary hover:bg-primary/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 transition-all shrink-0"
+          className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-ui-muted-foreground/50 hover:text-primary hover:bg-primary/10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus:opacity-100 transition-all shrink-0"
           aria-label={`Remove ${item.headline} from queue`}
         >
           <X size={14} strokeWidth={2} />
@@ -455,17 +518,17 @@ export default function PlayAllAudio({
       `}</style>
       {/* Queue panel — slides open above the transport bar */}
       {showQueue && (
-        <div className="bg-white border-t border-border shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
+        <div className="bg-ui-card border-t border-border shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
           <div className="max-w-[1280px] mx-auto">
             {/* Panel header */}
             <div className="flex items-center justify-between px-[14px] pt-[14px] pb-[10px] border-b border-border">
-              <span className="text-[13px] font-semibold text-primary uppercase tracking-wide">
+              <span className="text-body-sm font-semibold text-primary uppercase tracking-wide">
                 Queue
               </span>
               <button
                 type="button"
                 onClick={() => setShowQueue(false)}
-                className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+                className="w-[28px] h-[28px] rounded-full flex items-center justify-center text-ui-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                 aria-label="Close queue"
               >
                 <X size={14} />
@@ -477,7 +540,7 @@ export default function PlayAllAudio({
               {/* Now Playing */}
               {currentDisplay && (
                 <div className="mb-[6px]">
-                  <div className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider mb-[6px] px-[2px]">
+                  <div className="text-[10px] font-semibold text-ui-muted-foreground uppercase tracking-wider mb-[6px] px-[2px]">
                     Now Playing
                   </div>
                   <div className="flex items-center gap-[10px] rounded-lg bg-primary/5 px-[10px] py-[9px]">
@@ -485,11 +548,11 @@ export default function PlayAllAudio({
                       <WaveSpinner />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-medium text-primary leading-snug truncate">
+                      <div className="text-body-sm font-medium text-primary leading-snug truncate">
                         {currentDisplay.headline}
                       </div>
                       {currentDisplay.topic && (
-                        <div className="text-[11px] text-text-secondary truncate mt-[1px]">
+                        <div className="text-label-sm text-ui-muted-foreground truncate mt-[1px]">
                           {currentDisplay.topic}
                         </div>
                       )}
@@ -502,7 +565,7 @@ export default function PlayAllAudio({
                 <ul ref={queueListRef} className="space-y-[2px] list-none m-0 p-0">
                   {userUpcoming.length > 0 && (
                     <li key="section-next-in-queue" className="list-none px-[2px] pt-[10px] pb-[6px] pointer-events-none">
-                      <div className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
+                      <div className="text-[10px] font-semibold text-ui-muted-foreground uppercase tracking-wider">
                         Next in queue · {userUpcoming.length}
                       </div>
                     </li>
@@ -514,7 +577,7 @@ export default function PlayAllAudio({
 
                   {showNextUpSection && (
                     <li key="section-next-up" className="list-none px-[2px] pt-[10px] pb-[6px] pointer-events-none">
-                      <div className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
+                      <div className="text-[10px] font-semibold text-ui-muted-foreground uppercase tracking-wider">
                         Next up
                         {autoplayUpcoming.length > 0 ? ` · ${autoplayUpcoming.length}` : ''}
                       </div>
@@ -527,20 +590,20 @@ export default function PlayAllAudio({
                   {queue.preparingNext && (
                     <li
                       key={`preparing-${queue.preparingNext.articleId}`}
-                      className="flex items-center gap-[10px] rounded-lg px-[10px] py-[8px] text-text-secondary"
+                      className="flex items-center gap-[10px] rounded-lg px-[10px] py-[8px] text-ui-muted-foreground"
                     >
                       <div className="shrink-0 w-[28px] flex justify-center">
                         <WaveSpinner />
                       </div>
-                      <div className="min-w-0 flex-1 text-[12px] leading-snug">
-                        <span className="font-medium text-text-secondary">Getting ready</span>
-                        <span className="text-text-secondary/90"> · {queue.preparingNext.headline}</span>
+                      <div className="min-w-0 flex-1 text-label-md leading-snug">
+                        <span className="font-medium text-ui-muted-foreground">Getting ready</span>
+                        <span className="text-ui-muted-foreground/90"> · {queue.preparingNext.headline}</span>
                       </div>
                     </li>
                   )}
                 </ul>
               ) : (
-                <div className="py-[16px] text-center text-[13px] text-text-secondary">
+                <div className="py-[16px] text-center text-body-sm text-ui-muted-foreground">
                   Nothing else in the queue.
                 </div>
               )}
@@ -550,7 +613,7 @@ export default function PlayAllAudio({
       )}
 
       {/* Transport bar */}
-      <div className="border-t border-border bg-white px-[12px] pt-[10px] pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
+      <div className="border-t border-border bg-ui-card px-[12px] pt-[10px] pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
       <div className="max-w-[1280px] mx-auto">
         <div className="flex items-start sm:items-center gap-[10px] sm:gap-[12px]">
           <div className="hidden sm:flex w-[40px] h-[40px] rounded-full bg-primary/10 items-center justify-center text-primary shrink-0">
@@ -558,19 +621,28 @@ export default function PlayAllAudio({
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] sm:text-[12px] font-medium text-text-secondary uppercase tracking-wide leading-none mb-[4px]">
-              Now playing
-            </div>
+            {isPreparingPending ? (
+              <div
+                key={preparingMessageIndex}
+                className="text-label-sm sm:text-label-md font-medium text-ui-muted-foreground tracking-wide leading-none mb-[4px] truncate animate-fadeIn"
+              >
+                {AUDIO_PREPARING_DETAIL_MESSAGES[preparingMessageIndex]}
+              </div>
+            ) : (
+              <div className="text-label-sm sm:text-label-md font-medium text-ui-muted-foreground uppercase tracking-wide leading-none mb-[4px]">
+                Now playing
+              </div>
+            )}
             {articleLink ? (
               <Link
                 href={articleLink}
                 scroll={false}
-                className="text-[15px] sm:text-[14px] leading-[1.25] font-medium text-primary block hover:underline text-left w-full"
+                className="text-body-lg sm:text-body-md leading-[1.25] font-medium text-primary block hover:underline text-left w-full"
               >
                 <MarqueeText text={currentDisplay?.headline ?? 'Preparing audio'} />
               </Link>
             ) : (
-              <div className="text-[15px] sm:text-[14px] leading-[1.25] font-medium text-primary">
+              <div className="text-body-lg sm:text-body-md leading-[1.25] font-medium text-primary">
                 <MarqueeText text={currentDisplay?.headline ?? 'Preparing audio'} />
               </div>
             )}
@@ -579,7 +651,7 @@ export default function PlayAllAudio({
           <button
             type="button"
             onClick={queue.stop}
-            className="sm:hidden w-[30px] h-[30px] rounded-full flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+            className="sm:hidden w-[30px] h-[30px] rounded-full flex items-center justify-center text-ui-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
             aria-label="Stop and close"
           >
             <X size={14} />
@@ -629,7 +701,7 @@ export default function PlayAllAudio({
             <button
               type="button"
               onClick={() => setShowQueue(v => !v)}
-              className={`relative w-[34px] h-[34px] rounded-full flex items-center justify-center transition-colors ${showQueue ? 'text-primary bg-primary/10' : 'text-text-secondary hover:text-primary hover:bg-primary/10'}`}
+              className={`relative w-[34px] h-[34px] rounded-full flex items-center justify-center transition-colors ${showQueue ? 'text-primary bg-primary/10' : 'text-ui-muted-foreground hover:text-primary hover:bg-primary/10'}`}
               aria-label={showQueue ? 'Hide queue' : 'Show queue'}
               aria-pressed={showQueue}
             >
@@ -643,7 +715,7 @@ export default function PlayAllAudio({
             <button
               type="button"
               onClick={queue.stop}
-              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors ml-[2px]"
+              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-ui-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors ml-[2px]"
               aria-label="Stop and close"
             >
               <X size={14} />
@@ -695,7 +767,7 @@ export default function PlayAllAudio({
           <button
             type="button"
             onClick={() => setShowQueue(v => !v)}
-            className={`relative w-[34px] h-[34px] rounded-full flex items-center justify-center transition-colors ${showQueue ? 'text-primary bg-primary/10' : 'text-text-secondary hover:text-primary hover:bg-primary/10'}`}
+            className={`relative w-[34px] h-[34px] rounded-full flex items-center justify-center transition-colors ${showQueue ? 'text-primary bg-primary/10' : 'text-ui-muted-foreground hover:text-primary hover:bg-primary/10'}`}
             aria-label={showQueue ? 'Hide queue' : 'Show queue'}
             aria-pressed={showQueue}
           >
@@ -709,7 +781,7 @@ export default function PlayAllAudio({
         </div>
 
         <div className="hidden sm:flex mt-[8px] items-center gap-[10px]">
-          <span className="text-[12px] tabular-nums text-text-secondary whitespace-nowrap min-w-[36px]">
+          <span className="text-label-md tabular-nums text-ui-muted-foreground whitespace-nowrap min-w-[36px]">
             {formatTime(queue.currentTime)}
           </span>
           <input
@@ -721,10 +793,10 @@ export default function PlayAllAudio({
             onChange={(e) => queue.seek(Number(e.target.value))}
             disabled={!queue.duration}
             className="w-full h-[4px] cursor-pointer disabled:cursor-not-allowed"
-            style={{ accentColor: '#4A2462' }}
+            style={{ accentColor: 'hsl(var(--primary))' }}
             aria-label="Audio playback position"
           />
-          <span className="text-[12px] tabular-nums text-text-secondary whitespace-nowrap min-w-[36px] text-right">
+          <span className="text-label-md tabular-nums text-ui-muted-foreground whitespace-nowrap min-w-[36px] text-right">
             {formatTime(queue.duration)}
           </span>
         </div>

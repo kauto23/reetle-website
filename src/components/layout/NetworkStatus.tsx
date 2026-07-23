@@ -35,13 +35,13 @@ export default function NetworkStatus() {
       style={{ zIndex: 'var(--z-network-status)' }}
     >
       {isOffline && (
-        <div className="bg-incorrect text-white px-5 py-2 rounded-xl shadow-lg flex items-center gap-2 text-[14px] font-medium">
+        <div className="bg-incorrect text-white px-5 py-2 rounded-xl shadow-lg flex items-center gap-2 text-body-md font-medium">
           <WifiOff className="w-4 h-4" />
           No internet connection
         </div>
       )}
       {showReconnected && !isOffline && (
-        <div className="bg-correct text-white px-5 py-2 rounded-xl shadow-lg flex items-center gap-2 text-[14px] font-medium">
+        <div className="bg-correct text-white px-5 py-2 rounded-xl shadow-lg flex items-center gap-2 text-body-md font-medium">
           <Check className="w-4 h-4" strokeWidth={2.5} />
           Back online
         </div>

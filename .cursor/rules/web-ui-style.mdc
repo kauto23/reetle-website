@@ -1,0 +1,15 @@
+---
+description: Follow the Reetle UI styleguide for website typography, colour, and layout changes
+globs: src/**/*.{tsx,ts,css},tailwind.config.ts,styleguide.md
+alwaysApply: false
+---
+
+# Web UI Style Guidance
+
+Before changing website UI, typography, layout, article cards, or Tailwind classes, read `styleguide.md`.
+
+- Use the documented Tailwind typography tokens (`text-title-md`, `text-body-sm`, `text-label-md`, etc.) and semantic colours (`text-ui-foreground`, `text-ui-muted-foreground`, `text-ui-primary`) by default.
+- Avoid component-local pixel text sizes such as `text-[15px]` or `text-[10px]`. Use an existing token or add a documented token/exception to `styleguide.md`.
+- Keep article/feed pages on the documented editorial scale: one font, 4-6 recurring sizes, 2-3 regular weights, primary/muted text colours, and white only on dark/brand surfaces.
+- Hero and tall featured article cards may use the documented responsive/clamp headline exception to avoid empty text wells.
+- If a new visual exception is needed, update `styleguide.md` in the same change rather than scattering one-off classes.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense, type CSSProperties } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import ArticleCard from '@/components/articles/ArticleCard';
@@ -73,13 +73,19 @@ function HomePageContent() {
   }, [router]);
 
   const allArticles = useMemo(() => articlesData?.articles ?? [], [articlesData]);
+  const heroCount = heroRowArticleCount(hasApp, showReferralCta);
+  const showAppStoreCta = !hasApp && SHOW_APP_STORE_PROMO;
+  const heroSidebarArticles = allArticles.slice(1, heroCount);
+  const heroSidebarSlotCount = heroSidebarArticles.length + (showReferralCta ? 1 : 0) + (showAppStoreCta ? 1 : 0);
+  const heroRowDesktopStyle = heroSidebarSlotCount > 1
+    ? ({ '--hero-row-height': `${heroSidebarSlotCount * 132 + (heroSidebarSlotCount - 1) * 16}px` } as CSSProperties)
+    : undefined;
 
   const articlesByTopic = useMemo(() => {
     // Keep in sync with the sidebar slice: when the referral CTA takes a
     // sidebar slot, the displaced article should promote into its topic
     // section instead of disappearing. When the CTA is dismissed, the same
     // article flows back into the sidebar.
-    const heroCount = heroRowArticleCount(hasApp, showReferralCta);
     const remaining = allArticles.slice(heroCount);
     const grouped: Record<string, Article[]> = {};
     for (const article of remaining) {
@@ -97,7 +103,7 @@ function HomePageContent() {
         const subs = Array.from(subSet).sort();
         return { topic: cat, articles, subtopics: subs };
       });
-  }, [allArticles, hasApp, showReferralCta]);
+  }, [allArticles, heroCount]);
 
   // Track which topic section is currently sticky at the top of the viewport so
   // we can mirror the underline in the sticky TopicNav as the user scrolls.
@@ -179,7 +185,7 @@ function HomePageContent() {
                 {/* Hero + sidebar skeleton (no text — awaiting API) */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
                   <div className="lg:col-span-7">
-                    <div className="bg-white overflow-hidden border border-border">
+                    <div className="bg-ui-card overflow-hidden border border-border">
                       <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                       <div className="p-[16px] sm:p-[20px] blur-[5px]">
                         <div className="flex items-center gap-[8px] mb-[8px]">
@@ -197,7 +203,7 @@ function HomePageContent() {
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
                       {[0, 1, 2, 3].map((i) => (
-                        <div key={i} className="bg-white overflow-hidden border border-border flex h-full flex-1">
+                        <div key={i} className="bg-ui-card overflow-hidden border border-border flex h-full flex-1">
                           <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                           <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0 blur-[5px]">
                             <div className="flex items-center gap-[6px] mb-[4px]">
@@ -222,7 +228,7 @@ function HomePageContent() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px] pt-[8px]">
                     {[0, 1, 2, 3].map((i) => (
-                      <div key={i} className="bg-white overflow-hidden border border-border h-full flex flex-col">
+                      <div key={i} className="bg-ui-card overflow-hidden border border-border h-full flex flex-col">
                         <div className="relative overflow-hidden h-[160px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                         <div className="p-[12px] flex-1 flex flex-col blur-[5px]">
                           <div className="flex items-center gap-[6px] mb-[4px]">
@@ -243,17 +249,20 @@ function HomePageContent() {
 
             {error && !isLoading && (
               <div className="text-center py-20">
-                <p className="text-[16px] text-ui-muted-foreground mb-4">{error}</p>
+                <p className="text-body-lg text-ui-muted-foreground mb-4">{error}</p>
                 <Button onClick={fetchArticles}>Try again</Button>
               </div>
             )}
 
             {!isLoading && !error && allArticles.length > 0 && (
               <>
-                <div className="space-y-[32px]">
-                {/* Hero section */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
-                  <div className="lg:col-span-7">
+                <div className="flex flex-col gap-[16px] lg:gap-[24px]">
+                {/* Hero band: mobile = stacked Hero + Sidebars with 16px gap; lg = two-column */}
+                <div
+                  className="flex flex-col gap-[16px] lg:grid lg:min-h-[var(--hero-row-height)] lg:grid-cols-12 lg:gap-[24px] lg:items-stretch"
+                  style={heroRowDesktopStyle}
+                >
+                  <div className="lg:col-span-7 lg:h-full">
                     <ArticleCard
                       article={allArticles[0]}
                       variant="hero"
@@ -268,7 +277,7 @@ function HomePageContent() {
                   </div>
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
-                      {allArticles.slice(1, heroRowArticleCount(hasApp, showReferralCta)).map(article => (
+                      {heroSidebarArticles.map(article => (
                         <ArticleCard
                           key={article.articleId}
                           article={article}
@@ -281,7 +290,7 @@ function HomePageContent() {
                         />
                       ))}
                       {showReferralCta && <ReferralCTA />}
-                      {!hasApp && SHOW_APP_STORE_PROMO && <AppStoreCTA />}
+                      {showAppStoreCta && <AppStoreCTA />}
                     </div>
                   </div>
                 </div>
@@ -306,7 +315,7 @@ function HomePageContent() {
 
             {!isLoading && !error && articlesData && allArticles.length === 0 && (
               <div className="text-center py-20">
-                <p className="text-[16px] text-ui-muted-foreground">
+                <p className="text-body-lg text-ui-muted-foreground">
                   No articles found for this category.
                 </p>
               </div>
@@ -318,14 +327,50 @@ function HomePageContent() {
   );
 }
 
-type SectionLayout = 'grid' | 'hero-left' | 'hero-right' | 'row-2' | 'featured-top' | 'row-3';
+type SectionLayout = 'grid' | 'hero-left' | 'hero-right' | 'row-2' | 'featured-top' | 'feature-right-stack-left' | 'row-3';
+
+/** Matches app-style “READ MORE POLITICS →” with thin rules on either side. */
+  function TopicSectionReadMoreBreak({
+  hrefTopicSlug,
+  readMorePhrase,
+  topicDisplayTitle,
+  isRefreshing,
+}: {
+  hrefTopicSlug: string;
+  readMorePhrase: string;
+  topicDisplayTitle: string;
+  isRefreshing?: boolean;
+}) {
+  const phrase = readMorePhrase.trim();
+  const title = topicDisplayTitle.trim();
+  const text =
+    phrase && title ? `${phrase} ${title}`
+      : (title || phrase || 'Read more');
+
+  return (
+    <div className="flex w-full max-w-full items-center gap-[10px] sm:gap-3 pt-3 pb-0">
+      <span className="h-px min-w-[8px] flex-1 bg-ui-border shrink" aria-hidden />
+      <Link
+        href={`/topic/${hrefTopicSlug}`}
+        className={cn(
+          'shrink-0 text-center text-label-md font-medium uppercase tracking-[0.04em] text-ui-primary px-2',
+          'underline-offset-[3px] hover:underline decoration-ui-primary',
+          isRefreshing && 'blur-[3px] select-none pointer-events-none'
+        )}
+      >
+        {text} →
+      </Link>
+      <span className="h-px min-w-[8px] flex-1 bg-ui-border shrink" aria-hidden />
+    </div>
+  );
+}
 
 const TOPIC_LAYOUTS: Record<string, SectionLayout> = {
   'Politics': 'grid',
   'Sport': 'hero-left',
   'Business': 'hero-right',
   'Crime': 'grid',
-  'Entertainment': 'featured-top',
+  'Entertainment': 'feature-right-stack-left',
   'Health': 'row-3',
   'Environment': 'row-2',
   'Culture': 'hero-left',
@@ -362,19 +407,86 @@ function TopicSections({
 }) {
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const renderCard = (article: Article, variant: 'grid' | 'featured' = 'grid') => (
+  const sharedCardProps = {
+    topicMap: articlesData?.topicMap,
+    subtopicMap: articlesData?.subtopicMap,
+    geographyMap: articlesData?.geographyMap,
+    onArticleClick: openArticle,
+    hideTopicLabel: true as const,
+    isRefreshing,
+  };
+
+  const renderCard = (
+    article: Article,
+    variant: 'grid' | 'featured' | 'sidebar' | 'carousel' = 'grid',
+    options?: { featuredDesktopFill?: boolean },
+  ) => (
     <ArticleCard
-      key={article.articleId}
+      key={`${variant}-${article.articleId}`}
       article={article}
       variant={variant}
-      topicMap={articlesData?.topicMap}
-      subtopicMap={articlesData?.subtopicMap}
-      geographyMap={articlesData?.geographyMap}
-      onArticleClick={openArticle}
-      hideTopicLabel
-      isRefreshing={isRefreshing}
+      featuredDesktopFill={options?.featuredDesktopFill}
+      {...sharedCardProps}
     />
   );
+
+  const renderCarouselSlide = (article: Article) => (
+    <Link
+      key={article.articleId}
+      href={`/article?id=${article.articleId}`}
+      className="block shrink-0 w-[min(272px,calc(100vw-2rem))] snap-start snap-always no-underline"
+      onClick={(e) => {
+        e.preventDefault();
+        openArticle(article.articleId);
+      }}
+    >
+      <ArticleCard
+        article={article}
+        variant="carousel"
+        {...sharedCardProps}
+        disableLink
+      />
+    </Link>
+  );
+
+  /** iOS-aligned mobile feed (< lg): Featured + carousel (Sport) or Featured + stacked Sidebars + footer link. */
+  const renderIosTopicSectionArticles = (topic: string, articles: Article[]) => {
+    if (articles.length === 0) return null;
+
+    const topicTitle = labelFromMap(articlesData?.topicMap, topic) ?? topic;
+    const footer = (
+      <TopicSectionReadMoreBreak
+        hrefTopicSlug={topic.toLowerCase()}
+        readMorePhrase={readMoreLabel}
+        topicDisplayTitle={topicTitle}
+        isRefreshing={isRefreshing}
+      />
+    );
+
+    const [featuredArt, ...rest] = articles;
+
+    if (topic === 'Sport') {
+      const carouselArts = rest.slice(0, 6);
+      return (
+        <div className="flex flex-col gap-[16px] lg:hidden">
+          {renderCard(featuredArt, 'featured')}
+          <div className="flex gap-[16px] overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden after:content-[''] after:shrink-0 after:w-[1px]">
+            {carouselArts.map(renderCarouselSlide)}
+          </div>
+          {footer}
+        </div>
+      );
+    }
+
+    const sidebars = rest.slice(0, 3);
+    return (
+      <div className="flex flex-col gap-[16px] lg:hidden">
+        {renderCard(featuredArt, 'featured')}
+        {sidebars.map(a => renderCard(a, 'sidebar'))}
+        {footer}
+      </div>
+    );
+  };
 
   const renderStandardGrid = (articles: Article[]) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
@@ -389,10 +501,10 @@ function TopicSections({
       const [featured, ...rest] = articles;
       const gridArticles = rest.slice(0, 4);
       return (
-        <div className="pb-[16px]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-            {renderCard(featured, 'featured')}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[20px]">
+        <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] lg:items-stretch">
+            {renderCard(featured, 'featured', { featuredDesktopFill: true })}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[20px] lg:items-start">
               {gridArticles.map(a => renderCard(a))}
             </div>
           </div>
@@ -404,12 +516,12 @@ function TopicSections({
       const [featured, ...rest] = articles;
       const gridArticles = rest.slice(0, 4);
       return (
-        <div className="pb-[16px]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[20px]">
+        <div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] lg:items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-[20px] lg:items-start">
               {gridArticles.map(a => renderCard(a))}
             </div>
-            {renderCard(featured, 'featured')}
+            {renderCard(featured, 'featured', { featuredDesktopFill: true })}
           </div>
         </div>
       );
@@ -418,9 +530,24 @@ function TopicSections({
     if (layout === 'row-2') {
       const topArticles = articles.slice(0, 2);
       return (
-        <div className="pb-[16px]">
+        <div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-[20px]">
             {topArticles.map(a => renderCard(a, 'featured'))}
+          </div>
+        </div>
+      );
+    }
+
+    if (layout === 'feature-right-stack-left' && articles.length >= 2) {
+      const [featured, ...rest] = articles;
+      const sidebarArticles = rest.slice(0, 3);
+      return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] lg:items-stretch">
+          <div className="flex flex-col gap-[16px]">
+            {sidebarArticles.map(a => renderCard(a, 'sidebar'))}
+          </div>
+          <div className="lg:h-full">
+            {renderCard(featured, 'featured', { featuredDesktopFill: true })}
           </div>
         </div>
       );
@@ -430,7 +557,7 @@ function TopicSections({
       const [featured, ...rest] = articles;
       const gridArticles = rest.slice(0, 4);
       return (
-        <div className="pb-[16px] space-y-[20px]">
+        <div className="space-y-[20px]">
           {renderCard(featured, 'featured')}
           {gridArticles.length > 0 && renderStandardGrid(gridArticles)}
         </div>
@@ -440,7 +567,7 @@ function TopicSections({
     if (layout === 'row-3') {
       const topArticles = articles.slice(0, 3);
       return (
-        <div className="pb-[16px]">
+        <div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[20px]">
             {topArticles.map(a => renderCard(a, 'featured'))}
           </div>
@@ -449,14 +576,14 @@ function TopicSections({
     }
 
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px] pb-[16px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
         {articles.map(a => renderCard(a))}
       </div>
     );
   };
 
   return (
-    <div className="space-y-0">
+    <div className="flex flex-col gap-[16px] lg:gap-[12px]">
       {articlesByTopic.map(({ topic, articles, subtopics: sectionSubtopics }, topicIndex) => {
         const activeSubFilter = sectionSubtopicFilters[topic] || null;
         const filteredBySubtopic = activeSubFilter
@@ -474,19 +601,15 @@ function TopicSections({
             className="topic-section"
           >
             <div className="sticky top-[93px] z-[800] bg-background">
-              <div className="pt-6 pb-3">
-                <div className="pb-2 border-b-2 border-ui-primary flex items-end justify-between gap-3 min-h-[1.5rem]">
-                  <h2 className={cn('text-[18px] font-semibold text-ui-foreground min-w-0', isRefreshing && 'blur-[3px] select-none')}>
+              <div className="min-h-[52px] flex flex-col justify-end pt-2 pb-3 lg:pt-3 lg:min-h-0">
+                <div className={cn(
+                  'pb-2 border-b-2 border-ui-primary flex items-end justify-between gap-3 min-h-[1.5rem] lg:min-h-0',
+                  isRefreshing && 'blur-[3px]',
+                )}
+                >
+                  <h2 className={cn('text-headline-md lg:text-display-sm text-ui-foreground min-w-0', isRefreshing && 'select-none')}>
                     {labelFromMap(articlesData?.topicMap, topic) ?? '\u00A0'}
                   </h2>
-                  {readMoreLabel.trim() ? (
-                    <Link
-                      href={`/topic/${topic.toLowerCase()}`}
-                      className={cn('shrink-0 text-[15px] font-semibold text-ui-primary leading-tight hover:underline underline-offset-2 whitespace-nowrap', isRefreshing && 'blur-[3px] select-none pointer-events-none')}
-                    >
-                      {readMoreLabel}
-                    </Link>
-                  ) : null}
                 </div>
               </div>
 
@@ -498,10 +621,10 @@ function TopicSections({
                       scrollSectionIntoView(topic, sectionRefs.current);
                     }}
                     className={`
-                      px-[12px] py-[6px] text-[12px] font-semibold tracking-wide uppercase transition-all duration-200 border-b-[2px] border-transparent cursor-pointer bg-transparent whitespace-nowrap
+                      px-[12px] py-[6px] text-label-md font-semibold tracking-wide uppercase transition-all duration-200 border-b-[2px] border-transparent cursor-pointer bg-transparent whitespace-nowrap
                       ${!activeSubFilter
                         ? 'border-b-primary text-primary'
-                        : 'text-text-secondary hover:text-primary hover:border-b-primary/30'
+                        : 'text-ui-muted-foreground hover:text-primary hover:border-b-primary/30'
                       }
                     `}
                   >
@@ -515,10 +638,10 @@ function TopicSections({
                         scrollSectionIntoView(topic, sectionRefs.current);
                       }}
                       className={`
-                        px-[12px] py-[6px] text-[12px] font-semibold tracking-wide uppercase transition-all duration-200 border-b-[2px] border-transparent cursor-pointer bg-transparent whitespace-nowrap
+                        px-[12px] py-[6px] text-label-md font-semibold tracking-wide uppercase transition-all duration-200 border-b-[2px] border-transparent cursor-pointer bg-transparent whitespace-nowrap
                         ${activeSubFilter === sub
                           ? 'border-b-primary text-primary'
-                          : 'text-text-secondary hover:text-primary hover:border-b-primary/30'
+                          : 'text-ui-muted-foreground hover:text-primary hover:border-b-primary/30'
                         }
                         ${isRefreshing ? 'blur-[3px] select-none pointer-events-none' : ''}
                       `}
@@ -530,7 +653,16 @@ function TopicSections({
               )}
             </div>
 
-            {renderArticles(layout, displayArticles)}
+            {renderIosTopicSectionArticles(topic, displayArticles)}
+            <div className="hidden lg:block">
+              {renderArticles(layout, displayArticles)}
+              <TopicSectionReadMoreBreak
+                hrefTopicSlug={topic.toLowerCase()}
+                readMorePhrase={readMoreLabel}
+                topicDisplayTitle={labelFromMap(articlesData?.topicMap, topic) ?? topic}
+                isRefreshing={isRefreshing}
+              />
+            </div>
           </div>
         );
       })}

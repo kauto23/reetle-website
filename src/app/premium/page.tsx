@@ -141,7 +141,9 @@ function PremiumPageContent() {
           requiresUserAction: false,
         });
       }
-      await refreshStatus();
+      // Cancellation already succeeded; a failed status refresh shouldn't
+      // surface as a cancellation error.
+      await refreshStatus().catch(() => {});
     } catch (err) {
       const code = err instanceof Error ? err.message : 'unknown_error';
       let friendly = 'Could not cancel your subscription. Please try again.';
@@ -160,8 +162,8 @@ function PremiumPageContent() {
           <div className="w-16 h-16 bg-correct-bg rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-8 h-8 text-correct" />
           </div>
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">You&apos;re on Premium</h1>
-          <p className="text-[15px] text-ui-muted-foreground mb-8 max-w-md mx-auto">
+          <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">You&apos;re on Premium</h1>
+          <p className="text-body-lg text-ui-muted-foreground mb-8 max-w-md mx-auto">
             Enjoy unlimited articles, audio, and practice.
           </p>
 

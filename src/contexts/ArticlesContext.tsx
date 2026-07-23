@@ -18,7 +18,7 @@ const ArticlesContext = createContext<ArticlesContextType | null>(null);
 
 export function ArticlesProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
-  const { preferences: guestPrefs } = useGuestPreferences();
+  const { preferences: guestPrefs, isHydrated: guestPrefsHydrated } = useGuestPreferences();
   const [articlesData, setArticlesData] = useState<ArticlesResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -42,6 +42,10 @@ export function ArticlesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (authLoading) return;
+    // For guests, wait until prefs are read from localStorage so the first
+    // request uses the correct language/level. This avoids a wasted default
+    // fetch and lets it match the pre-hydration prefetch (see app/layout.tsx).
+    if (!isAuthenticated && !guestPrefsHydrated) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -73,7 +77,14 @@ export function ArticlesProvider({ children }: { children: ReactNode }) {
         if (!cancelled) {
           setArticlesData(data);
         }
-      } catch {
+      } catch (err) {
+        // Surface the real failure in the console — the UI only shows a
+        // generic message, which makes CORS/network/parse errors invisible.
+        console.error(
+          `[Articles] fetch failed (auth=${isAuthenticated})`,
+          err instanceof Error ? `${err.name}: ${err.message}` : err,
+          err
+        );
         if (!cancelled) {
           setArticlesData(null);
           setError('Failed to load articles. Please try again.');
@@ -93,7 +104,7 @@ export function ArticlesProvider({ children }: { children: ReactNode }) {
       controller.abort();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authLoading, isAuthenticated, prefsKey, fetchTrigger]);
+  }, [authLoading, isAuthenticated, prefsKey, fetchTrigger, guestPrefsHydrated]);
 
   const fetchArticles = useCallback(() => {
     setFetchTrigger(n => n + 1);

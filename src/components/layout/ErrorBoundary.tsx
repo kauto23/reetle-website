@@ -39,8 +39,8 @@ export default class ErrorBoundary extends Component<Props, State> {
           <div className="w-14 h-14 bg-incorrect-bg rounded-full flex items-center justify-center mb-6">
             <AlertCircle className="w-7 h-7 text-incorrect-text" />
           </div>
-          <h2 className="text-[24px] font-semibold text-ui-foreground mb-2">Something went wrong</h2>
-          <p className="text-[15px] text-ui-muted-foreground mb-6 max-w-[400px]">
+          <h2 className="text-display-sm text-ui-foreground mb-2">Something went wrong</h2>
+          <p className="text-body-lg text-ui-muted-foreground mb-6 max-w-[400px]">
             An unexpected error occurred. Please refresh the page and try again.
           </p>
           <Button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}>

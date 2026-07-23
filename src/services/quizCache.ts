@@ -7,9 +7,13 @@ interface CacheEntry {
 
 let cached: CacheEntry | null = null;
 
-export function prefetchQuiz(articleId: string, fetcher: () => Promise<PracticeQuestion[]>) {
-  if (cached?.articleId === articleId) return;
-  cached = { articleId, promise: fetcher() };
+export function prefetchQuiz(articleId: string, fetcher: () => Promise<PracticeQuestion[]>): Promise<PracticeQuestion[]> {
+  if (cached?.articleId === articleId) {
+    return cached.promise;
+  }
+  const promise = fetcher();
+  cached = { articleId, promise };
+  return promise;
 }
 
 export function consumeQuizCache(articleId: string): Promise<PracticeQuestion[]> | null {

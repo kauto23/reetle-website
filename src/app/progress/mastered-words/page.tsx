@@ -72,7 +72,7 @@ export default function MasteredWordsPage() {
             Back to Progress
           </Button>
 
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-1">Mastered Words</h1>
+          <h1 className="text-display-md tracking-tight text-ui-foreground mb-1">Mastered Words</h1>
           {data && (
             <p className="text-[14px] text-ui-muted-foreground mb-8">
               {data.total_mastered} words mastered in total
@@ -89,7 +89,7 @@ export default function MasteredWordsPage() {
 
           {!isLoading && words.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-[15px] text-ui-muted-foreground">
+              <p className="text-body-lg text-ui-muted-foreground">
                 No mastered words yet. Keep practising to master your vocabulary!
               </p>
             </div>

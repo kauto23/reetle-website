@@ -118,7 +118,7 @@ export default function Header() {
                   height={32}
                   className="rounded-[6px]"
                 />
-                <span className="text-[20px] font-semibold text-white tracking-tight">Reetle</span>
+                <span className="text-headline-md font-semibold text-white tracking-tight">Reetle</span>
               </button>
             </div>
 
@@ -126,31 +126,31 @@ export default function Header() {
             <div className="hidden md:flex items-center gap-[2px]">
               {isAuthenticated ? (
                 <>
-                  <Link href="/" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
+                  <Link href="/" className="text-label-lg font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     News
                   </Link>
-                  <Link href="/practice" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
+                  <Link href="/practice" className="text-label-lg font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Practice
                   </Link>
-                  <Link href="/progress" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
+                  <Link href="/progress" className="text-label-lg font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Progress
                   </Link>
-                  <Link href="/profile" className="text-[14px] font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
+                  <Link href="/profile" className="text-label-lg font-medium text-white/90 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Profile
                   </Link>
                   {isPremium ? (
-                    <span className="text-[11px] font-semibold text-white bg-white/20 px-[10px] py-[4px] rounded-full ml-[4px] select-none">
+                    <span className="text-label-sm font-semibold text-white bg-white/20 px-[10px] py-[4px] rounded-full ml-[4px] select-none">
                       Premium
                     </span>
                   ) : (
-                    <Link href="/premium" className="text-[12px] font-semibold text-primary bg-white px-[12px] py-[5px] rounded-full ml-[4px] hover:bg-white/90 transition-colors">
+                    <Link href="/premium" className="text-label-md font-semibold text-primary bg-ui-card px-[12px] py-[5px] rounded-full ml-[4px] hover:bg-ui-card/90 transition-colors">
                       Go Premium
                     </Link>
                   )}
                   <div className="w-[1px] h-[20px] bg-white/20 mx-[6px]" />
                   <button
                     onClick={logout}
-                    className="text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all cursor-pointer bg-transparent border-none"
+                    className="text-label-lg font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all cursor-pointer bg-transparent border-none"
                   >
                     Log Out
                   </button>
@@ -161,7 +161,7 @@ export default function Header() {
                   <button
                     onClick={() => toggleDropdown('language')}
                     className={cn(
-                      'text-[14px] font-medium px-3.5 py-2 rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
+                      'text-label-lg font-medium px-3.5 py-2 rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
                       openDropdown === 'language' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
                     )}
                   >
@@ -173,7 +173,7 @@ export default function Header() {
                   <button
                     onClick={() => toggleDropdown('level')}
                     className={cn(
-                      'text-[14px] font-medium px-3.5 py-2 rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
+                      'text-label-lg font-medium px-3.5 py-2 rounded-md transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
                       openDropdown === 'level' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
                     )}
                   >
@@ -183,7 +183,7 @@ export default function Header() {
 
                   <div className="w-[1px] h-[20px] bg-white/20 mx-[6px]" />
 
-                  <Link href={loginUrl} className="text-[14px] font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
+                  <Link href={loginUrl} className="text-label-lg font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] rounded-md transition-all">
                     Log In
                   </Link>
 
@@ -205,8 +205,8 @@ export default function Header() {
                               )}
                             >
                               <div className="min-w-0">
-                                <p className="text-[14px] leading-tight">{lang.name}</p>
-                                <p className="text-[12px] text-ui-muted-foreground leading-tight mt-0.5">{lang.native_name}</p>
+                                <p className="text-label-lg leading-tight">{lang.name}</p>
+                                <p className="text-label-md text-ui-muted-foreground leading-tight mt-0.5">{lang.native_name}</p>
                               </div>
                               {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
                             </button>
@@ -234,10 +234,10 @@ export default function Header() {
                               )}
                             >
                               <div className="min-w-0">
-                                <p className="text-[14px] leading-tight">
+                                <p className="text-label-lg leading-tight">
                                   {level.name} <span className="text-ui-muted-foreground font-normal">({level.code})</span>
                                 </p>
-                                <p className="text-[12px] text-ui-muted-foreground leading-tight mt-0.5">{level.description}</p>
+                                <p className="text-label-md text-ui-muted-foreground leading-tight mt-0.5">{level.description}</p>
                               </div>
                               {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
                             </button>
@@ -269,28 +269,28 @@ export default function Header() {
                 {isAuthenticated ? (
                   <>
                     <li>
-                      <Link href="/" className="block py-[10px] text-[15px] font-medium text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/" className="block py-[10px] text-title-md text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
                         News
                       </Link>
                     </li>
                     <li>
-                      <Link href="/practice" className="block py-[10px] text-[15px] font-medium text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/practice" className="block py-[10px] text-title-md text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
                         Practice
                       </Link>
                     </li>
                     <li>
-                      <Link href="/progress" className="block py-[10px] text-[15px] font-medium text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/progress" className="block py-[10px] text-title-md text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
                         Progress
                       </Link>
                     </li>
                     <li>
-                      <Link href="/profile" className="block py-[10px] text-[15px] font-medium text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href="/profile" className="block py-[10px] text-title-md text-white/90 hover:text-white" onClick={() => setMobileMenuOpen(false)}>
                         Profile
                       </Link>
                     </li>
                     {!isPremium && (
                       <li>
-                        <Link href="/premium" className="block py-[10px] text-[15px] font-semibold text-white" onClick={() => setMobileMenuOpen(false)}>
+                        <Link href="/premium" className="block py-[10px] text-title-md font-semibold text-white" onClick={() => setMobileMenuOpen(false)}>
                           Go Premium
                         </Link>
                       </li>
@@ -298,7 +298,7 @@ export default function Header() {
                     <li className="border-t border-white/10 mt-sm pt-sm">
                       <button
                         onClick={() => { logout(); setMobileMenuOpen(false); }}
-                        className="block py-[10px] text-[15px] font-medium text-white/60 hover:text-white cursor-pointer bg-transparent border-none w-full text-left"
+                        className="block py-[10px] text-title-md text-white/60 hover:text-white cursor-pointer bg-transparent border-none w-full text-left"
                       >
                         Log Out
                       </button>
@@ -309,14 +309,14 @@ export default function Header() {
                     {/* Guest language & level selectors */}
                     <li>
                       <div className="py-[10px]">
-                        <p className="text-[12px] font-semibold text-white/40 uppercase tracking-wide mb-[8px]">Language</p>
+                        <p className="text-label-md font-semibold text-white/40 uppercase tracking-wide mb-[8px]">Language</p>
                         <div className="flex flex-wrap gap-[6px]">
                           {languages.map(lang => (
                             <button
                               key={lang.code}
                               onClick={() => setTargetLanguage(lang.code)}
                               className={`
-                                text-[13px] font-medium px-[12px] py-[6px] rounded-md border cursor-pointer transition-all
+                                text-body-sm font-medium px-[12px] py-[6px] rounded-md border cursor-pointer transition-all
                                 ${preferences.targetLanguage === lang.code
                                   ? 'bg-white text-primary border-white'
                                   : 'bg-transparent text-white/70 border-white/20 hover:border-white/40 hover:text-white'
@@ -331,14 +331,14 @@ export default function Header() {
                     </li>
                     <li>
                       <div className="py-[10px]">
-                        <p className="text-[12px] font-semibold text-white/40 uppercase tracking-wide mb-[8px]">Level</p>
+                        <p className="text-label-md font-semibold text-white/40 uppercase tracking-wide mb-[8px]">Level</p>
                         <div className="flex flex-wrap gap-[6px]">
                           {CEFR_LEVELS.map(level => (
                             <button
                               key={level.code}
                               onClick={() => setCefrLevel(level.code)}
                               className={`
-                                text-[13px] font-medium px-[12px] py-[6px] rounded-md border cursor-pointer transition-all
+                                text-body-sm font-medium px-[12px] py-[6px] rounded-md border cursor-pointer transition-all
                                 ${preferences.cefrLevel === level.code
                                   ? 'bg-white text-primary border-white'
                                   : 'bg-transparent text-white/70 border-white/20 hover:border-white/40 hover:text-white'
@@ -352,7 +352,7 @@ export default function Header() {
                       </div>
                     </li>
                     <li className="border-t border-white/10 mt-sm pt-sm">
-                      <Link href={loginUrl} className="block text-center bg-white/10 text-white font-medium py-[10px] rounded-md" onClick={() => setMobileMenuOpen(false)}>
+                      <Link href={loginUrl} className="block text-center bg-white/10 text-white text-title-md py-[10px] rounded-md" onClick={() => setMobileMenuOpen(false)}>
                         Log In
                       </Link>
                     </li>

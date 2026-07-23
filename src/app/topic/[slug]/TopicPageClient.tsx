@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, Suspense } from 'react';
+import { useState, useMemo, useCallback, useEffect, Suspense, type CSSProperties } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import ArticleCard from '@/components/articles/ArticleCard';
 import ArticleDetail from '@/components/articles/ArticleDetail';
@@ -17,6 +17,13 @@ export default function TopicPageClient() {
       <TopicPageContent />
     </Suspense>
   );
+}
+
+function topicFeedArticleVariant(index: number): 'hero' | 'sidebar' | 'featured' {
+  if (index === 0) return 'hero';
+  if (index > 0 && index < 4) return 'sidebar';
+  if (index >= 4 && (index - 4) % 5 === 0) return 'featured';
+  return 'sidebar';
 }
 
 function TopicPageContent() {
@@ -52,6 +59,12 @@ function TopicPageContent() {
   }, [router, slug]);
 
   const heroCount = heroRowArticleCount(hasApp);
+  const showAppStoreCta = !hasApp && SHOW_APP_STORE_PROMO;
+  const heroSidebarArticles = filteredArticles.slice(1, heroCount);
+  const heroSidebarSlotCount = heroSidebarArticles.length + (showAppStoreCta ? 1 : 0);
+  const heroRowDesktopStyle = heroSidebarSlotCount > 1
+    ? ({ '--hero-row-height': `${heroSidebarSlotCount * 132 + (heroSidebarSlotCount - 1) * 16}px` } as CSSProperties)
+    : undefined;
 
   return (
     <>
@@ -73,7 +86,7 @@ function TopicPageContent() {
               <div className="space-y-[24px] max-h-[calc(100vh-140px)] overflow-hidden select-none opacity-60">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
                   <div className="lg:col-span-7">
-                    <div className="bg-white overflow-hidden border border-border">
+                    <div className="bg-ui-card overflow-hidden border border-border">
                       <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                       <div className="p-[16px] sm:p-[20px] blur-[5px]">
                         <div className="flex items-center gap-[8px] mb-[8px]">
@@ -91,7 +104,7 @@ function TopicPageContent() {
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
                       {[0, 1, 2].map((i) => (
-                        <div key={i} className="bg-white overflow-hidden border border-border flex h-full flex-1">
+                        <div key={i} className="bg-ui-card overflow-hidden border border-border flex h-full flex-1">
                           <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                           <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0 blur-[5px]">
                             <div className="flex items-center gap-[6px] mb-[4px]">
@@ -112,7 +125,7 @@ function TopicPageContent() {
                 <div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px]">
                     {[0, 1, 2, 3].map((i) => (
-                      <div key={i} className="bg-white overflow-hidden border border-border h-full flex flex-col">
+                      <div key={i} className="bg-ui-card overflow-hidden border border-border h-full flex flex-col">
                         <div className="relative overflow-hidden h-[160px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                         <div className="p-[12px] flex-1 flex flex-col blur-[5px]">
                           <div className="flex items-center gap-[6px] mb-[4px]">
@@ -133,16 +146,35 @@ function TopicPageContent() {
 
             {error && !isLoading && (
               <div className="text-center py-20">
-                <p className="text-[16px] text-ui-muted-foreground mb-4">{error}</p>
+                <p className="text-body-lg text-ui-muted-foreground mb-4">{error}</p>
                 <Button onClick={fetchArticles}>Try again</Button>
               </div>
             )}
 
             {!isLoading && !error && filteredArticles.length > 0 && (
               <>
-                <div className="space-y-[32px]">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
-                  <div className="lg:col-span-7">
+                {/* Mobile (<lg): repeating iOS hero + sidebars + periodic featured */}
+                <div className="flex flex-col gap-[16px] lg:hidden">
+                  {filteredArticles.map((article, index) => (
+                    <ArticleCard
+                      key={article.articleId}
+                      article={article}
+                      variant={topicFeedArticleVariant(index)}
+                      topicMap={articlesData?.topicMap}
+                      subtopicMap={articlesData?.subtopicMap}
+                      geographyMap={articlesData?.geographyMap}
+                      onArticleClick={openArticle}
+                      isRefreshing={isRefreshing}
+                    />
+                  ))}
+                </div>
+
+                <div className="hidden lg:flex lg:flex-col lg:gap-[24px]">
+                <div
+                  className="grid grid-cols-1 lg:min-h-[var(--hero-row-height)] lg:grid-cols-12 gap-[24px] lg:items-stretch"
+                  style={heroRowDesktopStyle}
+                >
+                  <div className="lg:col-span-7 lg:h-full">
                     <ArticleCard
                       article={filteredArticles[0]}
                       variant="hero"
@@ -155,7 +187,7 @@ function TopicPageContent() {
                   </div>
                   <div className="lg:col-span-5">
                     <div className="flex flex-col gap-[16px] h-full">
-                      {filteredArticles.slice(1, heroCount).map(article => (
+                      {heroSidebarArticles.map(article => (
                         <ArticleCard
                           key={article.articleId}
                           article={article}
@@ -167,7 +199,7 @@ function TopicPageContent() {
                           isRefreshing={isRefreshing}
                         />
                       ))}
-                      {!hasApp && SHOW_APP_STORE_PROMO && <AppStoreCTA />}
+                      {showAppStoreCta && <AppStoreCTA />}
                     </div>
                   </div>
                 </div>
@@ -194,7 +226,7 @@ function TopicPageContent() {
 
             {!isLoading && !error && articlesData && filteredArticles.length === 0 && (
               <div className="text-center py-20">
-                <p className="text-[16px] text-ui-muted-foreground">
+                <p className="text-body-lg text-ui-muted-foreground">
                   No articles found for this category.
                 </p>
               </div>

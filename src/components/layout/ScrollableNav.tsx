@@ -54,7 +54,7 @@ export default function ScrollableNav({ children, className = '', borderOffset =
           style={{ bottom: borderOffset }}
           className="absolute left-0 top-0 z-10 flex items-center justify-center w-[32px] bg-gradient-to-r from-white via-white/90 to-transparent cursor-pointer border-none"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-text-secondary hover:text-primary transition-colors">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-ui-muted-foreground hover:text-primary transition-colors">
             <path d="M10 12L6 8L10 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
@@ -76,7 +76,7 @@ export default function ScrollableNav({ children, className = '', borderOffset =
           style={{ bottom: borderOffset }}
           className="absolute right-0 top-0 z-10 flex items-center justify-center w-[32px] bg-gradient-to-l from-white via-white/90 to-transparent cursor-pointer border-none"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-text-secondary hover:text-primary transition-colors">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="text-ui-muted-foreground hover:text-primary transition-colors">
             <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>

@@ -51,7 +51,7 @@ function AccuracyRing({ accuracy, size = 100, strokeWidth = 8 }: { accuracy: num
         cy={center}
         r={radius}
         fill="none"
-        stroke="#E5E3E8"
+        stroke="hsl(260 9% 90%)"
         strokeWidth={strokeWidth}
       />
       <circle
@@ -94,11 +94,11 @@ function ActivityTooltip({ active, payload, label }: { active?: boolean; payload
   const acc = total > 0 ? Math.round((correct / total) * 100) : 0;
 
   return (
-    <div className="bg-white border border-border rounded-lg p-sm shadow-md text-[12px]">
+    <div className="bg-ui-card border border-ui-border rounded-lg p-sm shadow-md text-label-md">
       <p className="font-semibold text-primary mb-[2px]">{label}</p>
       <p className="text-correct-text">{correct} correct</p>
       <p className="text-incorrect-text">{incorrect} incorrect</p>
-      <p className="text-text-secondary mt-[2px]">{acc}% accuracy</p>
+      <p className="text-ui-muted-foreground mt-[2px]">{acc}% accuracy</p>
     </div>
   );
 }
@@ -220,7 +220,7 @@ export default function ProgressPage() {
     <AuthGuard>
       <section className="py-12 sm:py-16">
         <div className="max-w-[860px] mx-auto px-4">
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-4 text-center">Your Progress</h1>
+          <h1 className="text-display-md text-ui-foreground mb-4 text-center">Your Progress</h1>
 
           <div className="flex justify-center mb-8">
             <ToggleGroup
@@ -231,13 +231,13 @@ export default function ProgressPage() {
             >
               <ToggleGroupItem
                 value="7"
-                className="px-5 py-1.5 rounded-full text-[14px] data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
+                className="px-5 py-1.5 rounded-full text-body-md data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 This Week
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="30"
-                className="px-5 py-1.5 rounded-full text-[14px] data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
+                className="px-5 py-1.5 rounded-full text-body-md data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 This Month
               </ToggleGroupItem>
@@ -257,8 +257,8 @@ export default function ProgressPage() {
             <Card>
               <CardContent className="p-8 text-center">
                 <div className="text-[48px] mb-4">📚</div>
-                <h2 className="text-[18px] font-semibold text-ui-foreground mb-2">No activity {periodLabel}</h2>
-                <p className="text-[14px] text-ui-muted-foreground mb-6 max-w-[400px] mx-auto">
+                <h2 className="text-title-lg text-ui-foreground mb-2">No activity {periodLabel}</h2>
+                <p className="text-body-md text-ui-muted-foreground mb-6 max-w-[400px] mx-auto">
                   Start reading articles and practising vocabulary to see your progress here.
                 </p>
                 <div className="flex justify-center gap-3 flex-wrap">
@@ -280,13 +280,13 @@ export default function ProgressPage() {
                       <AccuracyRing accuracy={periodAccuracy} size={96} strokeWidth={7} />
                     ) : (
                       <div className="w-24 h-24 rounded-full border-[7px] border-ui-border mx-auto flex items-center justify-center">
-                        <span className="text-ui-muted-foreground text-[18px] font-semibold">--</span>
+                        <span className="text-ui-muted-foreground text-title-lg font-semibold">--</span>
                       </div>
                     )}
-                    <p className="text-[28px] font-bold text-ui-foreground mt-3">{periodQuestions}</p>
-                    <p className="text-[14px] text-ui-muted-foreground">Questions practiced</p>
+                    <p className="text-display-md text-ui-foreground mt-3">{periodQuestions}</p>
+                    <p className="text-body-md text-ui-muted-foreground">Questions practiced</p>
                     {periodQuestions > 0 && (
-                      <div className="flex justify-center gap-3 mt-1 text-[12px]">
+                      <div className="flex justify-center gap-3 mt-1 text-label-md">
                         <span className="text-correct-text">{periodCorrect} correct</span>
                         <span className="text-incorrect-text">{periodIncorrect} incorrect</span>
                       </div>
@@ -299,9 +299,9 @@ export default function ProgressPage() {
                     <div className="w-24 h-24 rounded-full bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
                       <Library className="w-10 h-10 text-ui-primary" strokeWidth={1.5} />
                     </div>
-                    <p className="text-[28px] font-bold text-ui-foreground">{periodWordsMastered}</p>
-                    <p className="text-[14px] text-ui-muted-foreground">Words mastered</p>
-                    <p className="text-[12px] text-ui-muted-foreground mt-1">{totalWordsMastered} total</p>
+                    <p className="text-display-md text-ui-foreground">{periodWordsMastered}</p>
+                    <p className="text-body-md text-ui-muted-foreground">Words mastered</p>
+                    <p className="text-label-md text-ui-muted-foreground mt-1">{totalWordsMastered} total</p>
                   </CardContent>
                 </Card>
 
@@ -310,9 +310,9 @@ export default function ProgressPage() {
                     <div className="w-24 h-24 rounded-full bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
                       <BookOpen className="w-10 h-10 text-ui-primary" strokeWidth={1.5} />
                     </div>
-                    <p className="text-[28px] font-bold text-ui-foreground">{periodArticles}</p>
-                    <p className="text-[14px] text-ui-muted-foreground">Articles read</p>
-                    <p className="text-[12px] text-ui-muted-foreground mt-1">{totalArticles} total</p>
+                    <p className="text-display-md text-ui-foreground">{periodArticles}</p>
+                    <p className="text-body-md text-ui-muted-foreground">Articles read</p>
+                    <p className="text-label-md text-ui-muted-foreground mt-1">{totalArticles} total</p>
                   </CardContent>
                 </Card>
               </div>
@@ -320,8 +320,8 @@ export default function ProgressPage() {
               {chartData.length > 0 ? (
                 <Card className="mb-6">
                   <CardContent className="p-6">
-                    <h2 className="text-[18px] font-semibold text-ui-foreground mb-4">Daily Activity</h2>
-                    <div className="flex gap-4 mb-4 text-[12px] text-ui-muted-foreground">
+                    <h2 className="text-title-lg text-ui-foreground mb-4">Daily Activity</h2>
+                    <div className="flex gap-4 mb-4 text-label-md text-ui-muted-foreground">
                       <span className="flex items-center gap-1.5">
                         <span className="inline-block w-2.5 h-2.5 rounded-sm bg-correct" />
                         Correct
@@ -336,17 +336,17 @@ export default function ProgressPage() {
                         <BarChart data={chartData} barCategoryGap="20%">
                           <XAxis
                             dataKey="date"
-                            tick={{ fontSize: 11, fill: '#666276' }}
-                            axisLine={{ stroke: '#E5E3E8' }}
+                            tick={{ fontSize: 11, fill: 'hsl(252 9% 42%)' }}
+                            axisLine={{ stroke: 'hsl(260 9% 90%)' }}
                             tickLine={false}
                           />
                           <YAxis
-                            tick={{ fontSize: 11, fill: '#666276' }}
+                            tick={{ fontSize: 11, fill: 'hsl(252 9% 42%)' }}
                             axisLine={false}
                             tickLine={false}
                             allowDecimals={false}
                           />
-                          <Tooltip content={<ActivityTooltip />} cursor={{ fill: 'rgba(74,36,98,0.04)' }} />
+                          <Tooltip content={<ActivityTooltip />} cursor={{ fill: 'hsl(277 46% 26% / 0.04)' }} />
                           <Bar dataKey="correct" stackId="activity" fill="#34D399" name="Correct" radius={[0, 0, 0, 0]} />
                           <Bar dataKey="incorrect" stackId="activity" fill="#F87171" name="Incorrect" radius={[4, 4, 0, 0]} />
                         </BarChart>
@@ -357,7 +357,7 @@ export default function ProgressPage() {
               ) : (
                 <Card className="mb-6">
                   <CardContent className="p-8 text-center">
-                    <p className="text-[14px] text-ui-muted-foreground">No practice activity {periodLabel}.</p>
+                    <p className="text-body-md text-ui-muted-foreground">No practice activity {periodLabel}.</p>
                     <Button asChild variant="link" className="mt-2">
                       <Link href="/practice">Start practising</Link>
                     </Button>
@@ -368,11 +368,11 @@ export default function ProgressPage() {
               <Card className="mb-6">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-[18px] font-semibold text-ui-foreground">Recently mastered words</h2>
+                    <h2 className="text-title-lg text-ui-foreground">Recently mastered words</h2>
                     {totalWordsMastered > 0 && (
                       <Link
                         href="/progress/mastered-words"
-                        className="text-[14px] text-ui-primary font-medium hover:underline flex items-center gap-1"
+                        className="text-body-md text-ui-primary font-medium hover:underline flex items-center gap-1"
                       >
                         View all
                         <ChevronRight className="w-4 h-4" />
@@ -387,25 +387,25 @@ export default function ProgressPage() {
                           className="flex items-center justify-between py-2.5 px-4 bg-ui-background rounded-md"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-[16px] font-medium text-ui-foreground">{word.target_word}</span>
+                            <span className="text-title-md text-ui-foreground font-medium">{word.target_word}</span>
                             <span className="text-ui-muted-foreground">→</span>
-                            <span className="text-[14px] text-ui-muted-foreground">{word.familiar_word}</span>
+                            <span className="text-body-md text-ui-muted-foreground">{word.familiar_word}</span>
                           </div>
-                          <span className="text-[12px] text-ui-muted-foreground whitespace-nowrap">
+                          <span className="text-label-md text-ui-muted-foreground whitespace-nowrap">
                             {formatDateReadable(word.date)}
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-[14px] text-ui-muted-foreground text-center py-4">
+                    <p className="text-body-md text-ui-muted-foreground text-center py-4">
                       No words mastered {periodLabel}. Keep practising to grow your vocabulary!
                     </p>
                   )}
                 </CardContent>
               </Card>
 
-              <div className="flex justify-center items-center gap-1.5 text-[13px] text-ui-muted-foreground flex-wrap py-3">
+              <div className="flex justify-center items-center gap-1.5 text-body-sm text-ui-muted-foreground flex-wrap py-3">
                 <span>All time:</span>
                 <span className="font-medium">{totalQuestions}</span> questions
                 <span className="text-ui-border">·</span>

@@ -1,10 +1,52 @@
 import { API_BASE_URL } from '@/config/environment';
 import type { User, TargetLanguage } from '@/types/user';
 import type { Article, ArticlesResponse } from '@/types/article';
-import type { PracticeQuestion } from '@/types/practice';
+import type {
+  PracticeDomain,
+  PracticeQuestion,
+  PracticeRating,
+  PracticeSubmitResult,
+  Feedback,
+  GrammarFeedbackIncorrect,
+} from '@/types/practice';
 import type { AssessmentQuestion, AssessmentSummary } from '@/types/assessment';
 import type { Translation } from '@/types/translation';
 import type { SubscriptionStatus, ReferralInfo, ReferralApplyResponse, CancelSubscriptionResponse } from '@/types/subscription';
+
+// Pre-hydration prefetch (populated by the inline script in app/layout.tsx).
+// Lets the initial home-feed requests start during HTML parse and be consumed
+// here once React boots, instead of only firing from the contexts' effects.
+declare global {
+  interface Window {
+    __reetlePrefetch?: {
+      articles?: Promise<Response> | null;
+      articlesAuthed?: boolean;
+      articlesKey?: string;
+    };
+  }
+}
+
+/**
+ * Consume a prefetched article-summaries Response if it matches this request
+ * (same auth mode and identical request body). Returns null otherwise, and is
+ * single-use — the entry is cleared so later calls fall back to a fresh fetch.
+ */
+function takeArticlesPrefetch(authed: boolean, bodyKey: string): Promise<Response> | null {
+  if (typeof window === 'undefined') return null;
+  const store = window.__reetlePrefetch;
+  if (!store || !store.articles) return null;
+  if (store.articlesAuthed !== authed || store.articlesKey !== bodyKey) {
+    console.log(
+      `[API] articles prefetch mismatch – wanted authed=${authed} key=${bodyKey}, ` +
+      `had authed=${store.articlesAuthed} key=${store.articlesKey}; falling back to fresh fetch`
+    );
+    return null;
+  }
+  console.log('[API] consuming articles prefetch (fired pre-hydration from layout.tsx)');
+  const promise = store.articles;
+  store.articles = null;
+  return promise;
+}
 
 // Token storage
 const TOKEN_KEY = 'reetle_access_token';
@@ -46,6 +88,33 @@ export function saveUser(user: User): void {
 export function clearUser(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(USER_KEY);
+}
+
+// Subscription storage. Auth endpoints (login, register, Apple/Google OAuth)
+// return a `subscription` block matching GET /subscriptions/status, so we
+// persist it at sign-in and reuse it across page loads instead of re-fetching
+// the status endpoint. Refreshed on demand via SubscriptionContext.refreshStatus.
+const SUBSCRIPTION_KEY = 'reetle_subscription';
+
+export function getSavedSubscription(): SubscriptionStatus | null {
+  if (typeof window === 'undefined') return null;
+  const data = localStorage.getItem(SUBSCRIPTION_KEY);
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as SubscriptionStatus;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSubscription(status: SubscriptionStatus): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(status));
+}
+
+export function clearSubscription(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(SUBSCRIPTION_KEY);
 }
 
 // Custom exceptions
@@ -134,9 +203,12 @@ async function checkForExpiredToken(response: Response): Promise<void> {
 async function checkRateLimit(response: Response): Promise<void> {
   if (response.status === 429) {
     const body = await response.clone().json().catch(() => ({}));
-    if (body.error === 'Daily limit reached' && body.used !== undefined) {
+    // Free-tier daily quota: the body carries used/limit (and optionally resets_at).
+    // Match on the presence of these fields rather than a specific error string,
+    // since the message wording varies by endpoint and may change.
+    if (body.used !== undefined && body.limit !== undefined) {
       throw new FreeTierQuotaError(
-        body.error,
+        body.error || 'Daily limit reached',
         body.used,
         body.limit,
         body.detail || 'Upgrade for unlimited access.',
@@ -176,7 +248,14 @@ async function fetchWithLogging(url: string, options: RequestInit = {}): Promise
 
 // ========= AUTH =========
 
-export async function signInWithGoogle(idToken: string, email?: string, fullName?: string): Promise<{ user: User; accessToken: string }> {
+export interface AuthResult {
+  user: User;
+  accessToken: string;
+  /** Subscription block returned by all auth endpoints (same shape as GET /subscriptions/status). */
+  subscription: SubscriptionStatus | null;
+}
+
+export async function signInWithGoogle(idToken: string, email?: string, fullName?: string): Promise<AuthResult> {
   const body: Record<string, unknown> = { id_token: idToken };
   if (email) body.email = email;
   if (fullName) body.full_name = fullName;
@@ -207,13 +286,13 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
     familiarLanguage: data.familiar_language || null,
     targetLanguage: data.target_language || null,
     deviceToken: data.device_token || null,
-    hasPremium: data.has_premium || false,
+    hasPremium: data.subscription?.is_premium ?? data.has_premium ?? false,
   };
 
-  return { user, accessToken: data.access_token };
+  return { user, accessToken: data.access_token, subscription: data.subscription ?? null };
 }
 
-export async function signInWithApple(idToken: string, email?: string, fullName?: string): Promise<{ user: User; accessToken: string }> {
+export async function signInWithApple(idToken: string, email?: string, fullName?: string): Promise<AuthResult> {
   const body: Record<string, unknown> = { id_token: idToken };
   if (email) body.email = email;
   if (fullName) body.full_name = fullName;
@@ -244,10 +323,10 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
     familiarLanguage: data.familiar_language || null,
     targetLanguage: data.target_language || null,
     deviceToken: data.device_token || null,
-    hasPremium: data.has_premium || false,
+    hasPremium: data.subscription?.is_premium ?? data.has_premium ?? false,
   };
 
-  return { user, accessToken: data.access_token };
+  return { user, accessToken: data.access_token, subscription: data.subscription ?? null };
 }
 
 export async function updateLanguage(userId: string, familiarLanguage?: string, targetLanguage?: string): Promise<User> {
@@ -348,12 +427,26 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
   if (options?.subtopic) body.subtopic = options.subtopic;
   if (options?.sinceId) body.since_id = options.sinceId;
 
-  const response = await fetchWithLogging(`${API_BASE_URL}/articles/article-summaries`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(body),
-    priority: 'high',
-  } as RequestInit);
+  const bodyJson = JSON.stringify(body);
+  let response: Response | null = null;
+  const prefetched = takeArticlesPrefetch(true, bodyJson);
+  if (prefetched) {
+    response = await prefetched.catch((err) => {
+      console.warn('[API] articles prefetch promise rejected, retrying fresh', err);
+      return null;
+    });
+    if (response) {
+      console.log(`[API] POST articles/article-summaries – ${response.status} (from prefetch)`);
+    }
+  }
+  if (!response) {
+    response = await fetchWithLogging(`${API_BASE_URL}/articles/article-summaries`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: bodyJson,
+      priority: 'high',
+    } as RequestInit);
+  }
 
   await checkForExpiredToken(response);
   await checkRateLimit(response);
@@ -556,13 +649,27 @@ export async function getGuestArticles(options?: { maxArticles?: number; sinceId
   if (options?.familiarLanguage) body.familiar_language = options.familiarLanguage;
   if (options?.cefrLevel) body.cefr_level = options.cefrLevel;
 
-  const response = await fetchWithLogging(`${API_BASE_URL}/articles/guest/article-summaries`, {
-    method: 'POST',
-    headers: getGuestHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(body),
-    priority: 'high',
-  } as RequestInit);
+  const bodyJson = JSON.stringify(body);
+  let response: Response | null = null;
+  const prefetched = takeArticlesPrefetch(false, bodyJson);
+  if (prefetched) {
+    response = await prefetched.catch((err) => {
+      console.warn('[API] guest articles prefetch promise rejected, retrying fresh', err);
+      return null;
+    });
+    if (response) {
+      console.log(`[API] POST articles/guest/article-summaries – ${response.status} (from prefetch)`);
+    }
+  }
+  if (!response) {
+    response = await fetchWithLogging(`${API_BASE_URL}/articles/guest/article-summaries`, {
+      method: 'POST',
+      headers: getGuestHeaders(),
+      credentials: 'include',
+      body: bodyJson,
+      priority: 'high',
+    } as RequestInit);
+  }
 
   await checkGuestQuota(response);
 
@@ -804,39 +911,53 @@ export async function rateTranslation(translationId: number, feedback: string): 
 
 // ========= PRACTICE =========
 
-export async function getPracticeQuestion(questionType?: string): Promise<PracticeQuestion> {
+export async function getNextPracticeQuestion(options?: {
+  domain?: PracticeDomain;
+  llm?: string;
+}): Promise<PracticeQuestion> {
   const body: Record<string, unknown> = {};
-  if (questionType) body.question_type = questionType;
+  if (options?.domain) body.domain = options.domain;
+  if (options?.llm) body.llm = options.llm;
 
-  const response = await fetchWithLogging(`${API_BASE_URL}/practice/fetch-question`, {
-    method: 'POST',
+  const hasBody = Object.keys(body).length > 0;
+
+  const response = await fetchWithLogging(`${API_BASE_URL}/practice/next`, {
+    method: hasBody ? 'POST' : 'GET',
     headers: getHeaders(),
-    body: JSON.stringify(body),
+    ...(hasBody ? { body: JSON.stringify(body) } : {}),
   });
 
   await checkForExpiredToken(response);
   await checkRateLimit(response);
 
-  const data = await response.json();
-
-  if (data.error === 'No practice questions available') {
-    const reason = data.reason === 'no_unsure_words' ? 'no_unsure_words'
-      : data.reason === 'all_words_mastered' ? 'all_words_mastered'
-      : 'unknown';
-    throw new NoPracticeQuestionsError(data.detail || 'No practice questions available', reason);
+  if (response.status === 404) {
+    throw new NoPracticeQuestionsError(
+      'No practice questions available right now.',
+      'unknown'
+    );
   }
 
-  if (!response.ok) throw new Error(`Failed to fetch practice question: ${response.status}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || err.detail || `Failed to fetch practice question: ${response.status}`);
+  }
 
+  const data = await response.json();
   return parsePracticeQuestion(data);
 }
 
-export async function submitPracticeAnswer(practiceQuestionId: number, isCorrect: boolean, unsureWordId?: number): Promise<void> {
+export async function submitPracticeAnswer(params: {
+  domain: PracticeDomain;
+  questionId: number;
+  selectedIndex: number;
+  responseTimeMs?: number;
+}): Promise<PracticeSubmitResult> {
   const body: Record<string, unknown> = {
-    practice_question_id: practiceQuestionId,
-    is_correct: isCorrect,
+    domain: params.domain,
+    question_id: params.questionId,
+    selected_index: params.selectedIndex,
   };
-  if (unsureWordId && unsureWordId > 0) body.unsure_word_id = unsureWordId;
+  if (params.responseTimeMs != null) body.response_time_ms = params.responseTimeMs;
 
   const response = await fetchWithLogging(`${API_BASE_URL}/practice/submit`, {
     method: 'POST',
@@ -844,14 +965,40 @@ export async function submitPracticeAnswer(practiceQuestionId: number, isCorrect
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) throw new Error(`Failed to submit answer: ${response.status}`);
+  await checkForExpiredToken(response);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || err.detail || `Failed to submit answer: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return parsePracticeSubmitResult(data);
+}
+
+export async function getPracticeRating(): Promise<PracticeRating> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/practice/rating`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (!response.ok) throw new Error(`Failed to fetch practice rating: ${response.status}`);
+
+  const data = await response.json();
+  return {
+    targetLanguage: String(data.target_language || ''),
+    rating: Number(data.rating) || 0,
+    band: String(data.band || ''),
+  };
 }
 
 export async function getArticleQuestions(articleId: string, articleViewId?: number): Promise<PracticeQuestion[]> {
   const body: Record<string, unknown> = {
     article_id: parseInt(articleId, 10),
     num_questions: 6,
-    question_type: 'fill_in_the_blank',
   };
   if (articleViewId) body.article_view_id = articleViewId;
 
@@ -871,11 +1018,19 @@ export async function getArticleQuestions(articleId: string, articleViewId?: num
   return questionsData.map(parsePracticeQuestion);
 }
 
-export async function ratePracticeQuestion(practiceQuestionId: number, feedback: string): Promise<void> {
+export async function ratePracticeQuestion(params: {
+  domain: PracticeDomain;
+  questionId: number;
+  feedback: 'good' | 'bad';
+}): Promise<void> {
   const response = await fetchWithLogging(`${API_BASE_URL}/practice/rate`, {
     method: 'POST',
     headers: getHeaders(),
-    body: JSON.stringify({ practice_question_id: practiceQuestionId, feedback }),
+    body: JSON.stringify({
+      domain: params.domain,
+      question_id: params.questionId,
+      feedback: params.feedback,
+    }),
   });
 
   if (!response.ok) throw new Error('Failed to rate practice question');
@@ -1089,42 +1244,152 @@ export async function applyReferralCode(code: string): Promise<ReferralApplyResp
 
 // ========= HELPERS =========
 
-function parsePracticeQuestion(data: Record<string, unknown>): PracticeQuestion {
-  const answerChoices = Array.isArray(data.answer_choices)
-    ? data.answer_choices.map((c: Record<string, unknown>) => ({
+function parseFeedbackIncorrect(raw: unknown): string | GrammarFeedbackIncorrect {
+  if (typeof raw === 'string') return raw;
+  if (raw && typeof raw === 'object') {
+    const obj = raw as Record<string, unknown>;
+    if (typeof obj.short === 'string') {
+      return {
+        short: obj.short,
+        theWhy: obj.the_why ? String(obj.the_why) : undefined,
+        theHow: obj.the_how ? String(obj.the_how) : undefined,
+      };
+    }
+  }
+  return String(raw || '');
+}
+
+function parseQuestionData(raw: Record<string, unknown>): PracticeQuestion['questionData'] {
+  const answerChoices = Array.isArray(raw.answer_choices)
+    ? raw.answer_choices.map((c: Record<string, unknown>) => ({
         text: String(c.target_lang || ''),
         textFamiliar: String(c.familiar_lang || ''),
+        whyNonsensical: c.why_nonsensical != null ? String(c.why_nonsensical) : null,
       }))
     : [];
 
-  const feedbackData = (data.feedback || {}) as Record<string, unknown>;
-
-  const wordPairs = Array.isArray(data.word_pairs)
-    ? data.word_pairs.map((wp: Record<string, unknown>) => ({
-        target: String(wp.target || ''),
-        familiar: String(wp.familiar || ''),
-      }))
-    : [];
+  const feedbackData = (raw.feedback || {}) as Record<string, unknown>;
+  const feedback: Feedback = {
+    correct: String(feedbackData.correct || ''),
+    correctFamiliar: feedbackData.correct_familiar ? String(feedbackData.correct_familiar) : undefined,
+    incorrect: parseFeedbackIncorrect(feedbackData.incorrect),
+    incorrectFamiliar: feedbackData.incorrect_familiar ? String(feedbackData.incorrect_familiar) : undefined,
+  };
 
   return {
-    question: String(data.question || ''),
-    questionFamiliar: String(data.question_familiar || ''),
-    questionComplete: String(data.question_complete || ''),
-    questionCompleteFamiliar: String(data.question_complete_familiar || ''),
+    question: String(raw.question || ''),
+    questionFamiliar: String(raw.question_familiar || ''),
+    instruction: raw.instruction ? String(raw.instruction) : undefined,
     answerChoices,
+    correctAnswer: String(raw.correct_answer || ''),
+    feedback,
+    questionComplete: String(raw.question_complete || ''),
+    questionCompleteFamiliar: String(raw.question_complete_familiar || ''),
+  };
+}
+
+function parsePracticeQuestion(data: Record<string, unknown>): PracticeQuestion {
+  // Unified envelope from /practice/next
+  if (data.question_data && typeof data.question_data === 'object') {
+    const questionData = parseQuestionData(data.question_data as Record<string, unknown>);
+    const forecastRaw = data.forecast as Record<string, unknown> | undefined;
+    const grammarRaw = data.grammar_context as Record<string, unknown> | undefined;
+    const vocabRaw = data.vocab_context as Record<string, unknown> | undefined;
+    const conceptRaw = grammarRaw?.concept as Record<string, unknown> | undefined;
+
+    const createdAt =
+      (data.created_at as string | undefined) ??
+      (data.createdAt as string | undefined) ??
+      (data.generated_at as string | undefined) ??
+      (grammarRaw?.created_at as string | undefined) ??
+      (vocabRaw?.created_at as string | undefined) ??
+      null;
+
+    return {
+      domain: data.domain === 'Vocabulary' ? 'Vocabulary' : 'Grammar',
+      questionId: Number(data.question_id) || 0,
+      userRating: data.user_rating != null ? Number(data.user_rating) : undefined,
+      userBand: data.user_band ? String(data.user_band) : undefined,
+      forecast: forecastRaw ? {
+        expectedScore: Number(forecastRaw.expected_score) || 0,
+        ifCorrect: {
+          ratingAfter: Number((forecastRaw.if_correct as Record<string, unknown>)?.rating_after) || 0,
+          change: Number((forecastRaw.if_correct as Record<string, unknown>)?.change) || 0,
+        },
+        ifIncorrect: {
+          ratingAfter: Number((forecastRaw.if_incorrect as Record<string, unknown>)?.rating_after) || 0,
+          change: Number((forecastRaw.if_incorrect as Record<string, unknown>)?.change) || 0,
+        },
+      } : undefined,
+      questionData,
+      grammarContext: grammarRaw ? {
+        answerEventId: Number(grammarRaw.answer_event_id) || 0,
+        bankQuestionId: Number(grammarRaw.bank_question_id) || 0,
+        questionType: String(grammarRaw.question_type || ''),
+        concept: {
+          id: Number(conceptRaw?.id) || 0,
+          slug: String(conceptRaw?.slug || ''),
+          displayName: String(conceptRaw?.display_name || ''),
+          description: String(conceptRaw?.description || ''),
+          displayOrder: Number(conceptRaw?.display_order) || 0,
+        },
+        rating: Number(grammarRaw.rating) || 0,
+      } : undefined,
+      vocabContext: vocabRaw ? {
+        vocabQuestionId: Number(vocabRaw.vocab_question_id) || 0,
+        unsureWordId: Number(vocabRaw.unsure_word_id) || 0,
+        questionType: String(vocabRaw.question_type || ''),
+        cefrLevel: String(vocabRaw.cefr_level || ''),
+        targetLanguage: String(vocabRaw.target_language || ''),
+        familiarLanguage: String(vocabRaw.familiar_language || ''),
+        correctStreak: Number(vocabRaw.correct_streak) || 0,
+        willMaster: vocabRaw.will_master === true,
+      } : undefined,
+      createdAt,
+    };
+  }
+
+  // Flat article-question shape (no unified envelope)
+  const questionData = parseQuestionData(data);
+  return {
+    questionId: Number(data.practice_question_id || data.question_id) || 0,
+    questionData,
+    vocabContext: data.unsure_word_id ? {
+      vocabQuestionId: Number(data.practice_question_id || data.question_id) || 0,
+      unsureWordId: Number(data.unsure_word_id) || 0,
+      questionType: String(data.question_type || 'fill_in_the_blank'),
+      cefrLevel: '',
+      targetLanguage: '',
+      familiarLanguage: '',
+      correctStreak: Number(data.correct_streak) || 0,
+      willMaster: data.will_master === true,
+    } : undefined,
+  };
+}
+
+function parsePracticeSubmitResult(data: Record<string, unknown>): PracticeSubmitResult {
+  const vocabRaw = data.vocab_context as Record<string, unknown> | undefined;
+
+  return {
+    domain: data.domain === 'Vocabulary' ? 'Vocabulary' : 'Grammar',
+    isCorrect: data.is_correct === true,
     correctAnswer: String(data.correct_answer || ''),
-    feedback: {
-      correct: String(feedbackData.correct || ''),
-      correctFamiliar: String(feedbackData.correct_familiar || ''),
-      incorrect: String(feedbackData.incorrect || ''),
-      incorrectFamiliar: String(feedbackData.incorrect_familiar || ''),
-    },
-    unsureWordId: Number(data.unsure_word_id) || 0,
-    practiceQuestionId: Number(data.practice_question_id) || 0,
-    questionType: data.question_type === 'pairs' ? 'pairs' : 'fill_in_the_blank',
-    wordPairs,
-    correctStreak: Number(data.correct_streak) || 0,
-    willMaster: data.will_master === true,
+    feedback: parseFeedbackIncorrect(data.feedback),
+    ratingBefore: Number(data.rating_before) || 0,
+    ratingAfter: Number(data.rating_after) || 0,
+    band: String(data.band || ''),
+    expectedScore: data.expected_score != null ? Number(data.expected_score) : undefined,
+    vocabContext: vocabRaw ? {
+      vocabQuestionId: Number(vocabRaw.vocab_question_id) || 0,
+      unsureWordId: Number(vocabRaw.unsure_word_id) || 0,
+      questionType: String(vocabRaw.question_type || ''),
+      cefrLevel: String(vocabRaw.cefr_level || ''),
+      targetLanguage: String(vocabRaw.target_language || ''),
+      familiarLanguage: String(vocabRaw.familiar_language || ''),
+      correctStreak: Number(vocabRaw.correct_streak) || 0,
+      willMaster: vocabRaw.will_master === true,
+      mastered: vocabRaw.mastered === true,
+    } : undefined,
   };
 }
 

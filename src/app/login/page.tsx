@@ -68,7 +68,7 @@ function GoogleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (toke
        * is overlaid below at near-zero opacity to capture clicks while we
        * keep a visually consistent button style with Apple sign-in.
        */}
-      <div className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-ui-card border border-ui-border rounded-md text-[15px] font-medium text-ui-foreground pointer-events-none select-none shadow-sm">
+      <div className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-ui-card border border-ui-border rounded-md text-title-md text-ui-foreground pointer-events-none select-none shadow-sm">
         <GoogleLogo />
         Continue with Google
       </div>
@@ -143,7 +143,7 @@ function AppleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token
       <button
         onClick={handleClick}
         disabled={disabled || !APPLE_CLIENT_ID}
-        className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-black text-white border border-black rounded-md text-[15px] font-medium cursor-pointer transition-all duration-200 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+        className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-black text-white border border-black rounded-md text-title-md cursor-pointer transition-all duration-200 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
       >
         <AppleLogo />
         Continue with Apple
@@ -167,13 +167,13 @@ function LoginShell({ children }: { children: React.ReactNode }) {
               priority
             />
           </div>
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Welcome to Reetle</h1>
-          <p className="text-[15px] text-ui-muted-foreground">
+          <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">Welcome to Reetle</h1>
+          <p className="text-body-lg text-ui-muted-foreground">
             Sign in to learn languages by reading articles you actually want to read.
           </p>
         </div>
         {children}
-        <p className="text-center text-[12px] text-ui-muted-foreground mt-6 px-4 leading-relaxed">
+        <p className="text-center text-label-md text-ui-muted-foreground mt-6 px-4 leading-relaxed">
           By signing in, you agree to our{' '}
           <Link href="/terms" className="underline hover:text-primary">Terms of Service</Link>
           {' '}and{' '}
@@ -254,7 +254,7 @@ function LoginContent() {
             />
             <div className="flex items-center gap-3 my-1">
               <Separator className="flex-1" />
-              <span className="text-[12px] uppercase tracking-wider text-ui-muted-foreground">or</span>
+              <span className="text-label-md uppercase tracking-wider text-ui-muted-foreground">or</span>
               <Separator className="flex-1" />
             </div>
             <AppleSignInButton onSuccess={handleAppleSuccess} onError={(msg) => setError(msg)} disabled={isSigningIn} />
@@ -262,14 +262,14 @@ function LoginContent() {
 
           {error && (
             <div className="mt-4 px-4 py-3 bg-incorrect-bg rounded-md border border-incorrect/30">
-              <p className="text-[13px] text-incorrect-text text-center">{error}</p>
+              <p className="text-body-sm text-incorrect-text text-center">{error}</p>
             </div>
           )}
 
           {isSigningIn && (
             <div className="mt-4 flex items-center justify-center gap-2 text-ui-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <p className="text-[13px]">Signing in...</p>
+              <p className="text-body-sm">Signing in...</p>
             </div>
           )}
         </CardContent>
@@ -312,7 +312,7 @@ function LoginContentWithoutGoogle() {
     <LoginShell>
       <Card className="shadow-lg">
         <CardHeader className="pb-3">
-          <CardTitle className="text-[16px]">OAuth not configured</CardTitle>
+          <CardTitle className="text-title-md">OAuth not configured</CardTitle>
           <CardDescription>
             Sign-in is currently disabled in this environment.
           </CardDescription>
@@ -329,8 +329,8 @@ function LoginContentWithoutGoogle() {
             </Button>
           </div>
           <div className="mt-4 px-4 py-3 bg-accent-light rounded-md">
-            <p className="text-[12px] text-primary text-center leading-relaxed">
-              Set <code className="bg-white px-1.5 py-0.5 rounded text-[11px]">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> in <code className="bg-white px-1.5 py-0.5 rounded text-[11px]">.env.local</code> to enable sign-in.
+            <p className="text-label-md text-primary text-center leading-relaxed">
+              Set <code className="bg-ui-muted px-1.5 py-0.5 rounded text-label-sm">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> in <code className="bg-ui-muted px-1.5 py-0.5 rounded text-label-sm">.env.local</code> to enable sign-in.
             </p>
           </div>
         </CardContent>

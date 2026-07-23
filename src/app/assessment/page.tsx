@@ -92,8 +92,8 @@ export default function AssessmentPage() {
               <div className="w-16 h-16 bg-ui-primary rounded-2xl flex items-center justify-center mx-auto mb-6">
                 <ClipboardCheck className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Level Assessment</h1>
-              <p className="text-[15px] text-ui-muted-foreground mb-8 max-w-md mx-auto">
+              <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">Level Assessment</h1>
+              <p className="text-body-lg text-ui-muted-foreground mb-8 max-w-md mx-auto">
                 A 1-minute quiz that helps us determine your CEFR level so we can personalise your reading.
               </p>
               <Button onClick={handleStart} size="lg" className="w-full mb-3">Start assessment</Button>
@@ -177,8 +177,8 @@ export default function AssessmentPage() {
                 <Check className="w-10 h-10 text-white" strokeWidth={2.5} />
               </div>
 
-              <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Assessment Complete!</h1>
-              <p className="text-[15px] text-ui-muted-foreground mb-6">
+              <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">Assessment Complete!</h1>
+              <p className="text-body-lg text-ui-muted-foreground mb-6">
                 Based on your answers, your level is:
               </p>
 
@@ -204,7 +204,7 @@ export default function AssessmentPage() {
 
           {state === 'error' && (
             <div className="text-center py-12">
-              <p className="text-[15px] text-ui-muted-foreground mb-4">{error}</p>
+              <p className="text-body-lg text-ui-muted-foreground mb-4">{error}</p>
               <Button onClick={handleStart}>Try again</Button>
             </div>
           )}

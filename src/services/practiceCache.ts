@@ -1,4 +1,4 @@
-import { getPracticeQuestion, NoPracticeQuestionsError } from './api';
+import { getNextPracticeQuestion } from './api';
 import type { PracticeQuestion } from '@/types/practice';
 
 let cachedQuestion: PracticeQuestion | null = null;
@@ -12,7 +12,7 @@ export function prefetchPracticeQuestion(): void {
   if (cachedQuestion || isFetching) return;
   isFetching = true;
 
-  getPracticeQuestion()
+  getNextPracticeQuestion()
     .then((q) => {
       cachedQuestion = q;
     })

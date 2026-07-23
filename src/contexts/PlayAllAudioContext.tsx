@@ -32,6 +32,8 @@ export type PlayAllMode =
   | 'awaiting_next'
   | 'finished'
   | 'limit_reached'
+  /** Free user tapped ▶ on an article whose audio isn't generated yet; the bottom player shows the Premium upsell in place. */
+  | 'requires_premium'
   | 'error';
 
 export type QueueItemSource = 'user' | 'autoplay';
@@ -131,6 +133,15 @@ export interface PlayAllAudioValue {
   listenedArticleIds: ReadonlySet<string>;
   /** `start()` can play at least one article not in `listenedArticleIds`. */
   canResumePlayAll: boolean;
+  /**
+   * Start the silent keep-alive loop inside the shared `<audio>` element when
+   * no session is active. Call from a user gesture that will lead to playback
+   * after an async wait (e.g. "Prepare audio") so the browser's autoplay
+   * permission survives until the real track is ready. No-ops mid-session.
+   */
+  primeAudioSession: () => void;
+  /** Stop a primed (silence-only) session, e.g. after preparation failed. */
+  releasePrimedSession: () => void;
 }
 
 const PlayAllAudioContext = createContext<PlayAllAudioValue | null>(null);
@@ -874,6 +885,21 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     };
   };
 
+  const primeAudioSession = useCallback(() => {
+    const m = modeRef.current;
+    const active = m === 'playing' || m === 'paused' || m === 'loading' || m === 'awaiting_next';
+    if (active) return;
+    playSilence();
+  }, [playSilence]);
+
+  const releasePrimedSession = useCallback(() => {
+    const m = modeRef.current;
+    const active = m === 'playing' || m === 'paused' || m === 'loading' || m === 'awaiting_next';
+    if (active) return;
+    if (!isPlayingSilenceRef.current) return;
+    stopAudioElement();
+  }, [stopAudioElement]);
+
   /**
    * The user's primary entry point from a card. Use `options.action`:
    * `"play_now"` — start or jump ahead to this article; `"append"` — add to
@@ -947,25 +973,51 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
         return { status: 'preparing', willPlay };
       }
 
-      if (!isPremium && modeRef.current === 'limit_reached') {
+      // Audio prepared this session (e.g. via the article page's Prepare
+      // button) is playable even when the article summary's `audioGenerated`
+      // flag is stale. A still-valid cached signed URL also means playback
+      // won't consume another listen, so the daily-usage pre-check is skipped.
+      const audioEntry = getEntry(articleId);
+      const entryReady = audioEntry?.status === 'ready' && !!audioEntry.contentId;
+      const entryHasReusableUrl = entryReady
+        && !!audioEntry.signedUrl
+        && !!audioEntry.signedUrlExpiresAt
+        && audioEntry.signedUrlExpiresAt > Date.now() + 60 * 1000;
+
+      if (!isPremium && modeRef.current === 'limit_reached' && !entryHasReusableUrl) {
         if (action === 'play_now') {
           stopAudioElement();
           setPendingPlayback(null);
+          // The optimistic `setMode('loading')` above would otherwise strand
+          // the bottom player on "Preparing audio" with nothing in flight.
+          setMode('limit_reached');
         }
         return { status: 'limit_reached' };
       }
-      if (!isPremium && dailyUsage?.audio) {
+      if (!isPremium && dailyUsage?.audio && !entryHasReusableUrl) {
         const remaining = dailyUsage.audio.limit - dailyUsage.audio.used;
         if (remaining <= 0) {
           if (action === 'play_now') {
             stopAudioElement();
             setPendingPlayback(null);
+            setMode('limit_reached');
           }
           return { status: 'limit_reached' };
         }
       }
 
-      const readyItem = queueItemFromReadyArticle(article, 'user');
+      let readyItem = queueItemFromReadyArticle(article, 'user');
+      if (!readyItem && entryReady && audioEntry?.contentId) {
+        readyItem = {
+          articleId,
+          contentId: audioEntry.contentId,
+          headline: article.headline,
+          topic: article.topic,
+          createdAt: article.createdAt,
+          imageUrl: article.imageLinks[0] ?? null,
+          source: 'user',
+        };
+      }
       if (readyItem) {
         if (action === 'play_now') {
           if (sessionActive) {
@@ -1020,7 +1072,12 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       if (!isPremium) {
         if (action === 'play_now') {
           stopAudioElement();
+          // The player already popped up in its optimistic loading state, so
+          // morph it into the Premium upsell rather than firing a toast and
+          // leaving the bar stuck on "Preparing audio". Dismissing it (or
+          // upgrading) resets to idle via `stop()`.
           setPendingPlayback(null);
+          setMode('requires_premium');
         }
         return { status: 'requires_premium' };
       }
@@ -1081,6 +1138,7 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     [
       articlesData,
       dailyUsage,
+      getEntry,
       isAuthenticated,
       isPremium,
       listenedIds,
@@ -1560,6 +1618,8 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
     queueArticle,
     listenedArticleIds: listenedIds,
     canResumePlayAll,
+    primeAudioSession,
+    releasePrimedSession,
     removeFromQueue,
     reorderQueue,
     jumpToQueue,

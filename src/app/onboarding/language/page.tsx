@@ -96,10 +96,10 @@ export default function LanguageSelectionPage() {
     <section className="py-12 sm:py-16">
       <div className="max-w-[500px] mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">
+          <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">
             What language are you learning?
           </h1>
-          <p className="text-[15px] text-ui-muted-foreground">
+          <p className="text-body-lg text-ui-muted-foreground">
             Choose the language you want to practice reading in.
           </p>
         </div>

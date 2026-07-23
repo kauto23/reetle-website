@@ -7,6 +7,7 @@ import TranslationDemoBanner from '@/components/articles/TranslationDemoBanner';
 import OpenInBrowserBanner from '@/components/articles/OpenInBrowserBanner';
 import SelectionHandles from '@/components/articles/SelectionHandles';
 import ArticleAudioPlayer from '@/components/articles/ArticleAudioPlayer';
+import GuestArticleAudioPrompt from '@/components/articles/GuestArticleAudioPrompt';
 import { useArticles } from '@/contexts/ArticlesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
@@ -17,7 +18,7 @@ import type { Article } from '@/types/article';
 import { useHasHover } from '@/hooks/useHasHover';
 import { useLoginUrl } from '@/hooks/useLoginUrl';
 import { Button } from '@/components/ui/button';
-import { ClipboardCheck, MessageCircleQuestion, PenLine, BookOpen, Check, Layers } from 'lucide-react';
+import { ClipboardCheck, MessageCircleQuestion, PenLine, BookOpen, Check, Layers, Loader2 } from 'lucide-react';
 
 // ── Highlight types & helpers ────────────────────────────────────────────────
 
@@ -167,6 +168,8 @@ interface ArticleDetailProps {
   articleId: string;
 }
 
+type QuizPrefetchStatus = 'idle' | 'loading' | 'ready' | 'failed';
+
 export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const { articlesData } = useArticles();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
@@ -191,6 +194,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const [selectionContext, setSelectionContext] = useState<string>('');
   const [selectionExtendedContext, setSelectionExtendedContext] = useState<string>('');
   const [hasPassedHalf, setHasPassedHalf] = useState(false);
+  const [quizStatus, setQuizStatus] = useState<QuizPrefetchStatus>('idle');
   const [highlightsByPara, setHighlightsByPara] = useState<Record<number, HRange[]>>({});
   const [activeSelection, setActiveSelection] = useState<{ paraIdx: number; range: HRange } | null>(null);
   const [translationPending, setTranslationPending] = useState(false);
@@ -199,9 +203,6 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   const [isContentRefreshing, setIsContentRefreshing] = useState(false);
   const [showRefreshMsg, setShowRefreshMsg] = useState(false);
   const [refreshMsgIdx, setRefreshMsgIdx] = useState(0);
-  /** Sticky audio bar only while playback is active; otherwise keep player in document flow under the headline. */
-  const [audioPinnedWhilePlaying, setAudioPinnedWhilePlaying] = useState(false);
-
   const hasHover = useHasHover();
   const contentRef = useRef<HTMLDivElement>(null);
   const headlineTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -360,16 +361,37 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [hasPassedHalf]);
 
+  useEffect(() => {
+    setQuizStatus('idle');
+  }, [articleId]);
+
   // ── Prefetch quiz questions when button becomes visible ─────────────────────
 
   useEffect(() => {
-    if (!hasPassedHalf || contentLoading || quotaExceeded || !articleId) return;
+    if (!hasPassedHalf || contentLoading || quotaExceeded || freeTierQuota || !articleId) {
+      setQuizStatus('idle');
+      return;
+    }
+
+    let cancelled = false;
+    setQuizStatus('loading');
+
     prefetchQuiz(articleId, () =>
       isAuthenticated
         ? getArticleQuestions(articleId, articleViewId)
         : getGuestArticleQuestions(articleId, undefined, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel),
-    );
-  }, [hasPassedHalf, contentLoading, quotaExceeded, articleId, isAuthenticated, articleViewId, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel]);
+    )
+      .then(() => {
+        if (!cancelled) setQuizStatus('ready');
+      })
+      .catch(() => {
+        if (!cancelled) setQuizStatus('failed');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasPassedHalf, contentLoading, quotaExceeded, freeTierQuota, articleId, isAuthenticated, articleViewId, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel]);
 
   // ── Headline translation: hover on desktop, button on mobile ────────────────
 
@@ -630,7 +652,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
 
           {error && !isLoading && !quotaExceeded && (
             <div className="text-center py-xl">
-              <p className="text-body-lg text-text-secondary mb-md">{error}</p>
+              <p className="text-body-lg text-ui-muted-foreground mb-md">{error}</p>
             </div>
           )}
 
@@ -660,7 +682,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 {!hasHover && article.headlineFamiliar && (
                   <button
                     onClick={toggleHeadlineTranslation}
-                    className={`flex-shrink-0 mt-[6px] bg-transparent border-none cursor-pointer transition-colors duration-200 ${showHeadlineTranslation ? 'text-primary' : 'text-text-secondary/50'}`}
+                    className={`flex-shrink-0 mt-[6px] bg-transparent border-none cursor-pointer transition-colors duration-200 ${showHeadlineTranslation ? 'text-primary' : 'text-ui-muted-foreground/50'}`}
                     aria-label={showHeadlineTranslation ? 'Show original headline' : 'Translate headline'}
                   >
                     <MessageCircleQuestion size={22} strokeWidth={2} />
@@ -668,7 +690,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 )}
               </div>
 
-              <div className={`flex items-center gap-md text-body-md text-text-secondary ${(quotaExceeded || freeTierQuota) ? 'mb-md' : 'mb-md'}`}>
+              <div className={`flex items-center gap-md text-body-md text-ui-muted-foreground ${(quotaExceeded || freeTierQuota) ? 'mb-md' : 'mb-md'}`}>
                 {article.publishedDate && <span>{article.publishedDate}</span>}
                 {article.cefrLevelHeadline && (
                   <span className="bg-background px-[8px] py-[2px] rounded text-[12px] font-medium">
@@ -677,34 +699,13 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 )}
               </div>
 
-              {isAuthenticated && !quotaExceeded && !freeTierQuota && !error && (
-                <div
-                  className={
-                    audioPinnedWhilePlaying
-                      ? 'sticky top-[101px] z-40 -mx-4 px-4 py-2 mb-md sm:mx-0 sm:px-0 bg-background/95 backdrop-blur-sm'
-                      : '-mx-4 px-4 py-2 mb-md sm:mx-0 sm:px-0'
-                  }
-                >
-                  <ArticleAudioPlayer
-                    articleId={articleId}
-                    contentId={contentId}
-                    summaryAudioAvailable={article.audioGenerated}
-                    onPlaybackStickyChange={setAudioPinnedWhilePlaying}
-                  />
-                </div>
-              )}
-
-              {isAuthenticated && !isPremium && dailyUsage?.articles && !freeTierQuota && !contentLoading && content && (
-                <div className="flex items-center gap-[6px] mb-md">
-                  <span className="text-[12px] text-text-secondary">
-                    {dailyUsage.articles.limit - dailyUsage.articles.used > 0
-                      ? `${dailyUsage.articles.limit - dailyUsage.articles.used} of ${dailyUsage.articles.limit} articles remaining today`
-                      : 'No articles remaining today'
-                    }
-                  </span>
-                  <Link href="/premium" className="text-[12px] font-medium text-primary-light hover:text-primary transition-colors">
-                    Upgrade
-                  </Link>
+              {!quotaExceeded && !freeTierQuota && !error && (
+                <div className="-mx-4 px-4 sm:mx-0 sm:px-0 empty:hidden">
+                  {isAuthenticated ? (
+                    <ArticleAudioPlayer article={article} contentId={contentId} />
+                  ) : (
+                    <GuestArticleAudioPrompt />
+                  )}
                 </div>
               )}
 
@@ -745,7 +746,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                           </h2>
                           <p
                             key={refreshMsgIdx}
-                            className="text-body-lg text-text-secondary max-w-[520px] mx-auto leading-[1.6] mb-lg animate-fadeIn"
+                            className="text-body-lg text-ui-muted-foreground max-w-[520px] mx-auto leading-[1.6] mb-lg animate-fadeIn"
                           >
                             {GENERATING_MESSAGES[refreshMsgIdx]}
                           </p>
@@ -767,7 +768,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                       </h2>
                       <p
                         key={generatingMsgIdx}
-                        className="text-body-lg text-text-secondary max-w-[520px] mx-auto leading-[1.6] mb-lg animate-fadeIn"
+                        className="text-body-lg text-ui-muted-foreground max-w-[520px] mx-auto leading-[1.6] mb-lg animate-fadeIn"
                       >
                         {GENERATING_MESSAGES[generatingMsgIdx]}
                       </p>
@@ -812,13 +813,13 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                       <div className="mt-[80px] w-full text-center px-[16px]">
                         {/* Icon */}
                         <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-lg">
-                          <BookOpen size={26} strokeWidth={1.5} color="#4A2462" />
+                          <BookOpen size={26} strokeWidth={1.5} className="text-primary" />
                         </div>
 
                         <h2 className="text-display-sm text-primary mb-sm">
                           Keep reading for free
                         </h2>
-                        <p className="text-body-lg text-text-secondary mb-lg max-w-[360px] mx-auto leading-[1.6]">
+                        <p className="text-body-lg text-ui-muted-foreground mb-lg max-w-[360px] mx-auto leading-[1.6]">
                           You&apos;ve previewed your daily articles. Create a free account to unlock this story and read without limits.
                         </p>
 
@@ -845,7 +846,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                         </div>
 
                         {/* Login link */}
-                        <p className="text-body-md text-text-secondary mt-lg">
+                        <p className="text-body-md text-ui-muted-foreground mt-lg">
                           Already have an account?{' '}
                           <Link href={loginUrl} className="text-primary font-medium hover:underline">
                             Log in
@@ -873,10 +874,10 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                     >
                       <div className="mt-[80px] w-full text-center px-[16px]">
                         <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-lg">
-                          <Layers size={26} strokeWidth={1.5} color="#4A2462" />
+                          <Layers size={26} strokeWidth={1.5} className="text-primary" />
                         </div>
                         <h2 className="text-display-sm text-primary mb-sm">Daily limit reached</h2>
-                        <p className="text-body-lg text-text-secondary mb-lg max-w-[360px] mx-auto leading-[1.6]">
+                        <p className="text-body-lg text-ui-muted-foreground mb-lg max-w-[360px] mx-auto leading-[1.6]">
                           {freeTierQuota.detail}
                         </p>
                         <div className="flex justify-center">
@@ -885,7 +886,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                           </Button>
                         </div>
                         {freeTierQuota.resetsAt && (
-                          <p className="text-body-md text-text-secondary mt-md">
+                          <p className="text-body-md text-ui-muted-foreground mt-md">
                             Or come back tomorrow — limits reset at midnight.
                           </p>
                         )}
@@ -929,14 +930,21 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 )}
               </div>
 
-              {hasPassedHalf && !contentLoading && !quotaExceeded && !freeTierQuota && (
-                <div className="mt-xl pt-lg border-t border-ui-border">
-                  <Button asChild size="lg" className="w-full">
-                    <Link href={`/practice/quiz?articleId=${articleId}${articleViewId ? `&viewId=${articleViewId}` : ''}${!isAuthenticated ? '&guest=1' : ''}`}>
-                      <ClipboardCheck className="w-5 h-5" />
-                      Article Quiz
-                    </Link>
-                  </Button>
+              {hasPassedHalf && !contentLoading && !quotaExceeded && !freeTierQuota && quizStatus !== 'failed' && (
+                <div className="mt-xl pt-lg border-t border-ui-border min-h-[48px] flex items-center justify-center">
+                  {quizStatus === 'ready' ? (
+                    <Button asChild size="lg" className="w-full">
+                      <Link href={`/practice/quiz?articleId=${articleId}${articleViewId ? `&viewId=${articleViewId}` : ''}${!isAuthenticated ? '&guest=1' : ''}`}>
+                        <ClipboardCheck className="w-5 h-5" />
+                        Article Quiz
+                      </Link>
+                    </Button>
+                  ) : (
+                    <div className="w-full flex items-center justify-center gap-2 py-2 text-ui-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin shrink-0" aria-hidden />
+                      <span className="text-body-md">Loading quiz...</span>
+                    </div>
+                  )}
                 </div>
               )}
             </>

@@ -72,10 +72,10 @@ export default function CefrLevelSelectionPage() {
     <section className="py-12 sm:py-16">
       <div className="max-w-[500px] mx-auto px-4">
         <div className="text-center mb-8">
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">
+          <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">
             What&apos;s your level?
           </h1>
-          <p className="text-[15px] text-ui-muted-foreground">
+          <p className="text-body-lg text-ui-muted-foreground">
             Select your current proficiency level. This helps us personalise your articles.
           </p>
         </div>

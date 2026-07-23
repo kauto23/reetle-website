@@ -22,7 +22,7 @@ const config: Config = {
         surface: '#FFFFFF',
         background: '#F8F7FA',
         border: '#E5E3E8',
-        'text-primary': '#2D1832',
+        'text-primary': '#4A2462',
         'text-secondary': '#666276',
         correct: {
           DEFAULT: '#34D399',
@@ -65,6 +65,11 @@ const config: Config = {
             DEFAULT: 'hsl(var(--accent))',
             foreground: 'hsl(var(--accent-foreground))',
           },
+          // Coral (#FF6B6B) — distinct from ui.accent soft tint
+          coral: {
+            DEFAULT: 'hsl(var(--accent-coral))',
+            foreground: 'hsl(var(--accent-coral-foreground))',
+          },
           destructive: {
             DEFAULT: 'hsl(var(--destructive))',
             foreground: 'hsl(var(--destructive-foreground))',
@@ -98,15 +103,25 @@ const config: Config = {
         '2xl': '48px',
       },
       fontSize: {
-        'display-lg': ['32px', { lineHeight: '1.2', fontWeight: '600' }],
-        'display-md': ['28px', { lineHeight: '1.2', fontWeight: '600' }],
+        'display-lg': ['32px', { lineHeight: '1.2', fontWeight: '700' }],
+        'display-md': ['28px', { lineHeight: '1.2', fontWeight: '700' }],
         'display-sm': ['24px', { lineHeight: '1.2', fontWeight: '600' }],
+        'headline-lg': ['26px', { lineHeight: '1.3', fontWeight: '700' }],
         'headline-md': ['20px', { lineHeight: '1.3', fontWeight: '600' }],
+        'headline-sm': ['22px', { lineHeight: '1.3', fontWeight: '600' }],
         'title-lg': ['18px', { lineHeight: '1.3', fontWeight: '600' }],
         'title-md': ['16px', { lineHeight: '1.4', fontWeight: '500' }],
+        'title-sm': ['14px', { lineHeight: '1.4', fontWeight: '600' }],
         'body-lg': ['16px', { lineHeight: '1.5', fontWeight: '400' }],
         'body-md': ['14px', { lineHeight: '1.5', fontWeight: '400' }],
+        /** Prefer with text-ui-muted-foreground for secondary copy */
+        'body-sm': ['13px', { lineHeight: '1.5', fontWeight: '400' }],
         'label-lg': ['14px', { lineHeight: '1.4', fontWeight: '500' }],
+        'label-md': ['12px', { lineHeight: '1.4', fontWeight: '500' }],
+        'label-sm': [
+          '11px',
+          { lineHeight: '1.4', fontWeight: '600', letterSpacing: '0.08em' },
+        ],
       },
       keyframes: {
         fadeIn: {
@@ -144,26 +159,6 @@ const config: Config = {
           '0%': { width: '0%' },
           '100%': { width: '100%' },
         },
-        /** Staggered, non-linear fill for "preparing audio" — reaches 100% at 10s. */
-        audioPrepareProgress: {
-          '0%': { width: '0%' },
-          '4%': { width: '5%' },
-          '8%': { width: '10%' },
-          '12%': { width: '10%' },
-          '18%': { width: '22%' },
-          '25%': { width: '31%' },
-          '30%': { width: '31%' },
-          '38%': { width: '45%' },
-          '46%': { width: '54%' },
-          '51%': { width: '54%' },
-          '59%': { width: '65%' },
-          '67%': { width: '74%' },
-          '73%': { width: '74%' },
-          '81%': { width: '84%' },
-          '89%': { width: '91%' },
-          '95%': { width: '95%' },
-          '100%': { width: '100%' },
-        },
         audioWave: {
           '0%, 100%': { transform: 'scaleY(0.45)' },
           '50%': { transform: 'scaleY(1)' },
@@ -188,9 +183,10 @@ const config: Config = {
           from: { height: 'var(--radix-collapsible-content-height)' },
           to: { height: '0' },
         },
+        /** Pulsing outline colour; outlines never affect layout so the playing card stays pixel-identical to siblings. */
         nowPlayingGlow: {
-          '0%, 100%': { borderColor: 'rgba(74, 36, 98, 0.85)' },
-          '50%':       { borderColor: 'rgba(74, 36, 98, 0.25)' },
+          '0%, 100%': { outlineColor: 'hsl(var(--primary) / 0.85)' },
+          '50%': { outlineColor: 'hsl(var(--primary) / 0.25)' },
         },
       },
       animation: {
@@ -202,7 +198,6 @@ const config: Config = {
         writing: 'writing 1.5s ease-in-out infinite',
         bounceDot: 'bounceDot 0.6s ease-in-out infinite',
         progress: 'progress 20s linear forwards',
-        audioPrepareProgress: 'audioPrepareProgress 10s linear forwards',
         audioWave: 'audioWave 0.9s ease-in-out infinite',
         marquee: 'marquee var(--marquee-duration, 12s) linear infinite',
         'accordion-down': 'accordion-down 0.2s ease-out',

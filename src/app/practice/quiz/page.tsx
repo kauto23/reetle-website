@@ -8,7 +8,7 @@ import { AlertCircle, Check, Loader2 } from 'lucide-react';
 import QuestionCard from '@/components/practice/QuestionCard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
-import { getArticleQuestions, getGuestArticleQuestions, submitPracticeAnswer } from '@/services/api';
+import { getArticleQuestions, getGuestArticleQuestions } from '@/services/api';
 import { consumeQuizCache } from '@/services/quizCache';
 import { useLoginUrl } from '@/hooks/useLoginUrl';
 import type { PracticeQuestion } from '@/types/practice';
@@ -52,7 +52,13 @@ function ArticleQuizContent() {
       const qs = cached
         ? await cached
         : isGuestQuiz
-          ? await getGuestArticleQuestions(articleId, undefined, guestPrefs.targetLanguage, guestPrefs.familiarLanguage, guestPrefs.cefrLevel)
+          ? await getGuestArticleQuestions(
+              articleId,
+              undefined,
+              guestPrefs.targetLanguage,
+              guestPrefs.familiarLanguage,
+              guestPrefs.cefrLevel
+            )
           : await getArticleQuestions(articleId, articleViewId);
       setQuestions(qs);
     } catch {
@@ -66,24 +72,15 @@ function ArticleQuizContent() {
     fetchQuestions();
   }, [fetchQuestions]);
 
-  const handleAnswer = useCallback(async (isCorrect: boolean) => {
-    const currentQuestion = questions[currentIndex];
-    if (isCorrect) setCorrectCount(prev => prev + 1);
-
-    if (!isGuestQuiz) {
-      try {
-        await submitPracticeAnswer(currentQuestion.practiceQuestionId, isCorrect, currentQuestion.unsureWordId);
-      } catch {
-        // Non-critical
-      }
-    }
-  }, [questions, currentIndex, isGuestQuiz]);
+  const handleAnswer = useCallback((_selectedIndex: number, isCorrect: boolean) => {
+    if (isCorrect) setCorrectCount((prev) => prev + 1);
+  }, []);
 
   const handleNext = useCallback(() => {
     if (currentIndex + 1 >= questions.length) {
       setIsComplete(true);
     } else {
-      setCurrentIndex(prev => prev + 1);
+      setCurrentIndex((prev) => prev + 1);
     }
   }, [currentIndex, questions.length]);
 
@@ -99,56 +96,46 @@ function ArticleQuizContent() {
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-primary/[0.03] pointer-events-none" />
 
       <div className="max-w-[600px] mx-auto px-md relative">
-        {/* Loading */}
         {isLoading && (
           <motion.div
-            className="flex flex-col items-center justify-center py-16 gap-4"
+            className="flex flex-col items-center justify-center py-16 gap-md"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.15 }}
           >
             <Loader2 className="w-9 h-9 text-ui-primary animate-spin" />
-            <p className="text-[14px] text-ui-muted-foreground">Loading quiz...</p>
+            <p className="text-body-md text-ui-muted-foreground">Loading quiz...</p>
           </motion.div>
         )}
 
-        {/* Error */}
         {error && !isLoading && (
-          <motion.div
-            className="text-center py-12"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="w-14 h-14 bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <motion.div className="text-center py-12" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="w-14 h-14 bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-md">
               <AlertCircle className="w-7 h-7 text-incorrect-text" />
             </div>
-            <p className="text-[15px] text-ui-muted-foreground mb-6">{error}</p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={fetchQuestions}>Try again</Button>
-              <Button variant="outline" asChild>
-                <Link href="/">Back to articles</Link>
-              </Button>
-            </div>
+            <p className="text-body-lg text-ui-muted-foreground mb-md">{error}</p>
+            <Button variant="outline" asChild>
+              <Link href="/">Back to articles</Link>
+            </Button>
           </motion.div>
         )}
 
-        {/* Completion */}
         {isComplete && (
           <div className="text-center py-12 animate-fadeIn">
-            <div className="w-20 h-20 bg-correct rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="w-20 h-20 bg-correct rounded-full flex items-center justify-center mx-auto mb-md">
               <Check className="w-10 h-10 text-white" strokeWidth={2.5} />
             </div>
-            <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">Quiz complete!</h1>
-            <p className="text-[15px] text-ui-muted-foreground mb-6">
+            <h1 className="text-display-md tracking-tight text-ui-foreground mb-xs">Quiz complete!</h1>
+            <p className="text-body-lg text-ui-muted-foreground mb-md">
               You got {correctCount} out of {totalQuestions} correct.
             </p>
 
             <Progress
               value={totalQuestions > 0 ? (correctCount / totalQuestions) * 100 : 0}
-              className="mb-8 [&>div]:bg-correct"
+              className="mb-md [&>div]:bg-correct"
             />
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-sm">
               <Button asChild className="flex-1">
                 <Link href="/">Continue reading</Link>
               </Button>
@@ -165,11 +152,10 @@ function ArticleQuizContent() {
           </div>
         )}
 
-        {/* Quiz in progress */}
         {!isLoading && !error && !isComplete && questions.length > 0 && (
           <>
-            <div className="mb-6">
-              <div className="flex justify-between text-[13px] text-ui-muted-foreground mb-2">
+            <div className="mb-md">
+              <div className="flex justify-between text-body-sm text-ui-muted-foreground mb-xs">
                 <span>Question {currentIndex + 1} of {totalQuestions}</span>
                 <span className="text-correct-text">{correctCount} correct</span>
               </div>
@@ -180,6 +166,7 @@ function ArticleQuizContent() {
               <QuestionCard
                 key={currentIndex}
                 question={questions[currentIndex]}
+                mode="quiz"
                 onAnswer={handleAnswer}
                 onNext={handleNext}
                 nextLabel={currentIndex + 1 >= questions.length ? 'See Results' : 'Next Question'}
@@ -196,11 +183,13 @@ function ArticleQuizContent() {
 
 export default function ArticleQuizPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="h-9 w-9 animate-spin text-ui-primary" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <Loader2 className="h-9 w-9 animate-spin text-ui-primary" />
+        </div>
+      }
+    >
       <ArticleQuizContent />
     </Suspense>
   );

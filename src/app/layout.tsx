@@ -16,8 +16,40 @@ import { PlayAllAudioProvider } from '@/contexts/PlayAllAudioContext';
 import PlayAllAudio from '@/components/articles/PlayAllAudio';
 import { Toaster } from '@/components/ui/sonner';
 import { SHOW_APP_STORE_PROMO } from '@/config/site-promos';
-import { API_ORIGIN } from '@/config/environment';
+import { API_ORIGIN, API_BASE_URL } from '@/config/environment';
 import './globals.css';
+
+// Fires the initial home-feed request during HTML parse, before React
+// hydrates, so it runs in parallel with app boot instead of waiting for the
+// effect in ArticlesContext. The response is stashed on
+// window.__reetlePrefetch and consumed by the API layer (see services/api.ts).
+// Auth state mirrors AuthContext: authenticated only when BOTH the token and
+// saved user exist. The guest body key order matches getGuestArticles so the
+// consumer can match the request exactly. Subscription status is NOT fetched
+// here — it is seeded from the auth response at sign-in (see SubscriptionContext).
+const PREFETCH_SCRIPT = `(function(){try{
+var API=${JSON.stringify(API_BASE_URL)};
+var token=localStorage.getItem('reetle_access_token');
+var authed=!!token&&!!localStorage.getItem('reetle_user');
+var s=(window.__reetlePrefetch=window.__reetlePrefetch||{});
+s.articlesAuthed=authed;
+if(authed){
+s.articlesKey='{}';
+s.articles=fetch(API+'/articles/article-summaries',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});
+}else{
+var lang=localStorage.getItem('reetle-guest-language');
+var level=localStorage.getItem('reetle-guest-level');
+var t=(lang&&lang!=='es')?lang:null;
+var l=(level&&level!=='A2')?level:null;
+var body={};
+if(t)body.target_language=t;
+if(t||l)body.familiar_language='en';
+if(l)body.cefr_level=l;
+s.articlesKey=JSON.stringify(body);
+s.articles=fetch(API+'/articles/guest/article-summaries',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:s.articlesKey});
+}
+if(s.articles)s.articles.catch(function(){});
+}catch(e){}})();`;
 
 const outfit = Outfit({
   subsets: ['latin'],
@@ -84,6 +116,7 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href={API_ORIGIN} />
         <link rel="dns-prefetch" href={API_ORIGIN} />
+        <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
       </head>
       <body className="font-outfit bg-background text-primary min-h-screen flex flex-col">
         <ErrorBoundary>

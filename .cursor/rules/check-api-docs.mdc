@@ -1,30 +1,48 @@
 ---
-description: Always consult API documentation before modifying code that interacts with API endpoints
+description: Always consult the authoritative Reetle API docs before adding or changing any API call
 alwaysApply: true
 ---
 
-# Check API Documentation Before Modifying Endpoint Code
+# Check the Latest API Docs Before Touching Any API Call
 
-Before modifying any code that interacts with API endpoints, **always read the relevant documentation** in the `docs/` folder first.
+Before you **add a new API call** or **change an existing one** (path, method, request body, response parsing, headers, auth, or error handling), read the current API documentation first.
 
-## Documentation Map
+## Source of truth: the `reetle-api` repo — NOT the local `docs/` folder
 
-| Doc File | Covers |
-|----------|--------|
-| `docs/auth.md` | Authentication, registration, OAuth, token refresh |
-| `docs/articles.md` | Articles endpoints |
-| `docs/assessment.md` | Assessment endpoints |
-| `docs/languages.md` | Languages endpoints |
-| `docs/practice.md` | Practice endpoints |
-| `docs/stats.md` | User statistics endpoints |
-| `docs/translations.md` | Translation endpoints |
-| `docs/rate_limiting.md` | Rate limiting rules and 429 handling |
+The `docs/` folder in this website repo is a **stale, untracked mirror** and must not be trusted. The authoritative, up-to-date docs live in the backend repo `kauto23/reetle-api` (currently on the `staging` branch; check `main` too once merged).
+
+Fetch a doc with the GitHub CLI:
+
+```bash
+gh api "repos/kauto23/reetle-api/contents/docs/<file>.md?ref=staging" --jq '.content' | base64 -d
+```
+
+List what's available (start at `docs/README.md`, the index):
+
+```bash
+gh api "repos/kauto23/reetle-api/git/trees/staging?recursive=1" --jq '.tree[].path | select(startswith("docs/"))'
+```
+
+## Documentation map
+
+| Doc | Covers |
+|-----|--------|
+| `docs/auth.md` | Registration, login, Apple/Google OAuth, token refresh, account deletion |
+| `docs/articles.md` | Article summaries & content, audio, OG metadata |
+| `docs/subscriptions.md` | Premium status, Stripe/Apple/Google billing, free-tier quotas |
+| `docs/practice.md` | Vocabulary practice & comprehension quizzes |
+| `docs/translations.md` | Word/phrase translation |
+| `docs/assessment.md` | CEFR level assessment |
+| `docs/languages.md` | Supported languages |
+| `docs/referrals.md` | Refer-a-friend program |
+| `docs/stats.md` | User statistics |
+| `docs/rate_limiting.md` | Per-endpoint rate limits and 429 handling |
 
 ## Workflow
 
-1. **Identify** which API endpoints the code change touches.
-2. **Read** the corresponding `docs/*.md` file(s) using the Read tool.
-3. **Verify** request methods, paths, request/response shapes, auth requirements, and rate limits match what the docs specify.
-4. **Apply** the change, ensuring it stays consistent with the documented API contract.
+1. **Identify** which endpoint(s) the change touches.
+2. **Fetch** the matching `docs/*.md` from `reetle-api` using the command above.
+3. **Verify** method, path, request/response shape, auth, and rate limits against the doc.
+4. **Apply** the change to match the documented contract.
 
-If the docs and the existing code disagree, flag the discrepancy before proceeding.
+If the docs and the code disagree, or the docs describe a breaking response-shape change, flag it before proceeding.

@@ -15,24 +15,24 @@ export default function Footer() {
               height={28}
               className="rounded-[5px]"
             />
-            <span className="text-[16px] font-semibold text-white">Reetle</span>
+            <span className="text-title-md font-semibold text-white">Reetle</span>
           </div>
 
           {/* Links */}
           <nav>
             <ul className="flex flex-wrap justify-center gap-[20px] sm:gap-[28px] list-none">
               <li>
-                <Link href="/terms" className="text-[13px] text-white/70 hover:text-white transition-colors">
+                <Link href="/terms" className="text-body-sm text-white/70 hover:text-white transition-colors">
                   Terms of Service
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="text-[13px] text-white/70 hover:text-white transition-colors">
+                <Link href="/privacy" className="text-body-sm text-white/70 hover:text-white transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/support" className="text-[13px] text-white/70 hover:text-white transition-colors">
+                <Link href="/support" className="text-body-sm text-white/70 hover:text-white transition-colors">
                   Support
                 </Link>
               </li>
@@ -40,7 +40,7 @@ export default function Footer() {
           </nav>
 
           {/* Copyright */}
-          <p className="text-[12px] text-white/50">
+          <p className="text-label-md text-white/50">
             &copy; {new Date().getFullYear()} Reetle
           </p>
         </div>

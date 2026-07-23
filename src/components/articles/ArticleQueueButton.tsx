@@ -82,7 +82,6 @@ export default function ArticleQueueButton({
   layout = 'row',
 }: ArticleQueueButtonProps) {
   const isColumn = layout === 'column';
-  const isColumnLike = layout === 'mobile-column' || isColumn;
   const { isAuthenticated } = useAuth();
   const router = useRouter();
   const loginUrl = useLoginUrl();
@@ -147,7 +146,7 @@ export default function ArticleQueueButton({
   }, [loginUrl, router]);
 
   const applyResult = useCallback(
-    (result: Awaited<ReturnType<typeof playAll.queueArticle>>) => {
+    (result: Awaited<ReturnType<typeof playAll.queueArticle>>, action: ActionKind) => {
       switch (result.status) {
         // Inline label handles these — no toast needed.
         case 'started':
@@ -162,11 +161,15 @@ export default function ArticleQueueButton({
           break;
 
         case 'requires_premium':
-          toast('On-demand audio is a Premium feature', {
-            action: { label: 'Upgrade', onClick: () => router.push('/premium') },
-            duration: 5000,
-            id: 'requires-premium',
-          });
+          // For "play now" the bottom player itself shows the Premium upsell
+          // (mode === 'requires_premium'), so only queue-adds need a toast.
+          if (action === 'append') {
+            toast('On-demand audio is a Premium feature', {
+              action: { label: 'Upgrade', onClick: () => router.push('/premium') },
+              duration: 5000,
+              id: 'requires-premium',
+            });
+          }
           break;
 
         case 'limit_reached':
@@ -207,7 +210,7 @@ export default function ArticleQueueButton({
       
       try {
         const result = await playAll.queueArticle(article, { action });
-        applyResult(result);
+        applyResult(result, action);
       } finally {
         setSubmitting(null);
       }
@@ -272,7 +275,7 @@ export default function ArticleQueueButton({
       />
     );
     playLabel = isPausedThis ? 'Resume' : (playAll.isSessionActive ? 'Play now' : 'Play this article');
-    playColor = isPausedThis ? 'text-primary' : 'text-text-secondary/55 hover:text-primary';
+    playColor = isPausedThis ? 'text-primary' : 'text-ui-muted-foreground/55 hover:text-primary';
   }
 
   let queueContent: React.ReactNode;
@@ -289,7 +292,7 @@ export default function ArticleQueueButton({
   } else {
     queueContent = <ListPlus size={iconPx} className={iconSizeClass} />;
     queueLabel = 'Add to queue';
-    queueColor = 'text-text-secondary/55 hover:text-primary';
+    queueColor = 'text-ui-muted-foreground/55 hover:text-primary';
   }
 
   // Only surface "Add to queue" while audio is actively playing/loading.
@@ -310,12 +313,10 @@ export default function ArticleQueueButton({
       : needsPrepRotate ? 'Preparing'
         : statusLabel;
 
-  // Larger tap area on mobile (p-3 = 12px each side ⇒ ~44px tap target),
-  // dialed back to the original on desktop where cursor precision is fine.
-  const baseBtn = `flex-shrink-0 inline-flex items-center justify-center bg-transparent border-none cursor-pointer transition-colors duration-150 ${
-    isColumn ? 'p-1.5' : isColumnLike ? 'p-2.5 sm:p-2' : 'p-3 sm:p-2'
-  } rounded-md`;
-  
+  // iOS spec: fixed 34×30px headline action targets (Play / Translate match).
+  const baseBtn =
+    'flex-shrink-0 inline-flex items-center justify-center w-[34px] h-[30px] p-0 bg-transparent border-none cursor-pointer transition-colors duration-150 rounded-md';
+
   const containerClass = isColumn
     ? `inline-flex flex-col items-center shrink-0 ${className}`
     : layout === 'mobile-column'
@@ -327,7 +328,7 @@ export default function ArticleQueueButton({
       {statusLabel && !isColumn && (
         <span
           key={statusLabel}
-          className={`text-[10px] font-medium text-primary animate-fadeIn ${
+          className={`text-label-sm font-medium text-primary animate-fadeIn ${
             layout === 'mobile-column'
               ? 'max-w-[48px] text-center leading-[1.1] sm:max-w-none sm:whitespace-nowrap sm:text-left'
               : 'whitespace-nowrap'
@@ -342,26 +343,58 @@ export default function ArticleQueueButton({
         disabled={!!submitting}
         title={playLabel}
         aria-label={playLabel}
-        className={`${baseBtn} ${playColor} ${submitting === 'play_now' ? 'opacity-70' : ''}`}
+        className={cn(
+          baseBtn,
+          playColor,
+          submitting === 'play_now' ? 'opacity-70' : '',
+          isColumn && 'transition-transform duration-300 ease-out',
+        )}
       >
         {playContent}
       </button>
-      {showQueueButton && (
-        <button
-          type="button"
-          onClick={queueButtonClick}
-          disabled={!!submitting}
-          title={queueLabel}
-          aria-label={showQueueButton ? queueLabel : 'Add to queue'}
+      {isColumn ? (
+        // Always mounted so height can animate open/closed; siblings re-center
+        // in the fixed column as this slot grows or shrinks.
+        <span
           className={cn(
-            baseBtn,
-            queueColor,
-            submitting === 'append' ? 'opacity-70' : '',
-            isColumn ? 'animate-fadeIn' : 'animate-in fade-in slide-in-from-right-2 duration-300'
+            'flex w-[34px] shrink-0 items-center justify-center overflow-hidden',
+            'transition-[height,opacity,transform] duration-300 ease-out',
+            showQueueButton
+              ? 'h-[30px] opacity-100 scale-100'
+              : 'h-0 opacity-0 scale-90 pointer-events-none',
           )}
+          aria-hidden={!showQueueButton}
         >
-          {queueContent}
-        </button>
+          <button
+            type="button"
+            onClick={queueButtonClick}
+            disabled={!showQueueButton || !!submitting}
+            tabIndex={showQueueButton ? 0 : -1}
+            title={queueLabel}
+            aria-label={queueLabel}
+            className={cn(baseBtn, queueColor, submitting === 'append' ? 'opacity-70' : '')}
+          >
+            {queueContent}
+          </button>
+        </span>
+      ) : (
+        showQueueButton && (
+          <button
+            type="button"
+            onClick={queueButtonClick}
+            disabled={!!submitting}
+            title={queueLabel}
+            aria-label={queueLabel}
+            className={cn(
+              baseBtn,
+              queueColor,
+              submitting === 'append' ? 'opacity-70' : '',
+              'animate-in fade-in slide-in-from-right-2 duration-300',
+            )}
+          >
+            {queueContent}
+          </button>
+        )
       )}
     </span>
   );

@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useState, useEffect } from 'react';
-import { ExternalLink, MoreHorizontal, X, ArrowUp, Globe, MousePointer2 } from 'lucide-react';
+import { ExternalLink, MoreHorizontal, X, MousePointer2 } from 'lucide-react';
 import { useInAppBrowser } from '@/hooks/useInAppBrowser';
 import { useIsMobileDevice } from '@/hooks/useIsMobileDevice';
 import { useAuth } from '@/contexts/AuthContext';
 
-type Step = 'browser' | 'settings' | 'translate' | null;
+type Step = 'browser' | 'translate' | null;
 
 const ONBOARDING_DISMISSED_KEY = 'reetle-mobile-onboarding-dismissed';
 
@@ -14,16 +14,15 @@ const ONBOARDING_DISMISSED_KEY = 'reetle-mobile-onboarding-dismissed';
  * Multi-step onboarding on phones and tablets (any mobile browser, including
  * in-app WebViews and Safari/Chrome).
  *
- * Step 1 – Full-page overlay: "Change language & level via the menu".
- * Step 2 – Full-page overlay: "Tap any word to translate".
- * Step 3 – Inline banner: "Open in external browser" (in-app WebViews only; skipped in
+ * Step 1 – Full-page overlay: "Tap any word to translate".
+ * Step 2 – Inline banner: "Open in external browser" (in-app WebViews only; skipped in
  *   Safari/Chrome and other standalone mobile browsers).
  *
  * Frequency:
  *   - Logged-in users: shown once ever (localStorage).
  *   - Guests: shown once per browser session (sessionStorage).
  *
- * On Android in-app, step 3 offers a direct intent-based redirect.
+ * On Android in-app, step 2 offers a direct intent-based redirect.
  */
 export default function OpenInBrowserBanner() {
   const inAppBrowser = useInAppBrowser();
@@ -40,7 +39,7 @@ export default function OpenInBrowserBanner() {
 
     if (alreadyDismissed) return;
 
-    setStep('settings');
+    setStep('translate');
   }, [isMobileDevice, isAuthenticated, authLoading]);
 
   useEffect(() => {
@@ -57,7 +56,6 @@ export default function OpenInBrowserBanner() {
     }
   }, [isAuthenticated]);
 
-  const dismissSettings = useCallback(() => setStep('translate'), []);
   const dismissTranslate = useCallback(() => {
     markDismissed();
     setStep(inAppBrowser ? 'browser' : null);
@@ -77,7 +75,7 @@ export default function OpenInBrowserBanner() {
 
   // Lock scroll while an overlay is visible
   useEffect(() => {
-    if (step === 'settings' || step === 'translate') {
+    if (step === 'translate') {
       document.body.style.overflow = 'hidden';
       return () => { document.body.style.overflow = ''; };
     }
@@ -92,7 +90,7 @@ export default function OpenInBrowserBanner() {
     : inAppBrowser === 'linkedin' ? 'LinkedIn'
     : null;
 
-  // ── Step 3: inline banner (in-app WebViews only) ────────────────────────────
+  // ── Step 2: inline banner (in-app WebViews only) ────────────────────────────
   if (step === 'browser') {
     if (!inAppBrowser) return null;
 
@@ -140,86 +138,7 @@ export default function OpenInBrowserBanner() {
     );
   }
 
-  // ── Step 1: full-page overlay — language & level ───────────────────────────
-  if (step === 'settings') {
-    return (
-      <div className="fixed inset-0 z-[2000]">
-        <div className="absolute inset-0 bg-primary-dark/80 backdrop-blur-sm" />
-
-        {/* Arrow pointing at hamburger menu (top-right) */}
-        <div className="absolute top-[10px] right-[18px] flex flex-col items-center animate-bounce">
-          <ArrowUp size={28} strokeWidth={2.5} color="white" />
-        </div>
-
-        <div className="absolute inset-x-[16px] top-[60px] bg-white rounded-xl p-[24px] shadow-2xl animate-fadeIn">
-          <div className="flex flex-col items-center text-center gap-[16px]">
-            <div className="w-[56px] h-[56px] rounded-full bg-primary/10 flex items-center justify-center">
-              <Globe size={28} strokeWidth={2} color="#4A2462" />
-            </div>
-
-            <div>
-              <h2 className="text-[18px] font-semibold text-primary mb-[6px]">
-                Personalise your reading
-              </h2>
-              <p className="text-[14px] text-text-secondary leading-[1.5]">
-                Tap the <strong className="text-primary">menu</strong> at the top right to
-                change your <strong className="text-primary">language</strong> and
-                reading <strong className="text-primary">level</strong> at any time.
-              </p>
-            </div>
-
-            {/* Visual preview of what's in the menu */}
-            <div className="w-full bg-primary rounded-lg p-[14px] space-y-[10px]">
-              <div>
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-[6px]">Language</p>
-                <div className="flex flex-wrap gap-[4px]">
-                  {['Spanish', 'French', 'German', 'Italian'].map(lang => (
-                    <span
-                      key={lang}
-                      className={`text-[11px] font-medium px-[10px] py-[4px] rounded-md border ${
-                        lang === 'Spanish'
-                          ? 'bg-white text-primary border-white'
-                          : 'bg-transparent text-white/60 border-white/20'
-                      }`}
-                    >
-                      {lang}
-                    </span>
-                  ))}
-                  <span className="text-[11px] text-white/40 px-[4px] py-[4px]">+more</span>
-                </div>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-[6px]">Level</p>
-                <div className="flex flex-wrap gap-[4px]">
-                  {['Beginner', 'Elementary', 'Intermediate', 'Upper Int.'].map(level => (
-                    <span
-                      key={level}
-                      className={`text-[11px] font-medium px-[10px] py-[4px] rounded-md border ${
-                        level === 'Elementary'
-                          ? 'bg-white text-primary border-white'
-                          : 'bg-transparent text-white/60 border-white/20'
-                      }`}
-                    >
-                      {level}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={dismissSettings}
-              className="w-full bg-primary text-white font-medium py-[14px] rounded-lg text-[15px] cursor-pointer border-none transition-colors hover:bg-primary-dark active:bg-primary-dark"
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Step 2: full-page overlay — tap to translate ───────────────────────────
+  // ── Step 1: full-page overlay — tap to translate ───────────────────────────
   if (step === 'translate') {
     return (
       <div className="fixed inset-0 z-[2000]">
@@ -235,7 +154,7 @@ export default function OpenInBrowserBanner() {
               <h2 className="text-[18px] font-semibold text-primary mb-[6px]">
                 Tap to translate
               </h2>
-              <p className="text-[14px] text-text-secondary leading-[1.5]">
+              <p className="text-[14px] text-ui-muted-foreground leading-[1.5]">
                 Tap any <strong className="text-primary">word</strong> or highlight
                 a <strong className="text-primary">phrase</strong> in the article to translate it.
               </p>

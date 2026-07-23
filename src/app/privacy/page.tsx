@@ -12,8 +12,8 @@ export default function PrivacyPage() {
       <div className="max-w-[1200px] mx-auto px-4">
         <Card className="max-w-[800px] mx-auto">
           <CardContent className="p-6 sm:p-8 prose-content">
-          <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-1">Privacy Policy</h1>
-          <p className="text-[14px] text-ui-muted-foreground mb-8">Last updated: December 2025</p>
+          <h1 className="text-display-md tracking-tight text-ui-foreground mb-1">Privacy Policy</h1>
+          <p className="text-body-md text-ui-muted-foreground mb-8">Last updated: December 2025</p>
 
           <h2 className="text-title-lg text-primary mt-xl mb-md">1. Introduction</h2>
           <p className="text-body-md text-primary">

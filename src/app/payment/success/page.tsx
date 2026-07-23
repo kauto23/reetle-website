@@ -20,7 +20,7 @@ export default function PaymentSuccessPage() {
 
     const poll = async () => {
       pollCount.current += 1;
-      await refreshStatus();
+      await refreshStatus().catch(() => {});
       if (pollCount.current >= 6) {
         setPolling(false);
       }
@@ -41,10 +41,10 @@ export default function PaymentSuccessPage() {
               <div className="w-20 h-20 bg-correct-bg rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-10 h-10 text-correct" />
               </div>
-              <h1 className="text-[28px] font-semibold tracking-tight text-ui-foreground mb-2">
+              <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">
                 Welcome to Premium!
               </h1>
-              <p className="text-[15px] text-ui-muted-foreground mb-10 max-w-md mx-auto">
+              <p className="text-body-lg text-ui-muted-foreground mb-10 max-w-md mx-auto">
                 You now have unlimited access to articles, audio, and practice. Happy learning.
               </p>
               <Button asChild size="lg">
@@ -59,7 +59,7 @@ export default function PaymentSuccessPage() {
               <h1 className="text-[26px] font-semibold tracking-tight text-ui-foreground mb-2">
                 Confirming your payment...
               </h1>
-              <p className="text-[15px] text-ui-muted-foreground">
+              <p className="text-body-lg text-ui-muted-foreground">
                 This usually takes just a moment.
               </p>
             </>
@@ -71,7 +71,7 @@ export default function PaymentSuccessPage() {
               <h1 className="text-[26px] font-semibold tracking-tight text-ui-foreground mb-2">
                 Payment received
               </h1>
-              <p className="text-[15px] text-ui-muted-foreground mb-6 max-w-md mx-auto">
+              <p className="text-body-lg text-ui-muted-foreground mb-6 max-w-md mx-auto">
                 Your payment is being processed. It may take a minute for your premium access to activate.
               </p>
               <div className="flex flex-col gap-2 max-w-[300px] mx-auto">

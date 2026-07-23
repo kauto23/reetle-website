@@ -61,7 +61,7 @@ export default function TopicNav({ selectedSubtopic, onSubtopicChange, subtopics
 
   const isInitialLoad = !articlesData;
 
-  const btnBase = 'px-4 py-3 text-[13px] font-semibold tracking-wide uppercase transition-all duration-200 border-b-[3px] border-transparent cursor-pointer bg-transparent whitespace-nowrap';
+  const btnBase = 'px-4 py-3 text-body-sm font-semibold tracking-wide uppercase transition-all duration-200 border-b-[3px] border-transparent cursor-pointer bg-transparent whitespace-nowrap';
   const btnActive = 'border-b-ui-primary text-ui-primary';
   const btnInactive = 'text-ui-muted-foreground hover:text-ui-primary hover:border-b-ui-primary/30';
 

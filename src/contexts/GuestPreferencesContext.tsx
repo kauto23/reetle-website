@@ -21,6 +21,8 @@ interface GuestPreferencesContextType {
   setTargetLanguage: (lang: string) => void;
   setCefrLevel: (level: string) => void;
   hasCustomised: boolean;
+  /** True once preferences have been read from localStorage on the client. */
+  isHydrated: boolean;
 }
 
 const GuestPreferencesContext = createContext<GuestPreferencesContextType | null>(null);
@@ -33,6 +35,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
     cefrLevel: DEFAULT_LEVEL,
   });
   const [hasCustomised, setHasCustomised] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -46,6 +49,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
       });
       setHasCustomised(true);
     }
+    setIsHydrated(true);
   }, []);
 
   const setTargetLanguage = useCallback((lang: string) => {
@@ -68,6 +72,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
         setTargetLanguage: () => {},
         setCefrLevel: () => {},
         hasCustomised: false,
+        isHydrated: true,
       }}>
         {children}
       </GuestPreferencesContext.Provider>
@@ -75,7 +80,7 @@ export function GuestPreferencesProvider({ children }: { children: ReactNode }) 
   }
 
   return (
-    <GuestPreferencesContext.Provider value={{ preferences, setTargetLanguage, setCefrLevel, hasCustomised }}>
+    <GuestPreferencesContext.Provider value={{ preferences, setTargetLanguage, setCefrLevel, hasCustomised, isHydrated }}>
       {children}
     </GuestPreferencesContext.Provider>
   );

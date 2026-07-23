@@ -11,10 +11,10 @@ export default function PaymentCancelPage() {
         <div className="w-20 h-20 bg-ui-muted rounded-full flex items-center justify-center mx-auto mb-6">
           <XCircle className="w-10 h-10 text-ui-muted-foreground" />
         </div>
-        <h1 className="text-[26px] font-semibold tracking-tight text-ui-foreground mb-2">
+        <h1 className="text-headline-lg tracking-tight text-ui-foreground mb-2">
           Payment cancelled
         </h1>
-        <p className="text-[15px] text-ui-muted-foreground mb-10 max-w-md mx-auto">
+        <p className="text-body-lg text-ui-muted-foreground mb-10 max-w-md mx-auto">
           No worries — you can upgrade to Premium any time.
         </p>
         <div className="flex flex-col gap-2 max-w-[300px] mx-auto">
