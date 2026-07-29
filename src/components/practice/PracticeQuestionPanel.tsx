@@ -70,10 +70,10 @@ export default function PracticeQuestionPanel({
   const fbColor = isCorrect ? '#065F46' : '#991B1B';
 
   return (
-    <div className="h-full w-full flex flex-col gap-sm px-md pt-md pb-[calc(16px+env(safe-area-inset-bottom,0px))] max-w-[600px] mx-auto relative">
+    <div className="h-full w-full flex flex-col gap-sm px-md pt-md [@media(max-height:700px)]:pt-sm pb-[calc(16px+env(safe-area-inset-bottom,0px))] max-w-[600px] mx-auto relative">
       {/* Question card */}
       <div
-        className="relative bg-white rounded-2xl border border-[#E5E3E8] px-md py-md overflow-hidden transition-opacity duration-300"
+        className="relative bg-white rounded-2xl border border-[#E5E3E8] px-md py-md [@media(max-height:700px)]:py-sm overflow-hidden flex flex-col min-h-0 transition-opacity duration-300"
         style={{ opacity: cardDim }}
       >
         {/* Domain header row: centered domain label with a thumbs-down/thumbs-up
@@ -101,39 +101,41 @@ export default function PracticeQuestionPanel({
           </div>
         )}
 
-        {!fb && qd.instruction && (
-          <p className="text-body-sm text-[#666276] text-center leading-relaxed pb-sm mb-sm border-b border-[#EDEAF1]">
-            {qd.instruction}
-          </p>
-        )}
+        <div className="min-h-0 overflow-y-auto">
+          {!fb && qd.instruction && (
+            <p className="text-body-sm text-[#666276] text-center leading-relaxed pb-sm mb-sm border-b border-[#EDEAF1]">
+              {qd.instruction}
+            </p>
+          )}
 
-        <div className="flex items-start justify-center gap-xs relative z-[1]">
-          {/* Prototype swaps the text in place with a single rise, no exit gap */}
-          <motion.p
-            key={answered ? 'complete' : 'prompt'}
-            initial={answered ? { opacity: 0, y: 14 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            className="text-title-lg leading-relaxed text-center font-semibold text-[#4A2462]"
-          >
-            {displayQuestion}
-          </motion.p>
+          <div className="flex items-start justify-center gap-xs relative z-[1]">
+            {/* Prototype swaps the text in place with a single rise, no exit gap */}
+            <motion.p
+              key={answered ? 'complete' : 'prompt'}
+              initial={answered ? { opacity: 0, y: 14 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className="text-title-lg leading-relaxed [@media(max-height:700px)]:text-title-md [@media(max-height:700px)]:leading-snug text-center font-semibold text-[#4A2462]"
+            >
+              {displayQuestion}
+            </motion.p>
+          </div>
+
+          {answered && qd.questionCompleteFamiliar && (
+            <motion.p
+              className="text-body-sm text-[#666276] text-center mt-sm italic pt-sm border-t border-[#EDEAF1]"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.12, duration: 0.4, ease: 'easeOut' }}
+            >
+              {qd.questionCompleteFamiliar}
+            </motion.p>
+          )}
         </div>
-
-        {answered && qd.questionCompleteFamiliar && (
-          <motion.p
-            className="text-body-sm text-[#666276] text-center mt-sm italic pt-sm border-t border-[#EDEAF1]"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.12, duration: 0.4, ease: 'easeOut' }}
-          >
-            {qd.questionCompleteFamiliar}
-          </motion.p>
-        )}
       </div>
 
       {/* Options */}
-      <div className="flex flex-col gap-xs">
+      <div className="flex flex-col gap-xs flex-shrink-0">
         {qd.answerChoices.map((choice, index) => {
           const isSelected = selectedIndex === index;
           const isCorrectChoice = choice.text === qd.correctAnswer;

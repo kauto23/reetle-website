@@ -7,6 +7,7 @@ export interface Article {
   subtopic: string | null;
   geography: string | null;
   imageLinks: string[];
+  imageThumbUrl: string | null;
   createdAt: string | null;
   publishedDate: string | null;
   hoursSinceMostRecent: string | null;

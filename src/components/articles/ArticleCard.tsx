@@ -304,7 +304,7 @@ export default function ArticleCard({
     ? 'outline outline-2 -outline-offset-2 outline-primary animate-nowPlayingGlow [animation-duration:2.5s]'
     : '';
 
-  const imageUrl = article.imageLinks?.[0] || null;
+  const imageUrl = article.imageThumbUrl || article.imageLinks?.[0] || null;
   const topicLabel = labelFromMap(topicMap, article.topic);
   const geoLabel = labelFromMap(geographyMap, article.geography);
   const subtopicLabel = labelFromMap(subtopicMap, article.subtopic);

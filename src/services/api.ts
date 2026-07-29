@@ -95,6 +95,8 @@ export function clearUser(): void {
 // persist it at sign-in and reuse it across page loads instead of re-fetching
 // the status endpoint. Refreshed on demand via SubscriptionContext.refreshStatus.
 const SUBSCRIPTION_KEY = 'reetle_subscription';
+/** Fired whenever subscription state is persisted so live UI can resync. */
+export const SUBSCRIPTION_UPDATED_EVENT = 'reetle:subscription-updated';
 
 export function getSavedSubscription(): SubscriptionStatus | null {
   if (typeof window === 'undefined') return null;
@@ -110,6 +112,9 @@ export function getSavedSubscription(): SubscriptionStatus | null {
 export function saveSubscription(status: SubscriptionStatus): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(status));
+  window.dispatchEvent(
+    new CustomEvent(SUBSCRIPTION_UPDATED_EVENT, { detail: status }),
+  );
 }
 
 export function clearSubscription(): void {
@@ -475,6 +480,7 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
             : item.image_url
               ? [String(item.image_url)]
               : [],
+      imageThumbUrl: item.image_thumb_url ? String(item.image_thumb_url) : null,
       createdAt: item.created_at ? String(item.created_at) : null,
       publishedDate: null,
       hoursSinceMostRecent: null,
@@ -511,6 +517,12 @@ export async function getArticles(options?: { topic?: string; subtopic?: string;
     }
     return a.articleId.localeCompare(b.articleId);
   });
+
+  // Passive resync: article-summaries embeds the same subscription block as
+  // GET /subscriptions/status so home-feed loads keep premium state fresh.
+  if (data.subscription && typeof data.subscription === 'object') {
+    saveSubscription(data.subscription as SubscriptionStatus);
+  }
 
   return {
     articles,
@@ -700,6 +712,7 @@ export async function getGuestArticles(options?: { maxArticles?: number; sinceId
             : item.image_url
               ? [String(item.image_url)]
               : [],
+      imageThumbUrl: item.image_thumb_url ? String(item.image_thumb_url) : null,
       createdAt: item.created_at ? String(item.created_at) : null,
       publishedDate: null,
       hoursSinceMostRecent: null,
@@ -1169,7 +1182,13 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   await checkForExpiredToken(response);
   await checkRateLimit(response);
   if (!response.ok) throw new Error('Failed to fetch subscription status');
-  return response.json();
+  // API returns {"subscription": {...}} — same block shape as auth responses.
+  const data = await response.json();
+  const block = data?.subscription ?? data;
+  if (!block || typeof block !== 'object') {
+    throw new Error('Subscription status response missing subscription block');
+  }
+  return block as SubscriptionStatus;
 }
 
 export async function createCheckoutSession(priceId?: string): Promise<{ checkout_url: string }> {

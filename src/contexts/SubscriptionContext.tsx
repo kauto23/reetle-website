@@ -2,7 +2,12 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSubscriptionStatus, getSavedSubscription, saveSubscription } from '@/services/api';
+import {
+  getSubscriptionStatus,
+  getSavedSubscription,
+  saveSubscription,
+  SUBSCRIPTION_UPDATED_EVENT,
+} from '@/services/api';
 import type { SubscriptionStatus, SubscriptionDailyUsage } from '@/types/subscription';
 
 interface SubscriptionContextType {
@@ -56,6 +61,17 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       // have no saved block; fetch once to migrate them, then rely on storage.
       refreshStatus().catch(() => {});
     }
+
+    // Keep in-memory state aligned when auth / article-summaries / refresh
+    // persist a newer subscription block.
+    const onUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<SubscriptionStatus>).detail;
+      if (detail && typeof detail === 'object') {
+        setStatus(detail);
+      }
+    };
+    window.addEventListener(SUBSCRIPTION_UPDATED_EVENT, onUpdated);
+    return () => window.removeEventListener(SUBSCRIPTION_UPDATED_EVENT, onUpdated);
   }, [isAuthenticated, refreshStatus]);
 
   return (

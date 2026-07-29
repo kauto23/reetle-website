@@ -240,6 +240,7 @@ Literal `TextStyle` or fixed sizes are permitted **only** in these cases:
 | Web article reading body | `text-[18px] leading-[1.7]` | Long-form reading surface; do not apply to cards/feed chrome |
 | Web queue/audio badges | 8-10px where already present | Micro UI inside audio controls only |
 | Web practice rating tracker | 28px digit, 31px row height | Slot-machine digit roll in `PracticeRatingTracker`; precise row height required for the translateY roll to align. Uses `tabular-nums` |
+| Web practice question prompt | `text-title-lg` base, `text-title-md` / `leading-snug` under `@media(max-height:700px)` | `PracticeQuestionPanel` question text. Long grammar passages can overflow on short viewports; the card body scrolls internally and the type steps down a token on short screens so most passages fit without scrolling |
 
 If you need a new exception, add it here before landing the code. Keep `.cursor/rules/web-ui-style.mdc` pointing agents back to this file rather than duplicating the whole guide.
 
