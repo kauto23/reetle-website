@@ -1420,10 +1420,11 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
    * number of tracks ahead of the currently-playing one falls below
    * `READY_AHEAD_TARGET` and no preparation is currently in flight, kick
    * off generation for the next candidate. As soon as it lands the
-   * inFlight effect appends it to the queue, this effect re-evaluates,
-   * and another generation is started if we're still under target. The
-   * net effect is a self-replenishing playlist: by the time the user
-   * reaches any given track, the next one is already there.
+   * inFlight effect appends it as autoplay filler (after any user-queued
+   * items), this effect re-evaluates, and another generation is started
+   * if we're still under target. The net effect is a self-replenishing
+   * playlist: by the time the user reaches any given track, the next one
+   * is already there.
    */
   useEffect(() => {
     if (!isPremium) return;
