@@ -3,9 +3,10 @@
 /**
  * Per-card audio actions: a tight two-button cluster that sits beside the
  * translate icon in the metadata row. **Play now** starts (or jumps ahead
- * to) this article; **Add to queue** appends to the end of the running
- * queue. Each button reflects its own per-state visual (idle, waveform,
- * spinner, queued check) so the user can see exactly what's happening.
+ * to) this article; **Add to queue** inserts after other user-queued items
+ * and before autoplay filler. Each button reflects its own per-state visual
+ * (idle, waveform, spinner, queued check) so the user can see exactly what's
+ * happening.
  *
  * Inline status labels ("Playing", rotating prep hints, "In queue") replace
  * the old floating toast confirmations for transient states so feedback

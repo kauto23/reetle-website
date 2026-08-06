@@ -125,8 +125,9 @@ export interface PlayAllAudioValue {
   isSessionActive: boolean;
   /**
    * Add an article to the playlist or jump the queue. Use `action`:
-   * `"append"` — end of queue (or build a paused queue when idle); `"play_now"`
-   * — play immediately (idle: start session with this first; active: next up).
+   * `"append"` — after other user-queued items and before autoplay filler
+   * (or build a paused queue when idle); `"play_now"` — play immediately
+   * (idle: start session with this first; active: next up).
    */
   queueArticle: (article: Article, options?: { action: 'append' | 'play_now' }) => Promise<QueueActionResult>;
   /** Heard-only-on-end articles for this session; used to skip on resume. */
@@ -237,6 +238,47 @@ function insertPlayNext(queueItems: QueueItem[], currentIndex: number, item: Que
   const insertAt = curIdx + 1;
   const next = [...without.slice(0, insertAt), item, ...without.slice(insertAt)];
   return { next, playIndex: insertAt };
+}
+
+/**
+ * Insert a user-queued item so playback matches the queue panel: user
+ * "Next in queue" tracks play before autoplay "Next up" filler.
+ *
+ * Removes any existing copy of the article, keeps the current track in
+ * place, then rebuilds the upcoming tail as
+ * `[...userUserItems, newItem, ...autoplayItems]`.
+ */
+function insertUserQueued(
+  queueItems: QueueItem[],
+  currentIndex: number,
+  item: QueueItem,
+): { next: QueueItem[]; insertIndex: number; currentIndex: number } {
+  const userItem: QueueItem = { ...item, source: 'user' };
+  const playingId = queueItems[currentIndex]?.articleId ?? null;
+  const without = queueItems.filter(q => q.articleId !== userItem.articleId);
+  let curIdx = playingId ? without.findIndex(q => q.articleId === playingId) : -1;
+  if (curIdx < 0) {
+    curIdx = without.length === 0
+      ? -1
+      : Math.min(Math.max(currentIndex, 0), without.length) - 1;
+  }
+
+  const head = without.slice(0, curIdx + 1);
+  const tail = without.slice(curIdx + 1);
+  const userTail = tail.filter(q => q.source === 'user');
+  const autoplayTail = tail.filter(q => q.source === 'autoplay');
+  const next = [...head, ...userTail, userItem, ...autoplayTail];
+  const insertIndex = head.length + userTail.length;
+  const newCurrentIndex = playingId
+    ? Math.max(0, next.findIndex(q => q.articleId === playingId))
+    : Math.min(Math.max(currentIndex, 0), Math.max(0, next.length - 1));
+  return { next, insertIndex, currentIndex: newCurrentIndex };
+}
+
+/** Append an autoplay filler track at the end of the playlist (after user-queued items). */
+function appendAutoplayItem(queueItems: QueueItem[], item: QueueItem): QueueItem[] {
+  if (queueItems.some(q => q.articleId === item.articleId)) return queueItems;
+  return [...queueItems, { ...item, source: 'autoplay' }];
 }
 
 /**
@@ -902,8 +944,9 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
 
   /**
    * The user's primary entry point from a card. Use `options.action`:
-   * `"play_now"` — start or jump ahead to this article; `"append"` — add to
-   * the end (or build a paused queue when nothing is playing).
+   * `"play_now"` — start or jump ahead to this article; `"append"` — add after
+   * other user-queued items and before autoplay filler (or build a paused
+   * queue when nothing is playing).
    */
   const queueArticle = useCallback(
     async (article: Article, options?: { action: 'append' | 'play_now' }): Promise<QueueActionResult> => {
@@ -951,18 +994,28 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
       if (action === 'append') {
         const existingIdx = queueRef.current.findIndex(q => q.articleId === articleId);
         if (existingIdx >= 0) {
-          // If it's already in the queue, but it's an autoplay item, we should upgrade its source to 'user'
-          // and move it to the end of the user queue (or just upgrade it in place if it's already ahead of us).
-          // For simplicity, if it's already in the queue, we'll just upgrade its source to 'user' and let it play where it is.
-          const positionAhead = Math.max(0, existingIdx - indexRef.current);
-          const currentItem = queueRef.current[existingIdx];
-          if (currentItem && currentItem.source === 'autoplay') {
-            const nextQueue = [...queueRef.current];
-            nextQueue[existingIdx] = { ...currentItem, source: 'user' };
-            queueRef.current = nextQueue;
-            setQueue(nextQueue);
-            return { status: 'queued', position: positionAhead, total: nextQueue.length };
+          const existing = queueRef.current[existingIdx];
+          // Autoplay filler the user later "adds to queue" should move into
+          // the user section so it plays before remaining autoplay tracks.
+          if (existing && existing.source === 'autoplay') {
+            const { next, insertIndex, currentIndex: newCurrentIndex } = insertUserQueued(
+              queueRef.current,
+              indexRef.current,
+              existing,
+            );
+            queueRef.current = next;
+            setQueue(next);
+            if (newCurrentIndex !== indexRef.current) {
+              indexRef.current = newCurrentIndex;
+              setCurrentIndex(newCurrentIndex);
+            }
+            return {
+              status: 'queued',
+              position: Math.max(0, insertIndex - newCurrentIndex),
+              total: next.length,
+            };
           }
+          const positionAhead = Math.max(0, existingIdx - indexRef.current);
           return { status: 'already_queued', position: positionAhead };
         }
       }
@@ -1050,11 +1103,22 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
           return { status: 'started' };
         }
         if (sessionActive) {
-          const nextQueue = [...queueRef.current, readyItem];
-          queueRef.current = nextQueue;
-          setQueue(nextQueue);
-          const positionAhead = nextQueue.length - indexRef.current - 1;
-          return { status: 'queued', position: positionAhead, total: nextQueue.length };
+          const { next, insertIndex, currentIndex: newCurrentIndex } = insertUserQueued(
+            queueRef.current,
+            indexRef.current,
+            readyItem,
+          );
+          queueRef.current = next;
+          setQueue(next);
+          if (newCurrentIndex !== indexRef.current) {
+            indexRef.current = newCurrentIndex;
+            setCurrentIndex(newCurrentIndex);
+          }
+          return {
+            status: 'queued',
+            position: Math.max(0, insertIndex - newCurrentIndex),
+            total: next.length,
+          };
         }
         const nextQueue = [readyItem];
         setQueue(nextQueue);
@@ -1243,12 +1307,13 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
           source: 'autoplay',
         };
         const currentQueue = queueRef.current;
-        if (!currentQueue.some(i => i.articleId === item.articleId)) {
-          const nextQueue = [...currentQueue, item];
+        const nextQueue = appendAutoplayItem(currentQueue, item);
+        if (nextQueue !== currentQueue) {
           queueRef.current = nextQueue;
           setQueue(nextQueue);
           if (modeRef.current === 'awaiting_next') {
-            void playItemAt(nextQueue.length - 1);
+            const idx = nextQueue.findIndex(i => i.articleId === item.articleId);
+            if (idx >= 0) void playItemAt(idx);
           }
         }
       }
@@ -1263,10 +1328,11 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
   /**
    * Watches the audio status entries for any article the user has asked
    * to queue (via `queueArticle`) whose audio is still being generated.
-   * When an entry flips to `ready` we append it to the live queue and –
-   * for taps that happened on an idle session – kick off playback.
-   * Failed generations are quietly cleared so the card UI returns to its
-   * default state and the user can try again.
+   * When an entry flips to `ready` we insert it into the live queue (user
+   * appends before autoplay filler) and – for taps that happened on an
+   * idle session – kick off playback. Failed generations are quietly
+   * cleared so the card UI returns to its default state and the user can
+   * try again.
    */
   useEffect(() => {
     if (pendingAdds.size === 0) return;
@@ -1309,15 +1375,21 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
             void playItemAt(0, { autoplay: false });
           }
         } else if (pending.intent === 'append') {
-          const currentQueue = queueRef.current;
-          let updatedQueue = currentQueue;
-          if (!currentQueue.some(i => i.articleId === item.articleId)) {
-            updatedQueue = [...currentQueue, item];
-            queueRef.current = updatedQueue;
-            setQueue(updatedQueue);
+          if (!queueRef.current.some(i => i.articleId === item.articleId)) {
+            const { next, currentIndex: newCurrentIndex } = insertUserQueued(
+              queueRef.current,
+              indexRef.current,
+              item,
+            );
+            queueRef.current = next;
+            setQueue(next);
+            if (newCurrentIndex !== indexRef.current) {
+              indexRef.current = newCurrentIndex;
+              setCurrentIndex(newCurrentIndex);
+            }
           }
           if (modeRef.current === 'awaiting_next') {
-            const idx = updatedQueue.findIndex(i => i.articleId === articleId);
+            const idx = queueRef.current.findIndex(i => i.articleId === articleId);
             if (idx >= 0) void playItemAt(idx);
           }
         } else if (pending.intent === 'start_session') {
