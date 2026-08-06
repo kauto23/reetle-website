@@ -186,6 +186,13 @@ const RECENCY_WINDOWS_MS = [
  */
 const READY_AHEAD_TARGET = 2;
 
+/**
+ * Spotify-style previous-track threshold: if the listener is further into
+ * the current article than this, the first Previous press restarts it;
+ * only a press near the start (or a second press) goes to the prior item.
+ */
+const PREVIOUS_RESTART_THRESHOLD_SEC = 3;
+
 function compareNewestFirst(a: Article, b: Article): number {
   const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
   const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -715,10 +722,25 @@ function usePlayAllQueueState(): PlayAllAudioValue & { bindAudio: (el: HTMLAudio
   }, [playItemAt]);
 
   const previous = useCallback(() => {
+    const el = audioRef.current;
+    const position = el && Number.isFinite(el.currentTime)
+      ? el.currentTime
+      : 0;
+    // First press mid-track: restart the current article. Press again near
+    // the start (or when already at the beginning) to go to the prior one.
+    if (position > PREVIOUS_RESTART_THRESHOLD_SEC) {
+      if (el) {
+        el.currentTime = 0;
+        setCurrentTime(0);
+      }
+      return;
+    }
     const idx = indexRef.current;
     if (idx <= 0) {
-      const el = audioRef.current;
-      if (el) el.currentTime = 0;
+      if (el) {
+        el.currentTime = 0;
+        setCurrentTime(0);
+      }
       return;
     }
     void playItemAt(idx - 1);
