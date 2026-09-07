@@ -8,6 +8,13 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/fo/:id",
+        "destination": "/?article=:id&utm_source=facebook&utm_medium=social_organic&utm_campaign=daily_news&utm_content=article_:id",
+        "type": 302
+      }
+    ],
     "rewrites": [
       {
         "source": "/share",

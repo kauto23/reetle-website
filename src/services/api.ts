@@ -924,20 +924,23 @@ export async function rateTranslation(translationId: number, feedback: string): 
 
 // ========= PRACTICE =========
 
+/** Fetch the next Vocabulary practice question (strict; no grammar fallback). */
 export async function getNextPracticeQuestion(options?: {
   domain?: PracticeDomain;
+  /** When true with `domain`, skip fallback to the other domain if depleted. */
+  strictDomain?: boolean;
   llm?: string;
 }): Promise<PracticeQuestion> {
-  const body: Record<string, unknown> = {};
-  if (options?.domain) body.domain = options.domain;
+  const body: Record<string, unknown> = {
+    domain: options?.domain ?? 'Vocabulary',
+    strict_domain: options?.strictDomain ?? true,
+  };
   if (options?.llm) body.llm = options.llm;
 
-  const hasBody = Object.keys(body).length > 0;
-
   const response = await fetchWithLogging(`${API_BASE_URL}/practice/next`, {
-    method: hasBody ? 'POST' : 'GET',
+    method: 'POST',
     headers: getHeaders(),
-    ...(hasBody ? { body: JSON.stringify(body) } : {}),
+    body: JSON.stringify(body),
   });
 
   await checkForExpiredToken(response);

@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import MarkdownBlock from '@/components/practice/MarkdownBlock';
 import MasteryOverlay from '@/components/practice/MasteryOverlay';
-import type { PracticePhase } from '@/components/practice/PracticeRatingTracker';
 
+export type PracticePhase = 'idle' | 'feedback' | 'rolling';
 export type FeedbackLevel = 'short' | 'why' | 'how';
 
 interface PracticeQuestionPanelProps {
@@ -19,7 +19,6 @@ interface PracticeQuestionPanelProps {
   correct: boolean | null;
   fbLevel: FeedbackLevel;
   fbDismissed: boolean;
-  idleHint: boolean;
   showMastery: boolean;
   masteryWord?: string;
   onSelect: (i: number) => void;
@@ -40,7 +39,6 @@ export default function PracticeQuestionPanel({
   correct,
   fbLevel,
   fbDismissed,
-  idleHint,
   showMastery,
   masteryWord,
   onSelect,
@@ -68,6 +66,9 @@ export default function PracticeQuestionPanel({
 
   // Prototype palette (exact hex values from the mobile prototype)
   const fbColor = isCorrect ? '#065F46' : '#991B1B';
+
+  const shortHasActions = isWrong && !!deepFeedback?.theWhy;
+  const whyHasHow = !!deepFeedback?.theHow;
 
   return (
     <div className="h-full w-full flex flex-col gap-sm px-md pt-md [@media(max-height:700px)]:pt-sm pb-[calc(16px+env(safe-area-inset-bottom,0px))] max-w-[600px] mx-auto relative">
@@ -197,7 +198,7 @@ export default function PracticeQuestionPanel({
         })}
       </div>
 
-      {/* Feedback card / dismiss bar / idle caret */}
+      {/* Feedback card / dismiss bar / mastery */}
       <div className="relative flex-1 min-h-0">
         <AnimatePresence>
           {fb && !fbDismissed && !showMastery && (
@@ -233,26 +234,19 @@ export default function PracticeQuestionPanel({
                       content={feedbackText(activeFeedback)}
                       className={cn('pr-lg', isCorrect ? 'text-[#065F46]' : 'text-[#991B1B]')}
                     />
-                    <div className="flex items-center justify-between mt-sm gap-sm">
-                      <button
-                        type="button"
-                        onClick={onNext}
-                        className="text-title-sm font-semibold"
-                        style={{ color: fbColor }}
-                      >
-                        Next Question ▸
-                      </button>
-                      {isWrong && deepFeedback?.theWhy && (
+                    {/* No next-question control here — dismiss the sheet, then use Next Question. */}
+                    {shortHasActions && (
+                      <div className="flex items-center justify-end mt-sm">
                         <button
                           type="button"
                           onClick={() => onSetFbLevel('why')}
-                          className="text-title-sm font-semibold ml-auto"
+                          className="text-title-sm font-semibold"
                           style={{ color: fbColor }}
                         >
                           Learn more
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </motion.div>
                 )}
 
@@ -263,7 +257,7 @@ export default function PracticeQuestionPanel({
                       <button type="button" onClick={() => onSetFbLevel('short')} className="text-body-sm" style={{ color: fbColor }}>
                         ◂ Back
                       </button>
-                      {deepFeedback.theHow && (
+                      {whyHasHow && (
                         <button
                           type="button"
                           onClick={() => onSetFbLevel('how')}
@@ -280,12 +274,9 @@ export default function PracticeQuestionPanel({
                 {fbLevel === 'how' && deepFeedback?.theHow && (
                   <motion.div key="how" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
                     <MarkdownBlock content={deepFeedback.theHow} className="text-[#991B1B]" />
-                    <div className="flex items-center justify-between mt-sm">
+                    <div className="flex items-center justify-start mt-sm">
                       <button type="button" onClick={() => onSetFbLevel('why')} className="text-body-sm" style={{ color: fbColor }}>
                         ◂ Back
-                      </button>
-                      <button type="button" onClick={onNext} className="text-title-sm font-semibold" style={{ color: fbColor }}>
-                        Next Question ▸
                       </button>
                     </div>
                   </motion.div>
@@ -295,10 +286,11 @@ export default function PracticeQuestionPanel({
           )}
         </AnimatePresence>
 
-        {/* Dismiss bar */}
-        {fb && fbDismissed && !showMastery && (
+        {/* Dismiss bar — default post-answer view; "?" restores explanation.
+            Mastery celebration layers over the card area and does not replace this. */}
+        {fb && fbDismissed && (
           <motion.div
-            className="absolute left-0 right-0 bottom-0 flex gap-xs"
+            className="absolute left-0 right-0 bottom-0 flex gap-xs z-[5]"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}

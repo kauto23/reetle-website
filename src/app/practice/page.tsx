@@ -39,7 +39,7 @@ export default function PracticePage() {
         setFreeTierQuota({ detail: err.detail, resetsAt: err.resetsAt });
       } else if (err instanceof NoPracticeQuestionsError) {
         setNoQuestionsReason(
-          'No practice questions available right now. Keep reading articles to build your vocabulary and grammar skills.'
+          'No vocabulary practice questions available right now. Keep reading articles to build your vocabulary.'
         );
       } else {
         setError('Failed to load practice question. Please try again.');
@@ -67,7 +67,7 @@ export default function PracticePage() {
 
   const handleNoQuestions = useCallback(() => {
     setNoQuestionsReason(
-      'No practice questions available right now. Keep reading articles to build your vocabulary and grammar skills.'
+      'No vocabulary practice questions available right now. Keep reading articles to build your vocabulary.'
     );
     setQuestion(null);
   }, []);
