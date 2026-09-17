@@ -6,7 +6,7 @@ import AuthGuard from '@/components/layout/AuthGuard';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import PracticeSession from '@/components/practice/PracticeSession';
 import Link from 'next/link';
-import { AlertCircle, HelpCircle, Loader2, Sparkles } from 'lucide-react';
+import { AlertCircle, BookOpen, Loader2, Sparkles } from 'lucide-react';
 import {
   getNextPracticeQuestion,
   NoPracticeQuestionsError,
@@ -131,10 +131,16 @@ export default function PracticePage() {
 
         {noQuestionsReason && !isLoading && (
           <motion.div className="text-center py-12 relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 bg-ui-muted rounded-2xl flex items-center justify-center mx-auto mb-md border border-ui-border">
-              <HelpCircle className="w-7 h-7 text-ui-muted-foreground" />
+            <div className="w-14 h-14 bg-ui-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-md">
+              <BookOpen className="w-7 h-7 text-ui-primary" />
             </div>
-            <p className="text-body-lg text-ui-muted-foreground mb-md max-w-[400px] mx-auto">{noQuestionsReason}</p>
+            <h2 className="text-display-sm text-ui-foreground mb-xs">Start reading to unlock practice</h2>
+            <p className="text-body-lg text-ui-muted-foreground mb-lg max-w-[440px] mx-auto">
+              Tap any word you don't know while reading articles to save it to your vocabulary list and generate personalised practice questions.
+            </p>
+            <Button asChild>
+              <Link href="/">Browse Articles</Link>
+            </Button>
           </motion.div>
         )}
 
