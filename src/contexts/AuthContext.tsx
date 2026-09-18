@@ -1,7 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { captureAcquisitionFromUrl, clearStoredAcquisition } from '@/lib/acquisition';
 import type { User } from '@/types/user';
+import * as fbq from '@/lib/fpixel';
 import {
   getAccessToken,
   saveAccessToken,
@@ -47,8 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  // Load user from localStorage on mount
+  // Load user from localStorage and capture initial acquisition parameters on mount
   useEffect(() => {
+    captureAcquisitionFromUrl();
+
     const token = getAccessToken();
     const savedUser = getSavedUser();
 
@@ -68,6 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Persist BEFORE setUser so SubscriptionContext finds it when auth flips.
     if (subscription) saveSubscription(subscription);
     setUser(newUser);
+    clearStoredAcquisition();
+    fbq.event('CompleteRegistration', { method: 'google' });
     return true;
   };
 
@@ -78,6 +84,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveUser(newUser);
       if (subscription) saveSubscription(subscription);
       setUser(newUser);
+      clearStoredAcquisition();
+      fbq.event('CompleteRegistration', { method: 'apple' });
       return true;
     } catch (error) {
       console.error('Apple sign-in failed:', error);

@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   username: string | null;
+  fullName?: string | null;
   hasCompletedAssessment: boolean;
   cefrLevel: string | null;
   appleUserId: string | null;

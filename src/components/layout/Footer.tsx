@@ -22,6 +22,16 @@ export default function Footer() {
           <nav>
             <ul className="flex flex-wrap justify-center gap-[20px] sm:gap-[28px] list-none">
               <li>
+                <a
+                  href="https://apps.apple.com/app/reetle/id6747426043"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-body-sm text-white/70 hover:text-white transition-colors"
+                >
+                  iOS App
+                </a>
+              </li>
+              <li>
                 <Link href="/terms" className="text-body-sm text-white/70 hover:text-white transition-colors">
                   Terms of Service
                 </Link>

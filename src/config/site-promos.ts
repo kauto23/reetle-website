@@ -2,7 +2,7 @@
  * Sidebar App Store card and `apple-itunes-app` (Safari smart banner).
  * Set to `true` when the iOS app is available on the App Store again.
  */
-export const SHOW_APP_STORE_PROMO = false;
+export const SHOW_APP_STORE_PROMO = true;
 
 /**
  * Slice end used by the hero + sidebar row (index 0 hero, then sidebar slice).

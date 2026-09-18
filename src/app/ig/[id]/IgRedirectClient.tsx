@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { captureAcquisitionFromUrl } from '@/lib/acquisition';
 
-export default function FoRedirectClient() {
+export default function IgRedirectClient() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -15,9 +15,9 @@ export default function FoRedirectClient() {
     let rawId = params?.id;
     if (!rawId && typeof window !== 'undefined') {
       const parts = window.location.pathname.split('/').filter(Boolean);
-      const foIndex = parts.indexOf('fo');
-      if (foIndex !== -1 && parts[foIndex + 1]) {
-        rawId = parts[foIndex + 1];
+      const igIndex = parts.indexOf('ig');
+      if (igIndex !== -1 && parts[igIndex + 1]) {
+        rawId = parts[igIndex + 1];
       }
     }
 
@@ -29,18 +29,18 @@ export default function FoRedirectClient() {
       return;
     }
 
-    // Preserve incoming query parameters (e.g. fbclid) and apply required tracking params
+    // Preserve incoming query parameters and apply required tracking params
     const currentSearch = typeof window !== 'undefined' ? window.location.search : searchParams.toString();
     const targetParams = new URLSearchParams(currentSearch);
 
     targetParams.set('article', id);
-    targetParams.set('utm_source', 'facebook');
+    targetParams.set('utm_source', 'instagram');
     targetParams.set('utm_medium', 'social_organic');
     targetParams.set('utm_campaign', 'daily_news');
     targetParams.set('utm_content', `article_${id}`);
 
     // Capture first-touch acquisition immediately before redirecting
-    captureAcquisitionFromUrl(`/fo/${id}`, targetParams.toString());
+    captureAcquisitionFromUrl(`/ig/${id}`, targetParams.toString());
 
     const destination = `/?${targetParams.toString()}`;
     router.replace(destination);

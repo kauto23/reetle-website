@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/config/environment';
+import { getStoredAcquisition } from '@/lib/acquisition';
 import type { User, TargetLanguage } from '@/types/user';
 import type { Article, ArticlesResponse } from '@/types/article';
 import type {
@@ -266,6 +267,11 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
   if (fullName) body.full_name = fullName;
   body.device_type = 'web';
 
+  const acquisition = getStoredAcquisition();
+  if (acquisition && Object.keys(acquisition).length > 0) {
+    body.acquisition = acquisition;
+  }
+
   const response = await fetchWithLogging(`${API_BASE_URL}/auth/google`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -283,6 +289,7 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
   const user: User = {
     id: String(data.id),
     username: data.username || null,
+    fullName: data.full_name || fullName || null,
     hasCompletedAssessment: data.has_completed_assessment || false,
     cefrLevel: data.cefr_level || null,
     appleUserId: null,
@@ -303,6 +310,11 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
   if (fullName) body.full_name = fullName;
   body.device_type = 'web';
 
+  const acquisition = getStoredAcquisition();
+  if (acquisition && Object.keys(acquisition).length > 0) {
+    body.acquisition = acquisition;
+  }
+
   const response = await fetchWithLogging(`${API_BASE_URL}/auth/apple`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -316,22 +328,23 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
     throw new Error(err.error || `Sign in failed: ${response.status}`);
   }
 
-  const data = await response.json();
+  const appleData = await response.json();
   const user: User = {
-    id: String(data.id),
-    username: data.username || null,
-    hasCompletedAssessment: data.has_completed_assessment || false,
-    cefrLevel: data.cefr_level || null,
+    id: String(appleData.id),
+    username: appleData.username || null,
+    fullName: appleData.full_name || fullName || null,
+    hasCompletedAssessment: appleData.has_completed_assessment || false,
+    cefrLevel: appleData.cefr_level || null,
     appleUserId: null,
     googleUserId: null,
-    email: data.email || email || null,
-    familiarLanguage: data.familiar_language || null,
-    targetLanguage: data.target_language || null,
-    deviceToken: data.device_token || null,
-    hasPremium: data.subscription?.is_premium ?? data.has_premium ?? false,
+    email: appleData.email || email || null,
+    familiarLanguage: appleData.familiar_language || null,
+    targetLanguage: appleData.target_language || null,
+    deviceToken: appleData.device_token || null,
+    hasPremium: appleData.subscription?.is_premium ?? appleData.has_premium ?? false,
   };
 
-  return { user, accessToken: data.access_token, subscription: data.subscription ?? null };
+  return { user, accessToken: appleData.access_token, subscription: appleData.subscription ?? null };
 }
 
 export async function updateLanguage(userId: string, familiarLanguage?: string, targetLanguage?: string): Promise<User> {
