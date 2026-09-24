@@ -6,6 +6,7 @@ import Link from 'next/link';
 import ArticleCard from '@/components/articles/ArticleCard';
 import ArticleDetail from '@/components/articles/ArticleDetail';
 import AppStoreCTA from '@/components/layout/AppStoreCTA';
+import FeedPreferencesStrip from '@/components/layout/FeedPreferencesStrip';
 import ReferralCTA from '@/components/layout/ReferralCTA';
 import ScrollableNav from '@/components/layout/ScrollableNav';
 import TopicNav from '@/components/layout/TopicNav';
@@ -180,6 +181,8 @@ function HomePageContent() {
       ) : (
         <section className="py-[24px]">
           <div className="max-w-[1280px] mx-auto px-md">
+            <FeedPreferencesStrip />
+
             {(isLoading || !articlesData) && !error && (
               <div className="space-y-[24px] max-h-[calc(100vh-140px)] overflow-hidden select-none opacity-60">
                 {/* Hero + sidebar skeleton (no text — awaiting API) */}
@@ -189,13 +192,13 @@ function HomePageContent() {
                       <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                       <div className="p-[16px] sm:p-[20px] blur-[5px]">
                         <div className="flex items-center gap-[8px] mb-[8px]">
-                          <span className="h-[12px] w-[48px] rounded-sm bg-primary/20" />
-                          <span className="h-[12px] w-[72px] rounded-sm bg-text-secondary/20" />
-                          <span className="h-[10px] w-[22px] rounded-sm bg-text-secondary/20" />
+                          <span className="h-[12px] w-[48px] bg-primary/20" />
+                          <span className="h-[12px] w-[72px] bg-text-secondary/20" />
+                          <span className="h-[10px] w-[22px] bg-text-secondary/20" />
                         </div>
                         <div className="space-y-[6px]">
-                          <div className="h-[20px] w-full max-w-[95%] rounded-sm bg-primary/10" />
-                          <div className="h-[20px] w-[60%] rounded-sm bg-primary/10" />
+                          <div className="h-[20px] w-full max-w-[95%] bg-primary/10" />
+                          <div className="h-[20px] w-[60%] bg-primary/10" />
                         </div>
                       </div>
                     </div>
@@ -207,12 +210,12 @@ function HomePageContent() {
                           <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                           <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0 blur-[5px]">
                             <div className="flex items-center gap-[6px] mb-[4px]">
-                              <span className="h-[9px] w-[36px] rounded-sm bg-primary/20" />
-                              <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
+                              <span className="h-[9px] w-[36px] bg-primary/20" />
+                              <span className="h-[9px] w-[18px] bg-text-secondary/20" />
                             </div>
                             <div className="space-y-[4px]">
-                              <div className="h-[13px] w-full max-w-[100%] rounded-sm bg-primary/10" />
-                              <div className="h-[13px] w-[85%] rounded-sm bg-primary/10" />
+                              <div className="h-[13px] w-full max-w-[100%] bg-primary/10" />
+                              <div className="h-[13px] w-[85%] bg-primary/10" />
                             </div>
                           </div>
                         </div>
@@ -223,7 +226,7 @@ function HomePageContent() {
 
                 <div>
                   <div className="pt-[24px] pb-[12px]">
-                    <div className="h-[20px] w-[120px] rounded-sm bg-primary/15 blur-[5px]" />
+                    <div className="h-[20px] w-[120px] bg-primary/15 blur-[5px]" />
                     <div className="h-[2px] bg-primary w-full mt-[8px]" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-[20px] pt-[8px]">
@@ -232,12 +235,12 @@ function HomePageContent() {
                         <div className="relative overflow-hidden h-[160px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                         <div className="p-[12px] flex-1 flex flex-col blur-[5px]">
                           <div className="flex items-center gap-[6px] mb-[4px]">
-                            <span className="h-[9px] w-[40px] rounded-sm bg-primary/20" />
-                            <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
+                            <span className="h-[9px] w-[40px] bg-primary/20" />
+                            <span className="h-[9px] w-[18px] bg-text-secondary/20" />
                           </div>
                           <div className="space-y-[4px]">
-                            <div className="h-[13px] w-full rounded-sm bg-primary/10" />
-                            <div className="h-[13px] w-[80%] rounded-sm bg-primary/10" />
+                            <div className="h-[13px] w-full bg-primary/10" />
+                            <div className="h-[13px] w-[80%] bg-primary/10" />
                           </div>
                         </div>
                       </div>

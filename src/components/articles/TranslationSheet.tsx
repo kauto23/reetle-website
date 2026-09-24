@@ -158,7 +158,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
     <button
       onClick={handleClose}
       className="w-[36px] h-[36px] flex-shrink-0 flex items-center justify-center
-        rounded-lg border border-border bg-ui-card text-ui-muted-foreground
+         border border-border bg-ui-card text-ui-muted-foreground
         shadow-[0_1px_2px_rgba(45,24,50,0.04)]
         hover:bg-background hover:text-ui-foreground
         active:scale-[0.98]
@@ -173,7 +173,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
     <button
       onClick={handleClose}
       className="w-[44px] h-[44px] flex-shrink-0 flex items-center justify-center
-        rounded-xl border border-border bg-background text-ui-muted-foreground
+         border border-border bg-background text-ui-muted-foreground
         shadow-[0_1px_2px_rgba(45,24,50,0.04)]
         hover:bg-ui-card hover:text-ui-foreground
         active:scale-[0.98]
@@ -203,7 +203,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
       >
         <div
           className={`pointer-events-auto w-full ${pending ? 'max-w-[720px]' : 'max-w-[480px]'} mx-md mb-lg
-            bg-ui-card rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]
+            bg-ui-card shadow-[0_8px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.08)]
             border border-border/60
             overflow-y-auto
             transition-all duration-200 ease-out
@@ -264,7 +264,7 @@ export default function TranslationSheet({ selectedText, context, extendedContex
                   <button
                     onClick={onTranslateRequest}
                     className="flex h-[44px] flex-1 items-center justify-center gap-[10px]
-                      rounded-xl bg-primary px-md text-body-md font-semibold text-white
+                       bg-primary px-md text-body-md font-semibold text-white
                       border-none cursor-pointer shadow-[0_6px_18px_hsl(var(--primary)/0.22)]
                       hover:bg-primary-dark active:scale-[0.99]
                       transition-all duration-150 disabled:cursor-default disabled:opacity-60"

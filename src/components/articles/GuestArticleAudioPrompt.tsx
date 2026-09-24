@@ -5,7 +5,7 @@ import { Headphones, Play } from 'lucide-react';
 import { useLoginUrl } from '@/hooks/useLoginUrl';
 import { Button } from '@/components/ui/button';
 
-const wrapperClass = 'mb-md rounded-md border border-border bg-ui-card px-[14px] py-[12px]';
+const wrapperClass = 'mb-md border border-border bg-ui-card px-[14px] py-[12px]';
 
 /**
  * Locked audio card for guest article views. Mirrors the idle ArticleAudioPlayer
@@ -16,7 +16,7 @@ export default function GuestArticleAudioPrompt() {
 
   return (
     <div className={`${wrapperClass} flex items-center gap-[12px]`}>
-      <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+      <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
         <Headphones size={20} />
       </div>
       <div className="flex-1 min-w-0">
@@ -32,7 +32,7 @@ export default function GuestArticleAudioPrompt() {
         asChild
         variant="default"
         size="sm"
-        className="rounded-sm px-[14px] py-2 h-auto inline-flex items-center gap-[6px] shrink-0 whitespace-nowrap"
+        className="px-[14px] py-2 h-auto inline-flex items-center gap-[6px] shrink-0 whitespace-nowrap"
       >
         <Link href={loginUrl}>
           <Play size={14} fill="currentColor" strokeWidth={0} />

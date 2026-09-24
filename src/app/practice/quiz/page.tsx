@@ -110,7 +110,7 @@ function ArticleQuizContent() {
 
         {error && !isLoading && (
           <motion.div className="text-center py-12" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-md">
+            <div className="w-14 h-14 bg-incorrect-bg flex items-center justify-center mx-auto mb-md">
               <AlertCircle className="w-7 h-7 text-incorrect-text" />
             </div>
             <p className="text-body-lg text-ui-muted-foreground mb-md">{error}</p>
@@ -122,7 +122,7 @@ function ArticleQuizContent() {
 
         {isComplete && (
           <div className="text-center py-12 animate-fadeIn">
-            <div className="w-20 h-20 bg-correct rounded-full flex items-center justify-center mx-auto mb-md">
+            <div className="w-20 h-20 bg-correct flex items-center justify-center mx-auto mb-md">
               <Check className="w-10 h-10 text-white" strokeWidth={2.5} />
             </div>
             <h1 className="text-display-md tracking-tight text-ui-foreground mb-xs">Quiz complete!</h1>

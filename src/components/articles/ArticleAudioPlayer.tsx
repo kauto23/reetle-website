@@ -269,7 +269,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
 
   // ── Rendering ────────────────────────────────────────────────────────────
 
-  const wrapperClass = 'mb-md rounded-md border border-border bg-ui-card px-[14px] py-[12px]';
+  const wrapperClass = 'mb-md border border-border bg-ui-card px-[14px] py-[12px]';
 
   const showPreparing = status === 'preparing' || finishPhase !== 'idle';
 
@@ -283,7 +283,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
   if (!contentId) {
     return (
       <div className={`${wrapperClass} flex items-center gap-[10px] opacity-70`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -297,7 +297,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
   if (quotaExceeded || freeTierExhausted) {
     return (
       <div className={`${wrapperClass} flex items-start gap-[12px]`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -339,7 +339,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
       >
         <div className="min-h-0 overflow-hidden">
           <div className={`${wrapperClass} flex items-start gap-[12px]`}>
-            <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
               {isConfirming ? (
                 <Check size={18} strokeWidth={2.5} className="animate-fadeIn" />
               ) : (
@@ -369,9 +369,9 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
                   {message}
                 </div>
               )}
-              <div className="mt-[8px] w-full h-[3px] bg-gray-200 rounded-full overflow-hidden">
+              <div className="mt-[8px] w-full h-[3px] bg-gray-200 overflow-hidden">
                 <div
-                  className="h-full bg-primary rounded-full"
+                  className="h-full bg-primary"
                   style={{
                     width: `${progressTarget.pct}%`,
                     transitionProperty: 'width',
@@ -390,7 +390,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
   if (status === 'failed' && !quotaExceeded) {
     return (
       <div className={`${wrapperClass} flex items-start gap-[12px]`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -420,7 +420,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
     return (
       <div className={wrapperClass}>
         <div className="flex items-center gap-[12px]">
-          <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
             <Headphones size={20} />
           </div>
           <div className="flex-1 min-w-0">
@@ -430,7 +430,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
             type="button"
             variant="default"
             size="sm"
-            className="rounded-sm px-[14px] py-2 h-auto inline-flex items-center gap-[6px] disabled:opacity-60"
+            className="px-[14px] py-2 h-auto inline-flex items-center gap-[6px] disabled:opacity-60"
             onClick={handleListen}
             disabled={isStarting}
           >
@@ -457,7 +457,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
   // status === 'not_requested' and summary says no audio yet → prepare CTA.
   return (
     <div className={`${wrapperClass} flex items-center gap-[12px]`}>
-      <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+      <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
         <Headphones size={20} />
       </div>
       <div className="flex-1 min-w-0">
@@ -470,7 +470,7 @@ export default function ArticleAudioPlayer({ article, contentId }: ArticleAudioP
         type="button"
         variant="default"
         size="sm"
-        className="rounded-sm px-[14px] py-2 h-auto inline-flex items-center gap-[6px]"
+        className="px-[14px] py-2 h-auto inline-flex items-center gap-[6px]"
         onClick={handlePrepare}
       >
         <Headphones size={14} />

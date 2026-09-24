@@ -82,6 +82,33 @@ function buildOgHtml(meta: OgMetadata, pageUrl: string): string {
 </html>`;
 }
 
+const ACQUISITION_KEYS = [
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_content',
+  'utm_term',
+  'fbclid',
+  'gclid',
+  'gbraid',
+  'wbraid',
+];
+
+/** Live-log click IDs and UTMs. Nothing is stored; lines only appear in `wrangler tail`. */
+function logAcquisition(url: URL): void {
+  const params: Record<string, string> = {};
+  for (const key of ACQUISITION_KEYS) {
+    const value = url.searchParams.get(key)?.trim();
+    if (value) params[key] = value;
+  }
+  if (Object.keys(params).length === 0) return;
+
+  console.log('[acquisition]', {
+    path: url.pathname,
+    ...params,
+  });
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -147,6 +174,7 @@ async function fetchOgMetadata(articleId: string, cache: Cache): Promise<OgMetad
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+    logAcquisition(url);
     const pathname = url.pathname.replace(/\/$/, '') || '/';
 
     if (pathname === '/robots.txt') {

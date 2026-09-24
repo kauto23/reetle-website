@@ -38,7 +38,7 @@ export default function PaymentSuccessPage() {
         <div className="max-w-[500px] mx-auto px-4 text-center">
           {isPremium ? (
             <div className="animate-fadeIn">
-              <div className="w-20 h-20 bg-correct-bg rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-correct-bg flex items-center justify-center mx-auto mb-6">
                 <CheckCircle2 className="w-10 h-10 text-correct" />
               </div>
               <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">
@@ -53,7 +53,7 @@ export default function PaymentSuccessPage() {
             </div>
           ) : polling ? (
             <>
-              <div className="w-20 h-20 bg-ui-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-ui-muted flex items-center justify-center mx-auto mb-6">
                 <Loader2 className="w-9 h-9 animate-spin text-ui-primary" />
               </div>
               <h1 className="text-[26px] font-semibold tracking-tight text-ui-foreground mb-2">
@@ -65,7 +65,7 @@ export default function PaymentSuccessPage() {
             </>
           ) : (
             <>
-              <div className="w-20 h-20 bg-ui-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-20 h-20 bg-ui-muted flex items-center justify-center mx-auto mb-6">
                 <Clock className="w-9 h-9 text-ui-muted-foreground" />
               </div>
               <h1 className="text-[26px] font-semibold tracking-tight text-ui-foreground mb-2">

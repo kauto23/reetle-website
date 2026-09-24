@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { captureAcquisitionFromUrl } from '@/lib/acquisition';
+import { applyDefaultUtms, captureAcquisitionFromUrl, syncAcquisitionSession } from '@/lib/acquisition';
 
 export default function FoRedirectClient() {
   const params = useParams();
@@ -29,18 +29,21 @@ export default function FoRedirectClient() {
       return;
     }
 
-    // Preserve incoming query parameters (e.g. fbclid) and apply required tracking params
+    // Preserve incoming query parameters (e.g. fbclid, UTMs); organic UTMs apply only to untagged links
     const currentSearch = typeof window !== 'undefined' ? window.location.search : searchParams.toString();
     const targetParams = new URLSearchParams(currentSearch);
 
     targetParams.set('article', id);
-    targetParams.set('utm_source', 'facebook');
-    targetParams.set('utm_medium', 'social_organic');
-    targetParams.set('utm_campaign', 'daily_news');
-    targetParams.set('utm_content', `article_${id}`);
+    applyDefaultUtms(targetParams, {
+      utm_source: 'facebook',
+      utm_medium: 'social_organic',
+      utm_campaign: 'daily_news',
+      utm_content: `article_${id}`,
+    });
 
     // Capture first-touch acquisition immediately before redirecting
-    captureAcquisitionFromUrl(`/fo/${id}`, targetParams.toString());
+    const acq = captureAcquisitionFromUrl(`/fo/${id}`, targetParams.toString());
+    if (acq) syncAcquisitionSession(acq);
 
     const destination = `/?${targetParams.toString()}`;
     router.replace(destination);

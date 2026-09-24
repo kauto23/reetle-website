@@ -1,19 +1,23 @@
 ---
-description: Recommend Firebase Hosting preview channels for staging-style test deploys
+description: Deploy command and URL for the permanent staging website
 alwaysApply: true
 ---
 
 # Firebase Staging Deploy Guidance
 
-When the user asks how to deploy a staging version, test changes before production, or create a temporary test website for this repo, default to recommending a Firebase Hosting preview channel.
+The project has a permanent staging site on Firebase Hosting:
+- Site ID: `reetle-staging-web`
+- Permanent URL: `https://reetle-staging-web.web.app`
 
-Use this repo-specific command sequence:
+When deploying a staging version:
 
 ```bash
 npm run build
-firebase hosting:channel:deploy staging --expires 7d
+firebase deploy --only hosting:staging
 ```
 
-Explain that this creates a temporary preview URL for testing before deploying to the live site, and that it is sufficient for feature testing in this project.
+When deploying to production:
 
-Only recommend a separate Firebase project or permanent staging site if the user explicitly asks for a long-lived, isolated staging environment.
+```bash
+firebase deploy --only hosting:production
+```

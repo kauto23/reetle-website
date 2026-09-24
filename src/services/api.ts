@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '@/config/environment';
-import { getStoredAcquisition } from '@/lib/acquisition';
+import { getOrCreateSessionId, getStoredAcquisition } from '@/lib/acquisition';
 import type { User, TargetLanguage } from '@/types/user';
 import type { Article, ArticlesResponse } from '@/types/article';
 import type {
@@ -10,7 +10,6 @@ import type {
   Feedback,
   GrammarFeedbackIncorrect,
 } from '@/types/practice';
-import type { AssessmentQuestion, AssessmentSummary } from '@/types/assessment';
 import type { Translation } from '@/types/translation';
 import type { SubscriptionStatus, ReferralInfo, ReferralApplyResponse, CancelSubscriptionResponse } from '@/types/subscription';
 
@@ -268,9 +267,9 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
   body.device_type = 'web';
 
   const acquisition = getStoredAcquisition();
-  if (acquisition && Object.keys(acquisition).length > 0) {
-    body.acquisition = acquisition;
-  }
+  const sessionId = getOrCreateSessionId();
+  body.session_id = sessionId;
+  body.acquisition = { ...(acquisition || {}), session_id: sessionId };
 
   const response = await fetchWithLogging(`${API_BASE_URL}/auth/google`, {
     method: 'POST',
@@ -311,9 +310,9 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
   body.device_type = 'web';
 
   const acquisition = getStoredAcquisition();
-  if (acquisition && Object.keys(acquisition).length > 0) {
-    body.acquisition = acquisition;
-  }
+  const sessionId = getOrCreateSessionId();
+  body.session_id = sessionId;
+  body.acquisition = { ...(acquisition || {}), session_id: sessionId };
 
   const response = await fetchWithLogging(`${API_BASE_URL}/auth/apple`, {
     method: 'POST',
@@ -798,6 +797,73 @@ export async function getGuestArticleContent(articleId: string, targetLanguage?:
   return { content: data.error || 'Failed to load article content.', error: true };
 }
 
+/**
+ * Fetch summary metadata for a single article by ID.
+ * Used when navigating directly to an article (e.g. from an ad or shortlink)
+ * that is not in the home-feed articles cache.
+ */
+export async function getSingleArticleSummary(
+  articleId: string | number,
+  options?: { targetLanguage?: string; familiarLanguage?: string; cefrLevel?: string }
+): Promise<Article | null> {
+  const params = new URLSearchParams();
+  if (options?.targetLanguage) params.set('target_language', options.targetLanguage);
+  if (options?.familiarLanguage) params.set('familiar_language', options.familiarLanguage);
+  if (options?.cefrLevel) params.set('cefr_level', options.cefrLevel);
+
+  const query = params.toString();
+  const url = `${API_BASE_URL}/articles/${articleId}/summary${query ? `?${query}` : ''}`;
+
+  const response = await fetchWithLogging(url, {
+    method: 'GET',
+    headers: getGuestHeaders(),
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const item = await response.json();
+  const article: Article = {
+    articleId: String(item.article_id || ''),
+    headline: String(item.headline || ''),
+    headlineFamiliar: String(item.headline_familiar || ''),
+    cefrLevelHeadline: item.cefr_level_headline ? String(item.cefr_level_headline) : null,
+    topic: String(item.topic || ''),
+    subtopic: item.subtopic ? String(item.subtopic) : null,
+    geography: item.geography ? String(item.geography) : null,
+    imageLinks: Array.isArray(item.image_links)
+      ? (item.image_links as string[])
+      : typeof item.image_links === 'string'
+        ? [item.image_links]
+        : item.image_link
+          ? [String(item.image_link)]
+          : item.image_url
+            ? [String(item.image_url)]
+            : [],
+    imageThumbUrl: item.image_thumb_url ? String(item.image_thumb_url) : null,
+    createdAt: item.created_at ? String(item.created_at) : null,
+    publishedDate: null,
+    hoursSinceMostRecent: null,
+    content: item.content ? String(item.content) : null,
+    read: Boolean(item.read),
+    contentGenerated: Boolean(item.content_generated),
+    audioGenerated: Boolean(item.audio_generated),
+    audioUrl: item.audio_url ? String(item.audio_url) : null,
+    contentId: item.content_id != null ? String(item.content_id) : null,
+    position: typeof item.position === 'number' ? item.position : null,
+  };
+
+  if (article.createdAt) {
+    const date = new Date(article.createdAt);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    article.publishedDate = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}, ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
+    article.hoursSinceMostRecent = getTimeSince(article.createdAt);
+  }
+
+  return article;
+}
+
 // ========= GUEST TRANSLATIONS =========
 
 export async function getGuestTranslation(
@@ -1063,86 +1129,6 @@ export async function ratePracticeQuestion(params: {
   });
 
   if (!response.ok) throw new Error('Failed to rate practice question');
-}
-
-// ========= ASSESSMENT =========
-
-export async function startAssessment(): Promise<{ assessmentId: number; questionNumber: number; question: AssessmentQuestion }> {
-  const response = await fetchWithLogging(`${API_BASE_URL}/assessments/start`, {
-    method: 'POST',
-    headers: getHeaders(),
-  });
-
-  await checkForExpiredToken(response);
-  await checkRateLimit(response);
-
-  if (!response.ok) throw new Error(`Failed to start assessment: ${response.status}`);
-
-  const data = await response.json();
-  return {
-    assessmentId: data.assessment_id,
-    questionNumber: data.question_number || 1,
-    question: parseAssessmentQuestion(data.question, data.question_number),
-  };
-}
-
-export async function submitAssessmentAnswer(assessmentId: number, answerIndex: number): Promise<{
-  complete: boolean;
-  summary?: AssessmentSummary;
-  questionNumber?: number;
-  question?: AssessmentQuestion;
-  wasCorrect?: boolean;
-  correctIndex?: number;
-  explanation?: string;
-}> {
-  const response = await fetchWithLogging(`${API_BASE_URL}/assessments/answer`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ assessment_id: assessmentId, answer_index: answerIndex }),
-  });
-
-  await checkForExpiredToken(response);
-  await checkRateLimit(response);
-
-  if (!response.ok) throw new Error(`Failed to submit answer: ${response.status}`);
-
-  const data = await response.json();
-
-  if (data.complete) {
-    const statsPayload = data.stats && typeof data.stats === 'object' ? (data.stats as Record<string, unknown>) : null;
-    const totalQuestions = Number(statsPayload?.total_questions ?? data.total_questions) || 0;
-    const correct = Number(statsPayload?.correct ?? data.correct) || 0;
-    const justification = String(data.summary ?? data.justification ?? '');
-
-    return {
-      complete: true,
-      summary: {
-        cefrLevel: data.final_level,
-        justification,
-        stats: { totalQuestions, correct },
-        history: data.history || [],
-      },
-    };
-  }
-
-  return {
-    complete: false,
-    questionNumber: data.question_number || 1,
-    question: parseAssessmentQuestion(data.question, data.question_number),
-    wasCorrect: data.was_correct,
-    correctIndex: data.correct_index,
-    explanation: data.explanation,
-  };
-}
-
-export async function cancelAssessment(assessmentId: number): Promise<void> {
-  const response = await fetchWithLogging(`${API_BASE_URL}/assessments/cancel`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({ assessment_id: assessmentId }),
-  });
-
-  if (!response.ok) throw new Error('Failed to cancel assessment');
 }
 
 // ========= STATISTICS =========
@@ -1425,15 +1411,5 @@ function parsePracticeSubmitResult(data: Record<string, unknown>): PracticeSubmi
       willMaster: vocabRaw.will_master === true,
       mastered: vocabRaw.mastered === true,
     } : undefined,
-  };
-}
-
-function parseAssessmentQuestion(data: Record<string, unknown>, questionNumber?: number): AssessmentQuestion {
-  const text = data.text ?? data.question;
-  return {
-    question: String(text ?? ''),
-    options: Array.isArray(data.options) ? data.options.map(String) : [],
-    level: String(data.level || ''),
-    questionNumber: questionNumber || Number(data.question_number) || 1,
   };
 }

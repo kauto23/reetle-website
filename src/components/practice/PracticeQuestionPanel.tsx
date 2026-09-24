@@ -74,7 +74,7 @@ export default function PracticeQuestionPanel({
     <div className="h-full w-full flex flex-col gap-sm px-md pt-md [@media(max-height:700px)]:pt-sm pb-[calc(16px+env(safe-area-inset-bottom,0px))] max-w-[600px] mx-auto relative">
       {/* Question card */}
       <div
-        className="relative bg-white rounded-2xl border border-[#E5E3E8] px-md py-md [@media(max-height:700px)]:py-sm overflow-hidden flex flex-col min-h-0 transition-opacity duration-300"
+        className="relative bg-white border border-[#E5E3E8] px-md py-md [@media(max-height:700px)]:py-sm overflow-hidden flex flex-col min-h-0 transition-opacity duration-300"
         style={{ opacity: cardDim }}
       >
         {/* Domain header row: centered domain label with a thumbs-down/thumbs-up
@@ -158,7 +158,7 @@ export default function PracticeQuestionPanel({
               animate={{ opacity: dismissedBoost, y: 0 }}
               transition={{ delay: 0.04 + index * 0.04, duration: 0.3, ease: 'easeOut' }}
               className={cn(
-                'relative w-full rounded-lg border px-md py-sm min-h-[52px] transition-[border-color,background-color] duration-[250ms]',
+                'relative w-full border px-md py-sm min-h-[52px] transition-[border-color,background-color] duration-[250ms]',
                 !answered && 'border-[#E5E3E8] bg-white cursor-pointer hover:border-[#8C5FB3]',
                 showCorrect && 'border-[#34D399] bg-[#ECF7ED] cursor-default',
                 showIncorrect && 'border-[#F87171] bg-[#FEE2E2] cursor-default',
@@ -204,7 +204,7 @@ export default function PracticeQuestionPanel({
           {fb && !fbDismissed && !showMastery && (
             <motion.div
               key={`fb-${question.questionId}`}
-              className="absolute left-0 right-0 bottom-0 rounded-2xl border p-md shadow-[0_-10px_30px_rgba(28,23,37,0.08)] overflow-hidden"
+              className="absolute left-0 right-0 bottom-0 border p-md shadow-[0_-10px_30px_rgba(28,23,37,0.08)] overflow-hidden"
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 14, transition: { duration: 0.2 } }}
@@ -298,14 +298,14 @@ export default function PracticeQuestionPanel({
             <button
               type="button"
               onClick={onNext}
-              className="flex-[4] rounded-lg bg-[#4A2462] hover:bg-[#8C5FB3] text-white py-sm text-title-md font-semibold text-center transition-colors"
+              className="flex-[4] bg-[#4A2462] hover:bg-[#8C5FB3] text-white py-sm text-title-md font-semibold text-center transition-colors"
             >
               Next Question
             </button>
             <button
               type="button"
               onClick={onReopenFb}
-              className="flex-1 border border-[#E5E3E8] hover:border-[#8C5FB3] bg-white text-[#4A2462] rounded-lg flex items-center justify-center text-title-md font-bold transition-colors"
+              className="flex-1 border border-[#E5E3E8] hover:border-[#8C5FB3] bg-white text-[#4A2462] flex items-center justify-center text-title-md font-bold transition-colors"
               aria-label="Show feedback"
             >
               ?

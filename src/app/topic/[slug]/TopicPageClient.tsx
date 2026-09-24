@@ -90,13 +90,13 @@ function TopicPageContent() {
                       <div className="relative overflow-hidden h-[220px] sm:h-[300px] lg:h-[360px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                       <div className="p-[16px] sm:p-[20px] blur-[5px]">
                         <div className="flex items-center gap-[8px] mb-[8px]">
-                          <span className="h-[12px] w-[48px] rounded-sm bg-primary/20" />
-                          <span className="h-[12px] w-[72px] rounded-sm bg-text-secondary/20" />
-                          <span className="h-[10px] w-[22px] rounded-sm bg-text-secondary/20" />
+                          <span className="h-[12px] w-[48px] bg-primary/20" />
+                          <span className="h-[12px] w-[72px] bg-text-secondary/20" />
+                          <span className="h-[10px] w-[22px] bg-text-secondary/20" />
                         </div>
                         <div className="space-y-[6px]">
-                          <div className="h-[20px] w-full max-w-[95%] rounded-sm bg-primary/10" />
-                          <div className="h-[20px] w-[60%] rounded-sm bg-primary/10" />
+                          <div className="h-[20px] w-full max-w-[95%] bg-primary/10" />
+                          <div className="h-[20px] w-[60%] bg-primary/10" />
                         </div>
                       </div>
                     </div>
@@ -108,12 +108,12 @@ function TopicPageContent() {
                           <div className="relative w-[130px] sm:w-[160px] shrink-0 overflow-hidden bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                           <div className="p-[12px] flex flex-col justify-center flex-1 min-w-0 blur-[5px]">
                             <div className="flex items-center gap-[6px] mb-[4px]">
-                              <span className="h-[9px] w-[36px] rounded-sm bg-primary/20" />
-                              <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
+                              <span className="h-[9px] w-[36px] bg-primary/20" />
+                              <span className="h-[9px] w-[18px] bg-text-secondary/20" />
                             </div>
                             <div className="space-y-[4px]">
-                              <div className="h-[13px] w-full max-w-[100%] rounded-sm bg-primary/10" />
-                              <div className="h-[13px] w-[85%] rounded-sm bg-primary/10" />
+                              <div className="h-[13px] w-full max-w-[100%] bg-primary/10" />
+                              <div className="h-[13px] w-[85%] bg-primary/10" />
                             </div>
                           </div>
                         </div>
@@ -129,12 +129,12 @@ function TopicPageContent() {
                         <div className="relative overflow-hidden h-[160px] bg-gradient-to-br from-gray-300 via-gray-200 to-gray-300 blur-[8px] scale-[1.05]" />
                         <div className="p-[12px] flex-1 flex flex-col blur-[5px]">
                           <div className="flex items-center gap-[6px] mb-[4px]">
-                            <span className="h-[9px] w-[40px] rounded-sm bg-primary/20" />
-                            <span className="h-[9px] w-[18px] rounded-sm bg-text-secondary/20" />
+                            <span className="h-[9px] w-[40px] bg-primary/20" />
+                            <span className="h-[9px] w-[18px] bg-text-secondary/20" />
                           </div>
                           <div className="space-y-[4px]">
-                            <div className="h-[13px] w-full rounded-sm bg-primary/10" />
-                            <div className="h-[13px] w-[80%] rounded-sm bg-primary/10" />
+                            <div className="h-[13px] w-full bg-primary/10" />
+                            <div className="h-[13px] w-[80%] bg-primary/10" />
                           </div>
                         </div>
                       </div>

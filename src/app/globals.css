@@ -64,7 +64,7 @@
     --z-topic-nav: 900;
     --z-article-audio: 950;
     --z-play-all: 1000;
-    --z-mobile-nudge: 1100;
+    --z-onboarding: 1100;
     --z-dialog: 1200;
     --z-sheet: 1200;
     --z-translation-backdrop: 9998;
@@ -240,3 +240,59 @@
 .animate-practice-confetti { animation: practiceConfettiFall linear infinite; }
 .animate-practice-spark { animation: practiceSparkFly ease-out infinite; }
 .animate-practice-spark-once { animation: practiceSparkFly 0.9s ease-out both; }
+
+/* Onboarding motion. Distances are fixed in px so wide screens don't slide further. */
+@keyframes onboardingRouteForward {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes onboardingRouteBack {
+  from { opacity: 0; transform: translateX(-16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes onboardingExitForward {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(-12px); }
+}
+@keyframes onboardingExitBack {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateX(12px); }
+}
+@keyframes onboardingTitleIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes onboardingSubtitleIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes onboardingSheetIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes onboardingItemIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: none; }
+}
+
+.onboarding-route-forward { animation: onboardingRouteForward 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.onboarding-route-back { animation: onboardingRouteBack 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.onboarding-exit-forward { animation: onboardingExitForward 240ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+.onboarding-exit-back { animation: onboardingExitBack 240ms cubic-bezier(0.4, 0, 1, 1) forwards; }
+.onboarding-title { animation: onboardingTitleIn 720ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both; }
+.onboarding-subtitle { animation: onboardingSubtitleIn 640ms ease-out 200ms both; }
+.onboarding-sheet { animation: onboardingSheetIn 680ms cubic-bezier(0.22, 1, 0.36, 1) 180ms both; }
+.onboarding-item { animation: onboardingItemIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-route-forward,
+  .onboarding-route-back,
+  .onboarding-exit-forward,
+  .onboarding-exit-back,
+  .onboarding-title,
+  .onboarding-subtitle,
+  .onboarding-sheet,
+  .onboarding-item {
+    animation: none;
+  }
+}

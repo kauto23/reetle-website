@@ -3,7 +3,7 @@
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { captureAcquisitionFromUrl } from '@/lib/acquisition';
+import { applyDefaultUtms, captureAcquisitionFromUrl, syncAcquisitionSession } from '@/lib/acquisition';
 
 function IgBioRedirectClient() {
   const router = useRouter();
@@ -13,11 +13,14 @@ function IgBioRedirectClient() {
     const currentSearch = typeof window !== 'undefined' ? window.location.search : searchParams.toString();
     const targetParams = new URLSearchParams(currentSearch);
 
-    targetParams.set('utm_source', 'instagram');
-    targetParams.set('utm_medium', 'social_organic');
-    targetParams.set('utm_campaign', 'bio');
+    applyDefaultUtms(targetParams, {
+      utm_source: 'instagram',
+      utm_medium: 'social_organic',
+      utm_campaign: 'bio',
+    });
 
-    captureAcquisitionFromUrl('/ig', targetParams.toString());
+    const acq = captureAcquisitionFromUrl('/ig', targetParams.toString());
+    if (acq) syncAcquisitionSession(acq);
 
     router.replace(`/?${targetParams.toString()}`);
   }, [router, searchParams]);

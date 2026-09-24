@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "lect-io"
-  }
+  },
+  "targets": {
+    "lect-io": {
+      "hosting": {
+        "staging": [
+          "reetle-staging-web"
+        ],
+        "production": [
+          "lect-io"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

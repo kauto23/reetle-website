@@ -177,7 +177,7 @@ export default function QuestionCard({
       <motion.div layout transition={{ layout: { duration: 0.3, ease: easeOut } }}>
         <motion.div
           className={cn(
-            'relative bg-surface rounded-2xl border border-ui-border px-md py-md overflow-hidden',
+            'relative bg-surface border border-ui-border px-md py-md overflow-hidden',
             hasAnswered && !isCorrect && 'opacity-90'
           )}
           onMouseEnter={hasHover && !hasAnswered ? handleQuestionMouseEnter : undefined}
@@ -254,7 +254,7 @@ export default function QuestionCard({
           <AnimatePresence>
             {showHint && (
               <motion.div
-                className="absolute bottom-0 left-0 right-0 flex items-center gap-xs px-md py-[10px] bg-ui-primary/90 backdrop-blur-sm rounded-b-2xl z-[2]"
+                className="absolute bottom-0 left-0 right-0 flex items-center gap-xs px-md py-[10px] bg-ui-primary/90 backdrop-blur-sm z-[2]"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 8 }}
@@ -303,7 +303,7 @@ export default function QuestionCard({
               whileHover={!hasAnswered && hasHover ? { scale: 1.01 } : undefined}
               whileTap={!hasAnswered ? { scale: 0.985 } : undefined}
               className={cn(
-                'relative w-full rounded-2xl border px-md py-sm text-left transition-colors duration-200 flex items-center justify-between gap-sm min-h-[52px]',
+                'relative w-full border px-md py-sm text-left transition-colors duration-200 flex items-center justify-between gap-sm min-h-[52px]',
                 !hasAnswered && 'border-ui-border bg-surface cursor-pointer hover:border-primary-light',
                 showCorrectState && 'border-correct bg-correct-bg cursor-default',
                 showIncorrectState && 'border-incorrect bg-incorrect-bg cursor-default',
@@ -351,7 +351,7 @@ export default function QuestionCard({
           >
             {showMastery ? (
               <motion.div
-                className="p-md rounded-2xl border border-ui-primary/10 overflow-hidden relative mb-sm"
+                className="p-md border border-ui-primary/10 overflow-hidden relative mb-sm"
                 style={{
                   background: 'linear-gradient(135deg, hsl(var(--primary) / 0.04), hsl(var(--accent-coral) / 0.06), hsl(var(--primary) / 0.04))',
                 }}
@@ -376,7 +376,7 @@ export default function QuestionCard({
             ) : (
               <motion.div
                 className={cn(
-                  'relative rounded-2xl border p-md mb-sm shadow-[0_-10px_30px_rgba(28,23,37,0.08)]',
+                  'relative border p-md mb-sm shadow-[0_-10px_30px_rgba(28,23,37,0.08)]',
                   isCorrect ? 'bg-correct-bg border-correct/25' : 'bg-incorrect-bg border-incorrect/25'
                 )}
                 initial={{ opacity: 0, y: 12 }}
@@ -399,7 +399,7 @@ export default function QuestionCard({
                   <div className="flex justify-end mb-xs pr-lg">
                     <span
                       className={cn(
-                        'inline-flex items-center rounded-full px-sm py-[2px] text-label-md font-semibold border',
+                        'inline-flex items-center px-sm py-[2px] text-label-md font-semibold border',
                         isCorrect
                           ? 'bg-correct-bg border-correct/30 text-correct-text'
                           : 'bg-incorrect-bg border-incorrect/30 text-incorrect-text'
@@ -513,7 +513,7 @@ export default function QuestionCard({
           <motion.button
             type="button"
             onClick={() => setFeedbackDismissed(false)}
-            className="flex-1 border border-ui-border bg-surface text-ui-primary rounded-2xl flex items-center justify-center text-title-md font-bold"
+            className="flex-1 border border-ui-border bg-surface text-ui-primary flex items-center justify-center text-title-md font-bold"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}

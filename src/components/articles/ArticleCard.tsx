@@ -76,7 +76,7 @@ const refreshBlur = 'blur-[3px] select-none pointer-events-none';
 
 /** Squared corners; subtle border/shadow match app chrome. */
 const cardBase =
-  'bg-ui-card overflow-hidden border border-ui-border rounded-none shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-colors duration-200 hover:border-primary/25 antialiased';
+  'bg-ui-card overflow-hidden border border-ui-border shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-colors duration-200 hover:border-primary/25 antialiased';
 
 function ImagePlaceholder({ size = 32 }: { size?: number }) {
   return (
@@ -89,14 +89,14 @@ function ImagePlaceholder({ size = 32 }: { size?: number }) {
 function ReadBadge({ size = 'md' }: { size?: 'sm' | 'md' }) {
   if (size === 'sm') {
     return (
-      <div className="absolute top-[8px] right-[8px] bg-correct text-white text-label-sm px-[6px] py-[2px] rounded-full flex items-center gap-[3px] pointer-events-none">
+      <div className="absolute top-[8px] right-[8px] bg-correct text-white text-label-sm px-[6px] py-[2px] flex items-center gap-[3px] pointer-events-none">
         <Check className="w-2.5 h-2.5" strokeWidth={3} />
         Read
       </div>
     );
   }
   return (
-    <div className="absolute top-[10px] right-[10px] bg-correct text-white text-label-sm px-[8px] py-[3px] rounded-full flex items-center gap-[4px] pointer-events-none">
+    <div className="absolute top-[10px] right-[10px] bg-correct text-white text-label-sm px-[8px] py-[3px] flex items-center gap-[4px] pointer-events-none">
       <Check className="w-3 h-3" strokeWidth={3} />
       Read
     </div>
@@ -243,7 +243,7 @@ function HeadlineRow({
         <button
           onClick={toggleTranslation}
           className={cn(
-            'flex-shrink-0 inline-flex items-center justify-center w-[34px] h-[30px] bg-transparent border-none cursor-pointer rounded-md p-0',
+            'flex-shrink-0 inline-flex items-center justify-center w-[34px] h-[30px] bg-transparent border-none cursor-pointer p-0',
             'transition-[color,transform] duration-300 ease-out',
             showTranslation ? 'text-ui-primary' : 'text-ui-muted-foreground/60',
             'hover:text-ui-primary',

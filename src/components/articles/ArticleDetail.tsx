@@ -12,7 +12,8 @@ import { useArticles } from '@/contexts/ArticlesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useGuestPreferences } from '@/contexts/GuestPreferencesContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { getArticleContent, getGuestArticleContent, getArticleQuestions, getGuestArticleQuestions, GuestQuotaError, FreeTierQuotaError } from '@/services/api';
+import { getArticleContent, getGuestArticleContent, getSingleArticleSummary, getArticleQuestions, getGuestArticleQuestions, GuestQuotaError, FreeTierQuotaError } from '@/services/api';
+import { recordViewContent } from '@/lib/acquisition';
 import { prefetchQuiz } from '@/services/quizCache';
 import type { Article } from '@/types/article';
 import { useHasHover } from '@/hooks/useHasHover';
@@ -227,6 +228,33 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
     }
   }, [contextArticle, article]);
 
+  // Fallback: If article is not in the home-feed cache (e.g. ad click to older article),
+  // fetch the single article summary directly from the API.
+  useEffect(() => {
+    if (article || contextArticle || !articleId || authLoading) return;
+    let cancelled = false;
+
+    async function loadStandaloneArticle() {
+      try {
+        const standalone = await getSingleArticleSummary(articleId, {
+          targetLanguage: activeLang || undefined,
+          cefrLevel: activeLevel || undefined,
+        });
+        if (!cancelled && standalone) {
+          setArticle(standalone);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.warn('Failed to load standalone article summary:', err);
+      }
+    }
+
+    loadStandaloneArticle();
+    return () => {
+      cancelled = true;
+    };
+  }, [article, contextArticle, articleId, authLoading, activeLang, activeLevel]);
+
   // ── Fetch article content ──────────────────────────────────────────────────
 
   useEffect(() => {
@@ -269,12 +297,16 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
             setContent(result.content);
             setArticleViewId(result.articleViewId);
             setContentId(result.contentId ?? null);
+            recordViewContent(articleId);
           }
         } else {
           const result = await getGuestArticleContent(articleId, guestPrefs.targetLanguage, guestPrefs.cefrLevel);
           if (cancelled) return;
           if (result.error) setError(result.content);
-          else { setContent(result.content); }
+          else {
+            setContent(result.content);
+            recordViewContent(articleId);
+          }
         }
       } catch (err) {
         if (cancelled) return;
@@ -645,8 +677,8 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
           {isLoading && (
             <div className="animate-pulse">
               <div className="h-[200px] bg-gray-200 mb-lg" />
-              <div className="h-[28px] bg-gray-200 rounded w-3/4 mb-md" />
-              <div className="h-[16px] bg-gray-200 rounded w-1/4" />
+              <div className="h-[28px] bg-gray-200 w-3/4 mb-md" />
+              <div className="h-[16px] bg-gray-200 w-1/4" />
             </div>
           )}
 
@@ -693,7 +725,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
               <div className={`flex items-center gap-md text-body-md text-ui-muted-foreground ${(quotaExceeded || freeTierQuota) ? 'mb-md' : 'mb-md'}`}>
                 {article.publishedDate && <span>{article.publishedDate}</span>}
                 {article.cefrLevelHeadline && (
-                  <span className="bg-background px-[8px] py-[2px] rounded text-[12px] font-medium">
+                  <span className="bg-background px-[8px] py-[2px] text-[12px] font-medium">
                     {article.cefrLevelHeadline}
                   </span>
                 )}
@@ -738,7 +770,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                     {showRefreshMsg && (
                       <div className="absolute inset-0 flex items-start justify-center pt-xl animate-fadeIn">
                         <div className="flex flex-col items-center text-center">
-                          <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mb-lg">
+                          <div className="w-[56px] h-[56px] bg-primary/10 flex items-center justify-center mb-lg">
                             <PenLine size={26} strokeWidth={1.5} className="text-primary animate-writing" />
                           </div>
                           <h2 className="text-display-sm text-primary mb-sm">
@@ -750,8 +782,8 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                           >
                             {GENERATING_MESSAGES[refreshMsgIdx]}
                           </p>
-                          <div className="w-full max-w-[240px] h-[4px] bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full animate-progress" />
+                          <div className="w-full max-w-[240px] h-[4px] bg-gray-200 overflow-hidden">
+                            <div className="h-full bg-primary animate-progress" />
                           </div>
                         </div>
                       </div>
@@ -760,7 +792,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                 ) : contentLoading ? (
                   showGeneratingMsg ? (
                     <div className="flex flex-col items-center text-center py-xl animate-fadeIn select-none pointer-events-none">
-                      <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mb-lg">
+                      <div className="w-[56px] h-[56px] bg-primary/10 flex items-center justify-center mb-lg">
                         <PenLine size={26} strokeWidth={1.5} className="text-primary animate-writing" />
                       </div>
                       <h2 className="text-display-sm text-primary mb-sm">
@@ -773,17 +805,17 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                         {GENERATING_MESSAGES[generatingMsgIdx]}
                       </p>
                       
-                      <div className="w-full max-w-[240px] h-[4px] bg-gray-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-primary rounded-full animate-progress" />
+                      <div className="w-full max-w-[240px] h-[4px] bg-gray-200 overflow-hidden">
+                        <div className="h-full bg-primary animate-progress" />
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-md animate-pulse">
                       {[1, 2, 3, 4, 5].map(i => (
                         <div key={i}>
-                          <div className="h-[16px] bg-gray-200 rounded w-full mb-[6px]" />
-                          <div className="h-[16px] bg-gray-200 rounded w-5/6 mb-[6px]" />
-                          <div className="h-[16px] bg-gray-200 rounded w-4/6" />
+                          <div className="h-[16px] bg-gray-200 w-full mb-[6px]" />
+                          <div className="h-[16px] bg-gray-200 w-5/6 mb-[6px]" />
+                          <div className="h-[16px] bg-gray-200 w-4/6" />
                         </div>
                       ))}
                     </div>
@@ -812,7 +844,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                     >
                       <div className="mt-[80px] w-full text-center px-[16px]">
                         {/* Icon */}
-                        <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-lg">
+                        <div className="w-[56px] h-[56px] bg-primary/10 flex items-center justify-center mx-auto mb-lg">
                           <BookOpen size={26} strokeWidth={1.5} className="text-primary" />
                         </div>
 
@@ -873,7 +905,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                       }}
                     >
                       <div className="mt-[80px] w-full text-center px-[16px]">
-                        <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-lg">
+                        <div className="w-[56px] h-[56px] bg-primary/10 flex items-center justify-center mx-auto mb-lg">
                           <Layers size={26} strokeWidth={1.5} className="text-primary" />
                         </div>
                         <h2 className="text-display-sm text-primary mb-sm">Daily limit reached</h2>

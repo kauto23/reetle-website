@@ -201,7 +201,7 @@ export default function PlayAllAudio({
   if (!isAuthenticated || queue.mode === 'guest_locked') {
     return (
       <div className={`${BASE_WRAPPER_CLASS} flex items-center gap-[10px] sm:gap-[12px]`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -210,7 +210,7 @@ export default function PlayAllAudio({
             Sign in to play recent articles back-to-back at your level.
           </div>
         </div>
-        <Button asChild variant="default" size="sm" className="rounded-sm px-[12px] sm:px-[14px] py-2 h-auto shrink-0 whitespace-nowrap">
+        <Button asChild variant="default" size="sm" className="px-[12px] sm:px-[14px] py-2 h-auto shrink-0 whitespace-nowrap">
           <Link href={loginUrl} className="inline-flex items-center gap-[6px]">
             <Headphones size={14} />
             Sign in
@@ -223,7 +223,7 @@ export default function PlayAllAudio({
   if (queue.mode === 'limit_reached') {
     return (
       <div className={`${BASE_WRAPPER_CLASS} flex items-start gap-[12px]`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -263,7 +263,7 @@ export default function PlayAllAudio({
       <div className="fixed inset-x-0 bottom-0 z-[1000]">
         <div className="border-t border-border bg-ui-card px-[12px] pt-[10px] pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
           <div className="max-w-[1280px] mx-auto flex items-center gap-[10px] sm:gap-[12px]">
-            <div className="hidden sm:flex w-[40px] h-[40px] rounded-full bg-primary/10 items-center justify-center text-primary shrink-0">
+            <div className="hidden sm:flex w-[40px] h-[40px] bg-primary/10 items-center justify-center text-primary shrink-0">
               <Headphones size={20} />
             </div>
             <div className="min-w-0 flex-1">
@@ -274,7 +274,7 @@ export default function PlayAllAudio({
                 This article isn&apos;t narrated yet. Premium members can generate audio for any article instantly.
               </div>
             </div>
-            <Button asChild variant="default" size="sm" className="rounded-sm px-[12px] sm:px-[14px] py-2 h-auto shrink-0 whitespace-nowrap">
+            <Button asChild variant="default" size="sm" className="px-[12px] sm:px-[14px] py-2 h-auto shrink-0 whitespace-nowrap">
               <Link href="/premium">Upgrade</Link>
             </Button>
             <button
@@ -295,7 +295,7 @@ export default function PlayAllAudio({
   if (queue.mode === 'empty') {
     return (
       <div className={`${BASE_WRAPPER_CLASS} flex items-center gap-[12px]`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -319,7 +319,7 @@ export default function PlayAllAudio({
   if (queue.mode === 'finished') {
     return (
       <div className={`${BASE_WRAPPER_CLASS} flex items-center gap-[12px]`}>
-        <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+        <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
           <Headphones size={20} />
         </div>
         <div className="flex-1 min-w-0">
@@ -332,7 +332,7 @@ export default function PlayAllAudio({
           type="button"
           variant="default"
           size="sm"
-          className="rounded-sm px-[14px] py-2 h-auto inline-flex items-center gap-[6px] shrink-0"
+          className="px-[14px] py-2 h-auto inline-flex items-center gap-[6px] shrink-0"
           onClick={() => queue.start(articles)}
         >
           <Play size={14} fill="currentColor" strokeWidth={0} />
@@ -365,7 +365,7 @@ export default function PlayAllAudio({
     if (allHeardNoResume) {
       return (
         <div className={`${BASE_WRAPPER_CLASS} flex items-center gap-[12px]`}>
-          <div className="w-[36px] h-[36px] rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+          <div className="w-[36px] h-[36px] bg-primary/10 flex items-center justify-center text-primary shrink-0">
             <Headphones size={20} />
           </div>
           <div className="flex-1 min-w-0">
@@ -409,7 +409,7 @@ export default function PlayAllAudio({
         key={item.articleId}
         data-absidx={String(absIdx)}
         className={[
-          'flex items-center gap-[8px] rounded-lg px-[10px] py-[8px] group transition-colors select-none',
+          'flex items-center gap-[8px] px-[10px] py-[8px] group transition-colors select-none',
           isDragging ? 'opacity-40 bg-primary/5' : 'hover:bg-primary/5',
           isDropTarget ? 'bg-primary/5' : '',
           showDropAbove ? 'border-t-2 border-primary' : '',
@@ -543,7 +543,7 @@ export default function PlayAllAudio({
                   <div className="text-[10px] font-semibold text-ui-muted-foreground uppercase tracking-wider mb-[6px] px-[2px]">
                     Now Playing
                   </div>
-                  <div className="flex items-center gap-[10px] rounded-lg bg-primary/5 px-[10px] py-[9px]">
+                  <div className="flex items-center gap-[10px] bg-primary/5 px-[10px] py-[9px]">
                     <div className="w-[28px] h-[28px] rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
                       <WaveSpinner />
                     </div>
@@ -590,7 +590,7 @@ export default function PlayAllAudio({
                   {queue.preparingNext && (
                     <li
                       key={`preparing-${queue.preparingNext.articleId}`}
-                      className="flex items-center gap-[10px] rounded-lg px-[10px] py-[8px] text-ui-muted-foreground"
+                      className="flex items-center gap-[10px] px-[10px] py-[8px] text-ui-muted-foreground"
                     >
                       <div className="shrink-0 w-[28px] flex justify-center">
                         <WaveSpinner />
@@ -616,7 +616,7 @@ export default function PlayAllAudio({
       <div className="border-t border-border bg-ui-card px-[12px] pt-[10px] pb-[calc(10px+env(safe-area-inset-bottom))] shadow-[0_-4px_18px_rgba(35,17,49,0.10)]">
       <div className="max-w-[1280px] mx-auto">
         <div className="flex items-start sm:items-center gap-[10px] sm:gap-[12px]">
-          <div className="hidden sm:flex w-[40px] h-[40px] rounded-full bg-primary/10 items-center justify-center text-primary shrink-0">
+          <div className="hidden sm:flex w-[40px] h-[40px] bg-primary/10 items-center justify-center text-primary shrink-0">
             {queue.mode === 'loading' || queue.mode === 'awaiting_next' ? <WaveSpinner /> : <Headphones size={20} />}
           </div>
 

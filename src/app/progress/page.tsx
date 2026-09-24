@@ -94,7 +94,7 @@ function ActivityTooltip({ active, payload, label }: { active?: boolean; payload
   const acc = total > 0 ? Math.round((correct / total) * 100) : 0;
 
   return (
-    <div className="bg-ui-card border border-ui-border rounded-lg p-sm shadow-md text-label-md">
+    <div className="bg-ui-card border border-ui-border p-sm shadow-md text-label-md">
       <p className="font-semibold text-primary mb-[2px]">{label}</p>
       <p className="text-correct-text">{correct} correct</p>
       <p className="text-incorrect-text">{incorrect} incorrect</p>
@@ -128,7 +128,7 @@ function ChartSkeleton() {
           {Array.from({ length: 7 }).map((_, i) => (
             <Skeleton
               key={i}
-              className="flex-1 rounded-t"
+              className="flex-1 "
               style={{ height: `${30 + (i * 13) % 60}%` }}
             />
           ))}
@@ -227,17 +227,17 @@ export default function ProgressPage() {
               type="single"
               value={timeRange}
               onValueChange={(v) => v && setTimeRange(v as TimeRange)}
-              className="bg-ui-background rounded-full p-1 border border-ui-border gap-0"
+              className="bg-ui-background p-1 border border-ui-border gap-0"
             >
               <ToggleGroupItem
                 value="7"
-                className="px-5 py-1.5 rounded-full text-body-md data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
+                className="px-5 py-1.5 text-body-md data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 This Week
               </ToggleGroupItem>
               <ToggleGroupItem
                 value="30"
-                className="px-5 py-1.5 rounded-full text-body-md data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
+                className="px-5 py-1.5 text-body-md data-[state=on]:bg-ui-primary data-[state=on]:text-white data-[state=on]:shadow-sm"
               >
                 This Month
               </ToggleGroupItem>
@@ -296,7 +296,7 @@ export default function ProgressPage() {
 
                 <Card>
                   <CardContent className="p-6 text-center flex flex-col justify-center">
-                    <div className="w-24 h-24 rounded-full bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
+                    <div className="w-24 h-24 bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
                       <Library className="w-10 h-10 text-ui-primary" strokeWidth={1.5} />
                     </div>
                     <p className="text-display-md text-ui-foreground">{periodWordsMastered}</p>
@@ -307,7 +307,7 @@ export default function ProgressPage() {
 
                 <Card>
                   <CardContent className="p-6 text-center flex flex-col justify-center">
-                    <div className="w-24 h-24 rounded-full bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
+                    <div className="w-24 h-24 bg-ui-primary/5 mx-auto flex items-center justify-center mb-3">
                       <BookOpen className="w-10 h-10 text-ui-primary" strokeWidth={1.5} />
                     </div>
                     <p className="text-display-md text-ui-foreground">{periodArticles}</p>
@@ -323,11 +323,11 @@ export default function ProgressPage() {
                     <h2 className="text-title-lg text-ui-foreground mb-4">Daily Activity</h2>
                     <div className="flex gap-4 mb-4 text-label-md text-ui-muted-foreground">
                       <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-correct" />
+                        <span className="inline-block w-2.5 h-2.5 bg-correct" />
                         Correct
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <span className="inline-block w-2.5 h-2.5 rounded-sm bg-incorrect" />
+                        <span className="inline-block w-2.5 h-2.5 bg-incorrect" />
                         Incorrect
                       </span>
                     </div>
@@ -384,7 +384,7 @@ export default function ProgressPage() {
                       {recentMasteredWords.map((word, i) => (
                         <div
                           key={`${word.target_word}-${i}`}
-                          className="flex items-center justify-between py-2.5 px-4 bg-ui-background rounded-md"
+                          className="flex items-center justify-between py-2.5 px-4 bg-ui-background "
                         >
                           <div className="flex items-center gap-2">
                             <span className="text-title-md text-ui-foreground font-medium">{word.target_word}</span>

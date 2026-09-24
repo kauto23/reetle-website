@@ -22,7 +22,7 @@ export default function SignUpPrompt({
     return (
       <div className="animate-fadeIn">
         <div className="flex flex-col items-center text-center py-xs">
-          <div className="w-[40px] h-[40px] bg-primary/10 rounded-full flex items-center justify-center mb-[12px]">
+          <div className="w-[40px] h-[40px] bg-primary/10 flex items-center justify-center mb-[12px]">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-primary" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
               <path d="M12 8v4" />
@@ -35,7 +35,7 @@ export default function SignUpPrompt({
           <p className="text-body-sm text-ui-muted-foreground mb-[12px] leading-[1.5]">
             {message}
           </p>
-          <Button asChild variant="default" size="sm" className="rounded-lg px-[20px] py-2 h-auto font-semibold">
+          <Button asChild variant="default" size="sm" className="px-[20px] py-2 h-auto font-semibold">
             <Link href={loginUrl}>
               Sign Up Free
             </Link>
@@ -52,7 +52,7 @@ export default function SignUpPrompt({
         onClick={onClose}
       />
 
-      <div className="relative bg-ui-card rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.15)] max-w-[420px] w-full p-[32px] text-center">
+      <div className="relative bg-ui-card shadow-[0_20px_60px_rgba(0,0,0,0.15)] max-w-[420px] w-full p-[32px] text-center">
         {onClose && (
           <button
             onClick={onClose}
@@ -66,7 +66,7 @@ export default function SignUpPrompt({
           </button>
         )}
 
-        <div className="w-[56px] h-[56px] bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-[16px]">
+        <div className="w-[56px] h-[56px] bg-primary/10 flex items-center justify-center mx-auto mb-[16px]">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="text-primary" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
             <path d="M12 8v4" />
@@ -82,7 +82,7 @@ export default function SignUpPrompt({
         </p>
 
         <div className="flex flex-col gap-[10px]">
-          <Button asChild variant="default" size="lg" className="w-full rounded-lg font-semibold">
+          <Button asChild variant="default" size="lg" className="w-full font-semibold">
             <Link href={loginUrl}>Sign Up Free</Link>
           </Button>
           <p className="text-label-md text-ui-muted-foreground">

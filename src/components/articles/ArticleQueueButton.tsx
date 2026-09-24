@@ -316,7 +316,7 @@ export default function ArticleQueueButton({
 
   // iOS spec: fixed 34×30px headline action targets (Play / Translate match).
   const baseBtn =
-    'flex-shrink-0 inline-flex items-center justify-center w-[34px] h-[30px] p-0 bg-transparent border-none cursor-pointer transition-colors duration-150 rounded-md';
+    'flex-shrink-0 inline-flex items-center justify-center w-[34px] h-[30px] p-0 bg-transparent border-none cursor-pointer transition-colors duration-150 ';
 
   const containerClass = isColumn
     ? `inline-flex flex-col items-center shrink-0 ${className}`

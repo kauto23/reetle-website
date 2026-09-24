@@ -82,7 +82,7 @@ export default function MasteredWordsPage() {
           {isLoading && (
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map(i => (
-                <Skeleton key={i} className="h-14 rounded-xl" />
+                <Skeleton key={i} className="h-14 " />
               ))}
             </div>
           )}
@@ -104,7 +104,7 @@ export default function MasteredWordsPage() {
                 {grouped[date].map((word, i) => (
                   <div
                     key={`${word.target_word}-${i}`}
-                    className="flex items-center justify-between p-4 bg-ui-card border border-ui-border rounded-xl"
+                    className="flex items-center justify-between p-4 bg-ui-card border border-ui-border "
                   >
                     <span className="text-[16px] text-ui-foreground font-medium">{word.target_word}</span>
                     <span className="text-[14px] text-ui-muted-foreground">{word.familiar_word}</span>

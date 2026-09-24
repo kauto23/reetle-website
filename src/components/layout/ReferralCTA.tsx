@@ -26,7 +26,7 @@ export default function ReferralCTA() {
   const ctaLabel = isAuthenticated ? 'Redeem now' : 'Sign up to redeem';
 
   return (
-    <div className="relative bg-ui-card overflow-hidden border border-ui-border rounded-none flex h-full flex-1 transition-shadow hover:shadow-md">
+    <div className="relative bg-ui-card overflow-hidden border border-ui-border flex h-full flex-1 transition-shadow hover:shadow-md">
       <button
         onClick={dismissBanner}
         aria-label="Dismiss referral offer"

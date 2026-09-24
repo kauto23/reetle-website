@@ -5,6 +5,12 @@ const config: Config = {
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    // Square corners are the design system (see styleguide.md → Shape).
+    // Only `none` and `full` exist so size-based radii can't creep back in.
+    borderRadius: {
+      none: '0px',
+      full: '9999px',
+    },
     extend: {
       colors: {
         // Legacy brand tokens. These keep existing utility classes working
@@ -85,14 +91,6 @@ const config: Config = {
       },
       fontFamily: {
         outfit: ['var(--font-outfit)', 'sans-serif'],
-      },
-      borderRadius: {
-        sm: '6px',
-        DEFAULT: '8px',
-        md: '8px',
-        lg: '12px',
-        xl: '16px',
-        '2xl': '20px',
       },
       spacing: {
         'xs': '4px',

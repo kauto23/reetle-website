@@ -1,12 +1,9 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
-import Script from 'next/script';
 import { Outfit } from 'next/font/google';
-import Header from '@/components/layout/Header';
-import Footer from '@/components/layout/Footer';
 import ErrorBoundary from '@/components/layout/ErrorBoundary';
 import NetworkStatus from '@/components/layout/NetworkStatus';
-import MobileGuestNudge from '@/components/layout/MobileGuestNudge';
+import AppShell from '@/components/layout/AppShell';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { GuestPreferencesProvider } from '@/contexts/GuestPreferencesContext';
 import { ArticlesProvider } from '@/contexts/ArticlesContext';
@@ -17,7 +14,7 @@ import { PlayAllAudioProvider } from '@/contexts/PlayAllAudioContext';
 import PlayAllAudio from '@/components/articles/PlayAllAudio';
 import { Toaster } from '@/components/ui/sonner';
 import { SHOW_APP_STORE_PROMO } from '@/config/site-promos';
-import { API_ORIGIN, API_BASE_URL, FACEBOOK_PIXEL_ID } from '@/config/environment';
+import { API_ORIGIN, API_BASE_URL } from '@/config/environment';
 import './globals.css';
 
 // Fires the initial home-feed request during HTML parse, before React
@@ -118,35 +115,8 @@ export default function RootLayout({
         <link rel="preconnect" href={API_ORIGIN} />
         <link rel="dns-prefetch" href={API_ORIGIN} />
         <script dangerouslySetInnerHTML={{ __html: PREFETCH_SCRIPT }} />
-        {FACEBOOK_PIXEL_ID && (
-          <Script id="meta-pixel" strategy="afterInteractive">
-            {`
-              !function(f,b,e,v,n,t,s)
-              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-              n.queue=[];t=b.createElement(e);t.async=!0;
-              t.src=v;s=b.getElementsByTagName(e)[0];
-              s.parentNode.insertBefore(t,s)}(window, document,'script',
-              'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '${FACEBOOK_PIXEL_ID}');
-              fbq('track', 'PageView');
-            `}
-          </Script>
-        )}
       </head>
       <body className="font-outfit bg-background text-primary min-h-screen flex flex-col">
-        {FACEBOOK_PIXEL_ID && (
-          <noscript>
-            <img
-              height="1"
-              width="1"
-              style={{ display: 'none' }}
-              src={`https://www.facebook.com/tr?id=${FACEBOOK_PIXEL_ID}&ev=PageView&noscript=1`}
-              alt=""
-            />
-          </noscript>
-        )}
         <ErrorBoundary>
           <AuthProvider>
             <SubscriptionProvider>
@@ -155,12 +125,7 @@ export default function RootLayout({
                   <ArticlesProvider>
                     <AudioStatusProvider>
                         <PlayAllAudioProvider>
-                        <Suspense><Header /></Suspense>
-                        <MobileGuestNudge />
-                        <main className="flex-1">
-                          {children}
-                        </main>
-                        <Footer />
+                        <AppShell>{children}</AppShell>
                         <NetworkStatus />
                         <Toaster position="bottom-right" offset={16} richColors />
                         <Suspense><PlayAllAudio /></Suspense>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -37,53 +37,43 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import OnboardingOption from '@/components/onboarding/OnboardingOption';
+import {
+  CEFR_LEVELS,
+  flagForLanguage,
+  formatLevel,
+  languageName,
+} from '@/components/onboarding/onboardingData';
 
-const FLAG_MAP: Record<string, string> = {
-  spanish: '\u{1F1EA}\u{1F1F8}',
-  french: '\u{1F1EB}\u{1F1F7}',
-  german: '\u{1F1E9}\u{1F1EA}',
-  italian: '\u{1F1EE}\u{1F1F9}',
-  portuguese: '\u{1F1F5}\u{1F1F9}',
-  dutch: '\u{1F1F3}\u{1F1F1}',
-  russian: '\u{1F1F7}\u{1F1FA}',
-  japanese: '\u{1F1EF}\u{1F1F5}',
-  chinese: '\u{1F1E8}\u{1F1F3}',
-  korean: '\u{1F1F0}\u{1F1F7}',
-};
-
-const LANGUAGE_NAMES: Record<string, string> = {
-  es: 'Spanish', fr: 'French', de: 'German', it: 'Italian', pt: 'Portuguese',
-  nl: 'Dutch', ru: 'Russian', ja: 'Japanese', zh: 'Chinese', ko: 'Korean', en: 'English',
-  spanish: 'Spanish', french: 'French', german: 'German', italian: 'Italian',
-  portuguese: 'Portuguese', dutch: 'Dutch', russian: 'Russian', japanese: 'Japanese',
-  chinese: 'Chinese', korean: 'Korean', english: 'English',
-};
-
-function getLanguageDisplayName(code: string | null): string {
-  if (!code) return 'Not set';
-  return LANGUAGE_NAMES[code.toLowerCase()] || code.charAt(0).toUpperCase() + code.slice(1);
+function PreferenceRow({
+  label,
+  value,
+  open,
+  onToggle,
+}: {
+  label: string;
+  value: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={open}
+      className="flex w-full items-center justify-between gap-3 py-4 text-left bg-transparent border-none cursor-pointer"
+    >
+      <div className="min-w-0">
+        <p className="text-label-md text-ui-muted-foreground mb-0.5">{label}</p>
+        <p className="text-title-md text-ui-foreground">{value}</p>
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-0.5 text-label-lg text-ui-primary">
+        {open ? 'Close' : 'Change'}
+        <ChevronRight className={cn('h-4 w-4 transition-transform duration-200', open && 'rotate-90')} />
+      </span>
+    </button>
+  );
 }
-
-function getLanguageFlag(code: string | null): string {
-  if (!code) return '';
-  return FLAG_MAP[code.toLowerCase()] || '';
-}
-
-interface CefrLevel {
-  code: string;
-  name: string;
-  description: string;
-  available: boolean;
-}
-
-const CEFR_LEVELS: CefrLevel[] = [
-  { code: 'A1', name: 'Beginner', description: 'Basic phrases and greetings', available: true },
-  { code: 'A2', name: 'Elementary', description: 'Simple conversations', available: true },
-  { code: 'B1', name: 'Intermediate', description: 'Everyday topics and travel', available: true },
-  { code: 'B2', name: 'Upper Intermediate', description: 'Fluent with native speakers', available: true },
-  { code: 'C1', name: 'Advanced', description: 'Complex texts and speech', available: false },
-  { code: 'C2', name: 'Proficiency', description: 'Near-native fluency', available: false },
-];
 
 export default function ProfilePage() {
   const { user, logout, deleteAccount, updateLanguage, updateCefrLevel } = useAuth();
@@ -108,13 +98,11 @@ export default function ProfilePage() {
   const [editingLanguage, setEditingLanguage] = useState(false);
   const [languages, setLanguages] = useState<TargetLanguage[]>([]);
   const [languagesLoaded, setLanguagesLoaded] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
-  const [isSavingLanguage, setIsSavingLanguage] = useState(false);
+  const [savingLanguage, setSavingLanguage] = useState<string | null>(null);
   const [languageError, setLanguageError] = useState<string | null>(null);
 
   const [editingLevel, setEditingLevel] = useState(false);
-  const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [isSavingLevel, setIsSavingLevel] = useState(false);
+  const [savingLevel, setSavingLevel] = useState<string | null>(null);
   const [levelError, setLevelError] = useState<string | null>(null);
 
   const loadLanguages = useCallback(async () => {
@@ -151,31 +139,32 @@ export default function ProfilePage() {
   const handleToggleLanguageEdit = () => {
     setEditingLevel(false);
     setEditingLanguage(!editingLanguage);
-    setSelectedLanguage(null);
     setLanguageError(null);
   };
 
   const handleToggleLevelEdit = () => {
     setEditingLanguage(false);
     setEditingLevel(!editingLevel);
-    setSelectedLevel(null);
     setLevelError(null);
   };
 
-  const handleSaveLanguage = async () => {
-    if (!selectedLanguage) return;
-    setIsSavingLanguage(true);
+  const handleSelectLanguage = async (code: string) => {
+    if (savingLanguage) return;
+    if (code === user?.targetLanguage) {
+      setEditingLanguage(false);
+      return;
+    }
+    setSavingLanguage(code);
     setLanguageError(null);
     try {
-      const success = await updateLanguage(undefined, selectedLanguage);
+      const success = await updateLanguage(undefined, code);
       if (success) {
         setEditingLanguage(false);
-        setSelectedLanguage(null);
         // Confirm the save and signal that downstream content (articles
         // feed, any active audio queue) is being refreshed for the new
         // language. The actual queue teardown is handled inside
         // `PlayAllAudioContext` when it observes the auth-context update.
-        toast.success(`Now learning ${getLanguageDisplayName(selectedLanguage)}`, {
+        toast.success(`Now learning ${languageName(code)}`, {
           description: 'Your articles and audio are being updated.',
           duration: 4000,
         });
@@ -185,20 +174,23 @@ export default function ProfilePage() {
     } catch {
       setLanguageError('An error occurred. Please try again.');
     } finally {
-      setIsSavingLanguage(false);
+      setSavingLanguage(null);
     }
   };
 
-  const handleSaveLevel = async () => {
-    if (!selectedLevel) return;
-    setIsSavingLevel(true);
+  const handleSelectLevel = async (code: string) => {
+    if (savingLevel) return;
+    if (code === user?.cefrLevel) {
+      setEditingLevel(false);
+      return;
+    }
+    setSavingLevel(code);
     setLevelError(null);
     try {
-      const success = await updateCefrLevel(selectedLevel);
+      const success = await updateCefrLevel(code);
       if (success) {
         setEditingLevel(false);
-        setSelectedLevel(null);
-        toast.success(`Level set to ${selectedLevel}`, {
+        toast.success(`Level set to ${formatLevel(code)}`, {
           description: 'Your articles and audio are being updated.',
           duration: 4000,
         });
@@ -208,7 +200,7 @@ export default function ProfilePage() {
     } catch {
       setLevelError('An error occurred. Please try again.');
     } finally {
-      setIsSavingLevel(false);
+      setSavingLevel(null);
     }
   };
 
@@ -286,31 +278,30 @@ export default function ProfilePage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 bg-ui-primary rounded-full flex items-center justify-center text-white text-2xl font-semibold shrink-0">
+                <div className="w-14 h-14 bg-ui-primary rounded-full flex items-center justify-center text-white text-headline-sm shrink-0">
                   {user?.email?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[16px] font-semibold text-ui-foreground truncate">{user?.email || 'User'}</p>
+                  <p className="text-title-md font-semibold text-ui-foreground truncate">{user?.email || 'User'}</p>
                   {user?.cefrLevel && (
-                    <p className="text-[13px] text-ui-muted-foreground">Level {user.cefrLevel}</p>
+                    <p className="text-body-sm text-ui-muted-foreground">{formatLevel(user.cefrLevel)}</p>
                   )}
                 </div>
               </div>
 
               <Separator />
 
-              <div className="flex items-center justify-between py-4">
-                <div className="min-w-0">
-                  <p className="text-[12px] text-ui-muted-foreground mb-0.5">Learning</p>
-                  <p className="text-[15px] font-medium text-ui-foreground">
-                    <span className="mr-1">{getLanguageFlag(user?.targetLanguage || null)}</span>
-                    {getLanguageDisplayName(user?.targetLanguage || null)}
-                  </p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleToggleLanguageEdit} className="rounded-full">
-                  {editingLanguage ? 'Cancel' : 'Change'}
-                </Button>
-              </div>
+              <PreferenceRow
+                label="Learning language"
+                value={
+                  <>
+                    <span aria-hidden className="mr-1.5">{flagForLanguage(user?.targetLanguage)}</span>
+                    {languageName(user?.targetLanguage)}
+                  </>
+                }
+                open={editingLanguage}
+                onToggle={handleToggleLanguageEdit}
+              />
 
               {editingLanguage && (
                 <div className="pb-4 animate-fadeIn">
@@ -320,46 +311,28 @@ export default function ProfilePage() {
                     </div>
                   )}
                   {languages.length > 0 && (
-                    <>
-                      <div className="flex flex-col gap-1.5 max-h-[260px] overflow-y-auto mb-3">
-                        {languages.map((lang) => {
-                          const selected = selectedLanguage === lang.code;
-                          return (
-                            <button
-                              key={lang.code}
-                              onClick={() => setSelectedLanguage(lang.code)}
-                              className={cn(
-                                'flex items-center gap-3 p-2.5 rounded-md border transition-all text-left w-full',
-                                selected
-                                  ? 'border-ui-primary bg-ui-card shadow-sm'
-                                  : 'border-ui-border bg-ui-card hover:border-primary-light'
-                              )}
-                            >
-                              <span className="text-[22px] leading-none">{FLAG_MAP[lang.code] || ''}</span>
-                              <span className="flex-1 text-[14px] font-medium text-ui-foreground">{lang.name}</span>
-                              <span className={cn(
-                                'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
-                                selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
-                              )}>
-                                {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <Button
-                        onClick={handleSaveLanguage}
-                        disabled={!selectedLanguage || isSavingLanguage}
-                        className="w-full"
-                      >
-                        {isSavingLanguage && <Loader2 className="h-4 w-4 animate-spin" />}
-                        {isSavingLanguage ? 'Saving...' : 'Save Language'}
-                      </Button>
-                    </>
+                    <div className="flex flex-col gap-2 max-h-[320px] overflow-y-auto">
+                      {languages.map((lang) => (
+                        <OnboardingOption
+                          key={lang.code}
+                          animate={false}
+                          leading={
+                            <span aria-hidden className="text-headline-sm leading-none">
+                              {flagForLanguage(lang.code)}
+                            </span>
+                          }
+                          title={lang.name}
+                          subtitle={lang.native_name}
+                          selected={lang.code === user?.targetLanguage}
+                          loading={savingLanguage === lang.code}
+                          onSelect={() => handleSelectLanguage(lang.code)}
+                        />
+                      ))}
+                    </div>
                   )}
                   {languageError && (
-                    <div className="text-center py-2">
-                      <p className="text-[13px] text-incorrect mb-2">{languageError}</p>
+                    <div className="text-center pt-3">
+                      <p className="text-body-sm text-incorrect mb-2">{languageError}</p>
                       <Button variant="link" onClick={() => { setLanguagesLoaded(false); loadLanguages(); }}>
                         Try again
                       </Button>
@@ -370,68 +343,38 @@ export default function ProfilePage() {
 
               <Separator />
 
-              <div className="flex items-center justify-between py-4">
-                <div>
-                  <p className="text-[12px] text-ui-muted-foreground mb-0.5">CEFR Level</p>
-                  <p className="text-[15px] font-medium text-ui-foreground">{user?.cefrLevel || 'Not set'}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleToggleLevelEdit} className="rounded-full">
-                  {editingLevel ? 'Cancel' : 'Change'}
-                </Button>
-              </div>
+              <PreferenceRow
+                label="Reading level"
+                value={formatLevel(user?.cefrLevel)}
+                open={editingLevel}
+                onToggle={handleToggleLevelEdit}
+              />
 
               {editingLevel && (
-                <div className="pb-4 animate-fadeIn">
-                  <div className="flex flex-col gap-1.5 mb-3">
-                    {CEFR_LEVELS.map((level) => {
-                      const selected = selectedLevel === level.code;
-                      return (
-                        <button
-                          key={level.code}
-                          onClick={() => level.available && setSelectedLevel(level.code)}
-                          disabled={!level.available}
-                          className={cn(
-                            'flex items-center gap-3 p-2.5 rounded-md border transition-all text-left w-full',
-                            !level.available && 'opacity-50 cursor-not-allowed border-ui-border bg-ui-muted/30',
-                            level.available && selected && 'border-ui-primary bg-ui-card shadow-sm cursor-pointer',
-                            level.available && !selected && 'border-ui-border bg-ui-card hover:border-primary-light cursor-pointer'
-                          )}
-                        >
-                          <div className={cn(
-                            'w-9 h-9 rounded-md flex items-center justify-center font-semibold text-[13px] shrink-0',
-                            selected
-                              ? 'bg-ui-primary text-white'
-                              : !level.available
-                                ? 'bg-ui-muted text-ui-muted-foreground'
-                                : 'bg-ui-background text-ui-foreground'
-                          )}>
+                <div className="pb-2 animate-fadeIn">
+                  <div className="flex flex-col gap-2">
+                    {CEFR_LEVELS.map((level) => (
+                      <OnboardingOption
+                        key={level.code}
+                        animate={false}
+                        leading={
+                          <span className={cn('text-body-lg font-bold', level.available ? 'text-ui-foreground' : 'text-ui-muted-foreground')}>
                             {level.code}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[14px] font-medium text-ui-foreground">{level.name}</p>
-                            <p className="text-[12px] text-ui-muted-foreground">{level.description}</p>
-                          </div>
-                          {!level.available ? (
-                            <Badge variant="muted">Soon</Badge>
-                          ) : (
-                            <span className={cn(
-                              'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0',
-                              selected ? 'border-ui-primary bg-ui-primary' : 'border-ui-border'
-                            )}>
-                              {selected && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                          </span>
+                        }
+                        title={level.name}
+                        subtitle={level.description}
+                        badge={level.available ? null : 'Soon'}
+                        disabled={!level.available}
+                        selected={level.code === user?.cefrLevel}
+                        loading={savingLevel === level.code}
+                        onSelect={() => handleSelectLevel(level.code)}
+                      />
+                    ))}
                   </div>
                   {levelError && (
-                    <p className="text-[13px] text-incorrect text-center mb-2">{levelError}</p>
+                    <p className="text-body-sm text-incorrect text-center pt-3">{levelError}</p>
                   )}
-                  <Button onClick={handleSaveLevel} disabled={!selectedLevel || isSavingLevel} className="w-full">
-                    {isSavingLevel && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {isSavingLevel ? 'Saving...' : 'Save Level'}
-                  </Button>
                 </div>
               )}
             </CardContent>
@@ -440,7 +383,7 @@ export default function ProfilePage() {
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[16px]">Subscription</CardTitle>
+                <CardTitle className="text-title-md font-semibold">Subscription</CardTitle>
                 <div className="flex items-center gap-1.5">
                   {isPremium ? <Badge variant="success">Premium</Badge> : <Badge variant="muted">Free</Badge>}
                   <Button
@@ -462,20 +405,20 @@ export default function ProfilePage() {
                 <div className="space-y-3">
                   <div className="space-y-1">
                     {platform && (
-                      <p className="text-[13px] text-ui-muted-foreground">
+                      <p className="text-body-sm text-ui-muted-foreground">
                         Via <span className="capitalize">{platform}</span>
                       </p>
                     )}
                     {expirationDate && (
-                      <p className="text-[13px] text-ui-muted-foreground">
+                      <p className="text-body-sm text-ui-muted-foreground">
                         Renews {new Date(expirationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </p>
                     )}
                   </div>
 
                   {cancelSuccess && (
-                    <div className="rounded-md border border-ui-border bg-ui-muted/30 p-3 space-y-2">
-                      <p className="text-[13px] text-ui-foreground">{cancelSuccess.message}</p>
+                    <div className="border border-ui-border bg-ui-muted/30 p-3 space-y-2">
+                      <p className="text-body-sm text-ui-foreground">{cancelSuccess.message}</p>
                       {cancelSuccess.requiresUserAction && cancelSuccess.managementUrl && (
                         <Button asChild size="sm" variant="outline">
                           <a href={cancelSuccess.managementUrl} target="_blank" rel="noopener noreferrer">
@@ -487,7 +430,7 @@ export default function ProfilePage() {
                   )}
 
                   {cancelError && (
-                    <p className="text-[13px] text-incorrect">{cancelError}</p>
+                    <p className="text-body-sm text-incorrect">{cancelError}</p>
                   )}
 
                   {platform !== 'referral' && !cancelSuccess && (
@@ -533,11 +476,11 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div>
-                  <p className="text-[13px] text-ui-muted-foreground mb-3">
-                    Upgrade for unlimited articles, audio, and practice.
+                  <p className="text-body-sm text-ui-muted-foreground mb-3">
+                    Upgrade to Premium for unlimited articles, audio and practice.
                   </p>
                   <Button asChild size="sm">
-                    <Link href="/premium">Go Premium</Link>
+                    <Link href="/premium">Upgrade to Premium</Link>
                   </Button>
                 </div>
               )}
@@ -546,7 +489,7 @@ export default function ProfilePage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-[16px]">Invite Friends</CardTitle>
+              <CardTitle className="text-title-md font-semibold">Invite Friends</CardTitle>
               <CardDescription>
                 Share your code. When a friend upgrades, you both get 30 days free.
               </CardDescription>
@@ -562,7 +505,7 @@ export default function ProfilePage() {
                   return (
                     <div className="space-y-2.5">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-ui-background border border-ui-border rounded-md px-3.5 py-2.5 text-[18px] font-semibold text-ui-primary tracking-widest text-center select-all font-mono">
+                        <div className="flex-1 bg-ui-background border border-ui-border px-3.5 py-2.5 text-title-lg text-ui-primary tracking-widest text-center select-all font-mono">
                           {referral.code}
                         </div>
                         <Button
@@ -579,7 +522,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <div
-                          className="flex-1 bg-ui-background border border-ui-border rounded-md px-3 py-2 text-[12px] text-ui-muted-foreground truncate select-all"
+                          className="flex-1 bg-ui-background border border-ui-border px-3 py-2 text-label-md text-ui-muted-foreground truncate select-all"
                           title={referralUrl}
                         >
                           {referralUrl}
@@ -601,7 +544,7 @@ export default function ProfilePage() {
                   );
                 })()
               ) : (
-                <p className="text-[13px] text-ui-muted-foreground">Unable to load your referral code.</p>
+                <p className="text-body-sm text-ui-muted-foreground">Unable to load your referral code.</p>
               )}
             </CardContent>
           </Card>
@@ -612,7 +555,7 @@ export default function ProfilePage() {
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <BarChart3 className="w-5 h-5 text-ui-primary" />
-                    <span className="text-[15px] font-medium text-ui-foreground">Progress &amp; Statistics</span>
+                    <span className="text-title-md text-ui-foreground">Progress &amp; Statistics</span>
                   </div>
                   <ChevronRight className="w-5 h-5 text-ui-muted-foreground" />
                 </CardContent>

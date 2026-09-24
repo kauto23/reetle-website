@@ -27,7 +27,7 @@ export default function AppStoreCTA() {
       href={APP_STORE_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="relative bg-primary text-white overflow-hidden border border-ui-border rounded-none flex h-full flex-1 transition-all duration-200 hover:shadow-md hover:border-primary/40 group no-underline"
+      className="relative bg-primary text-white overflow-hidden border border-ui-border flex h-full flex-1 transition-all duration-200 hover:shadow-md hover:border-primary/40 group no-underline"
       aria-label="Download Reetle on the Apple App Store"
     >
       {/* Thumbnail area (App Icon on Mobile, QR Code on Desktop) */}
@@ -45,7 +45,7 @@ export default function AppStoreCTA() {
 
         {/* Desktop: Scannable QR Code */}
         <div className="hidden lg:flex flex-col items-center justify-center">
-          <div className="bg-white p-1 rounded-md shadow-sm group-hover:scale-105 transition-transform">
+          <div className="bg-white p-1 shadow-sm group-hover:scale-105 transition-transform">
             <Image
               src="/images/appstore-qr.svg"
               alt="Scan to download on App Store"

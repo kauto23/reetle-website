@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="flex flex-col items-center justify-center min-h-[40vh] px-4 text-center">
-          <div className="w-14 h-14 bg-incorrect-bg rounded-full flex items-center justify-center mb-6">
+          <div className="w-14 h-14 bg-incorrect-bg flex items-center justify-center mb-6">
             <AlertCircle className="w-7 h-7 text-incorrect-text" />
           </div>
           <h2 className="text-display-sm text-ui-foreground mb-2">Something went wrong</h2>

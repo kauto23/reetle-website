@@ -1,6 +1,6 @@
 # Reetle UI style guide
 
-Typography, colour, and text styling conventions for the Reetle app and website.
+Typography, colour, shape, and text styling conventions for the Reetle app and website.
 
 **Web source of truth:** [`tailwind.config.ts`](tailwind.config.ts) and [`src/app/globals.css`](src/app/globals.css)  
 **Agent rule:** [`.cursor/rules/web-ui-style.mdc`](.cursor/rules/web-ui-style.mdc)
@@ -154,12 +154,53 @@ These are defined in `AppTheme.theme` and apply automatically to Material widget
 | Bottom nav — selected | — | — | `primary` |
 | Bottom nav — unselected | — | — | `textSecondary` |
 
-Cards use 16px corner radius, zero elevation, and a 1px `border` outline.
+Cards use square corners, zero elevation, and a 1px `border` outline. See [Shape](#shape).
 
 **Exceptions:**
 
-- **Article cards** use **square corners** with a 1px border and a subtle shadow — web: `ArticleCard.tsx` (`rounded-none`, `shadow-[0_2px_4px_rgba(0,0,0,0.04)]`); app: `lib/widgets/article_card.dart` (`BorderRadius.zero`, `black @ 4%, blur 4, offset 0,2`).
-- **App onboarding buttons** (`lib/widgets/onboarding_button.dart`) use the standard 8px button radius but keep a soft primary-tinted press shadow (`primary @ 15%, blur 6, offset 0,4`) as a mobile tactile affordance — mobile-only; web buttons stay flat.
+- **Article cards** add a subtle shadow — web: `ArticleCard.tsx` (`shadow-[0_2px_4px_rgba(0,0,0,0.04)]`); app: `lib/widgets/article_card.dart` (`black @ 4%, blur 4, offset 0,2`).
+- **App onboarding buttons** (`lib/widgets/onboarding_button.dart`) keep a soft primary-tinted press shadow (`primary @ 15%, blur 6, offset 0,4`) as a mobile tactile affordance — mobile-only; web buttons stay flat.
+
+---
+
+## Shape
+
+Reetle is **square-cornered**. Corners carry no radius unless they fall into one of the round cases below.
+
+| Square (no radius) | Round (`rounded-full` / `BorderRadius.circular(999)`) |
+|--------------------|--------------------------------------------------------|
+| Cards, panels, sheets, dialogs, toasts, banners | Avatars (user initial) |
+| Text buttons (filled, outline, ghost) | Icon-only controls: play/pause, skip, close ×, overflow |
+| Inputs, selects, code/referral boxes | Spinners, loading dots, audio waveform bars |
+| Chips, segmented toggles, tabs | Progress rings and count dots on icons |
+| Badges and tags (`FREE`, `Premium`, `Soon`, `Read`) | Decorative glows |
+| Icon tiles (tinted square behind an icon) | |
+| Progress bars and skeleton blocks | |
+
+The only other radius is the **app icon logo** (`rounded-[5px]`–`rounded-[14px]` depending on size), which mirrors the iOS icon mask.
+
+**Web:** Tailwind's radius scale is reduced to `rounded-none` and `rounded-full` in [`tailwind.config.ts`](tailwind.config.ts), so `rounded-md`, `rounded-xl`, etc. do not exist. Shared primitives in `src/components/ui/` are square by default — don't add radius overrides on top. `Input` sets `rounded-none` explicitly because iOS Safari rounds text fields by default.
+
+**App:** use `BorderRadius.zero` for containers and controls. Dialogs and snackbars currently use 8px and pill badges use 999 — these should move to zero to match.
+
+---
+
+## Level labels
+
+Not every learner knows CEFR codes. Lead with the plain-English level name and put the code in brackets: **Beginner (A2)**, **Upper Intermediate (B2)**.
+
+| Code | Name |
+|------|------|
+| A1 | Complete Beginner |
+| A2 | Beginner |
+| B1 | Intermediate |
+| B2 | Upper Intermediate |
+| C1 | Advanced (shown as *Soon*) |
+| C2 | Proficiency (shown as *Soon*) |
+
+C1 and C2 appear as disabled *Soon* rows on the onboarding and Profile pickers only; the guest header menu lists just the four available levels.
+
+Where the layout has a leading tile (onboarding, Profile pickers) the code sits in the tile and the name is the row title. On the web, the list lives in `src/components/onboarding/onboardingData.ts` (`CEFR_LEVELS`, `formatLevel`) — import it rather than redefining levels locally.
 
 ---
 

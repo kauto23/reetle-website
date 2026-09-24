@@ -11,5 +11,7 @@ Before changing website UI, typography, layout, article cards, or Tailwind class
 - Use the documented Tailwind typography tokens (`text-title-md`, `text-body-sm`, `text-label-md`, etc.) and semantic colours (`text-ui-foreground`, `text-ui-muted-foreground`, `text-ui-primary`) by default.
 - Avoid component-local pixel text sizes such as `text-[15px]` or `text-[10px]`. Use an existing token or add a documented token/exception to `styleguide.md`.
 - Keep article/feed pages on the documented editorial scale: one font, 4-6 recurring sizes, 2-3 regular weights, primary/muted text colours, and white only on dark/brand surfaces.
+- Corners are square. Only `rounded-none` and `rounded-full` exist; use `rounded-full` only for the round cases listed under **Shape** in `styleguide.md`.
+- Level labels lead with the name and put the CEFR code in brackets ("Beginner (A2)"). Import `CEFR_LEVELS` from `src/components/onboarding/onboardingData.ts`.
 - Hero and tall featured article cards may use the documented responsive/clamp headline exception to avoid empty text wells.
 - If a new visual exception is needed, update `styleguide.md` in the same change rather than scattering one-off classes.

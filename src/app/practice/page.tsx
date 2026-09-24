@@ -121,7 +121,7 @@ export default function PracticePage() {
 
         {error && !isLoading && (
           <motion.div className="text-center py-12 relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 bg-incorrect-bg rounded-2xl flex items-center justify-center mx-auto mb-md">
+            <div className="w-14 h-14 bg-incorrect-bg flex items-center justify-center mx-auto mb-md">
               <AlertCircle className="w-7 h-7 text-incorrect-text" />
             </div>
             <p className="text-body-lg text-ui-muted-foreground mb-md">{error}</p>
@@ -131,7 +131,7 @@ export default function PracticePage() {
 
         {noQuestionsReason && !isLoading && (
           <motion.div className="text-center py-12 relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 bg-ui-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-md">
+            <div className="w-14 h-14 bg-ui-primary/10 flex items-center justify-center mx-auto mb-md">
               <BookOpen className="w-7 h-7 text-ui-primary" />
             </div>
             <h2 className="text-display-sm text-ui-foreground mb-xs">Start reading to unlock practice</h2>
@@ -146,7 +146,7 @@ export default function PracticePage() {
 
         {freeTierQuota && !isLoading && (
           <motion.div className="text-center py-12 relative" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-            <div className="w-14 h-14 bg-ui-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-md">
+            <div className="w-14 h-14 bg-ui-primary/10 flex items-center justify-center mx-auto mb-md">
               <Sparkles className="w-7 h-7 text-ui-primary" />
             </div>
             <h2 className="text-display-sm text-ui-foreground mb-xs">Daily limit reached</h2>

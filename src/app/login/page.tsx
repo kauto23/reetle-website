@@ -68,11 +68,11 @@ function GoogleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (toke
        * is overlaid below at near-zero opacity to capture clicks while we
        * keep a visually consistent button style with Apple sign-in.
        */}
-      <div className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-ui-card border border-ui-border rounded-md text-title-md text-ui-foreground pointer-events-none select-none shadow-sm">
+      <div className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-ui-card border border-ui-border text-title-md text-ui-foreground pointer-events-none select-none shadow-sm">
         <GoogleLogo />
         Continue with Google
       </div>
-      <div className="absolute inset-0 overflow-hidden rounded-md cursor-pointer flex items-center justify-center" style={{ opacity: 0.0001 }}>
+      <div className="absolute inset-0 overflow-hidden cursor-pointer flex items-center justify-center" style={{ opacity: 0.0001 }}>
         <div style={{ transform: 'scale(3)' }}>
           <GoogleLogin
             onSuccess={handleCredentialResponse}
@@ -143,7 +143,7 @@ function AppleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token
       <button
         onClick={handleClick}
         disabled={disabled || !APPLE_CLIENT_ID}
-        className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-black text-white border border-black rounded-md text-title-md cursor-pointer transition-all duration-200 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+        className="flex items-center justify-center gap-3 w-full h-12 px-6 bg-black text-white border border-black text-title-md cursor-pointer transition-all duration-200 hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
       >
         <AppleLogo />
         Continue with Apple
@@ -163,7 +163,7 @@ function LoginShell({ children }: { children: React.ReactNode }) {
               alt="Reetle"
               width={72}
               height={72}
-              className="rounded-2xl shadow-md"
+              className="shadow-md"
               priority
             />
           </div>
@@ -261,7 +261,7 @@ function LoginContent() {
           </div>
 
           {error && (
-            <div className="mt-4 px-4 py-3 bg-incorrect-bg rounded-md border border-incorrect/30">
+            <div className="mt-4 px-4 py-3 bg-incorrect-bg border border-incorrect/30">
               <p className="text-body-sm text-incorrect-text text-center">{error}</p>
             </div>
           )}
@@ -328,9 +328,9 @@ function LoginContentWithoutGoogle() {
               Continue with Apple
             </Button>
           </div>
-          <div className="mt-4 px-4 py-3 bg-accent-light rounded-md">
+          <div className="mt-4 px-4 py-3 bg-accent-light ">
             <p className="text-label-md text-primary text-center leading-relaxed">
-              Set <code className="bg-ui-muted px-1.5 py-0.5 rounded text-label-sm">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> in <code className="bg-ui-muted px-1.5 py-0.5 rounded text-label-sm">.env.local</code> to enable sign-in.
+              Set <code className="bg-ui-muted px-1.5 py-0.5 text-label-sm">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> in <code className="bg-ui-muted px-1.5 py-0.5 text-label-sm">.env.local</code> to enable sign-in.
             </p>
           </div>
         </CardContent>
