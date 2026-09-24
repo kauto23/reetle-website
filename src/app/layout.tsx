@@ -14,7 +14,7 @@ import { PlayAllAudioProvider } from '@/contexts/PlayAllAudioContext';
 import PlayAllAudio from '@/components/articles/PlayAllAudio';
 import { Toaster } from '@/components/ui/sonner';
 import { SHOW_APP_STORE_PROMO } from '@/config/site-promos';
-import { API_ORIGIN, API_BASE_URL } from '@/config/environment';
+import { API_ORIGIN, API_BASE_URL, PROD_API_BASE_URL, PRODUCTION_HOSTNAMES } from '@/config/environment';
 import './globals.css';
 
 // Fires the initial home-feed request during HTML parse, before React
@@ -26,7 +26,7 @@ import './globals.css';
 // consumer can match the request exactly. Subscription status is NOT fetched
 // here — it is seeded from the auth response at sign-in (see SubscriptionContext).
 const PREFETCH_SCRIPT = `(function(){try{
-var API=${JSON.stringify(API_BASE_URL)};
+var API=${JSON.stringify(PRODUCTION_HOSTNAMES)}.indexOf(location.hostname)>=0?${JSON.stringify(PROD_API_BASE_URL)}:${JSON.stringify(API_BASE_URL)};
 var token=localStorage.getItem('reetle_access_token');
 var authed=!!token&&!!localStorage.getItem('reetle_user');
 var s=(window.__reetlePrefetch=window.__reetlePrefetch||{});

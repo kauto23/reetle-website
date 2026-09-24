@@ -1,30 +1,50 @@
 ---
-description: Deploy command and URL for the permanent staging website
+description: How to deploy the website to staging and production without pointing production at the staging API
 alwaysApply: true
 ---
 
-# Firebase Staging Deploy Guidance
+# Website deploys (staging and production)
 
-The project has a permanent staging site on Firebase Hosting:
-- Site ID: `reetle-staging-web`
-- Permanent URL: `https://reetle-staging-web.web.app`
-
-When deploying a staging version:
-
-```bash
-npm run build
-firebase deploy --only hosting:staging
-```
-
-When deploying to production, always rebuild with the production API URL.
+The live website (`reetle.co`) must only ever talk to the production API.
 `.env.local` points at the staging API, so a plain `npm run build` produces a
-site that talks to staging:
+site that talks to staging. Deploying such a build to production sent real
+users to the staging database on 2026-09-24.
+
+## The only allowed deploy commands
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=https://reetle-api-production-507485624349.us-central1.run.app/api npm run build
-rg -l 'reetle-api-staging' out && echo "STOP: build points at staging" && exit 1
-firebase deploy --only hosting:production
+npm run deploy:staging      # builds against the staging API, deploys reetle-staging-web
+npm run deploy:production   # builds against the production API, deploys reetle.co
 ```
 
-Never deploy a build made for staging to production, and never run a plain
-`firebase deploy` (it deploys both the staging and production sites).
+## Never
+
+- Never run `npm run build` followed by `firebase deploy ... hosting:production`.
+- Never run a plain `firebase deploy` (it deploys both sites).
+- Never edit or bypass the `predeploy` hooks in `firebase.json` or
+  `scripts/check-deploy-target.mjs`, and never remove the `PRODUCTION_HOSTNAMES`
+  override in `src/config/environment.ts` or the matching check in the
+  `layout.tsx` prefetch script.
+- Never deploy to production without the user explicitly asking for a
+  production deploy.
+
+## Safeguards in place
+
+1. `src/config/environment.ts` forces the production API on production
+   hostnames, whatever the build was configured with.
+2. `firebase.json` runs `scripts/check-deploy-target.mjs` before each hosting
+   deploy. A production deploy fails if the build contains the staging API URL
+   or lacks the production one; a staging deploy fails if it lacks the staging
+   API URL.
+
+## After a production deploy
+
+Confirm the live site references the production API and not staging:
+
+```bash
+curl -s https://reetle.co/ -o /tmp/rc.html && for js in $(rg -o '/_next/static/[^"]+\.js' /tmp/rc.html | sort -u); do curl -s "https://reetle.co$js"; done > /tmp/rc.js
+rg -c 'reetle-api-staging' /tmp/rc.html /tmp/rc.js   # must find nothing
+rm -f /tmp/rc.html /tmp/rc.js
+```
+
+- Staging permanent URL: `https://reetle-staging-web.web.app`

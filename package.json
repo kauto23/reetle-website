@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "node scripts/dev.js",
     "build": "next build",
+    "build:production": "NEXT_PUBLIC_API_BASE_URL=https://reetle-api-production-507485624349.us-central1.run.app/api next build",
+    "build:staging": "NEXT_PUBLIC_API_BASE_URL=https://reetle-api-staging-507485624349.us-central1.run.app/api next build",
+    "deploy:production": "npm run build:production && firebase deploy --only hosting:production",
+    "deploy:staging": "npm run build:staging && firebase deploy --only hosting:staging",
     "start": "next start",
     "lint": "next lint"
   },

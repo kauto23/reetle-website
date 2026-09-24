@@ -2,6 +2,9 @@
   "hosting": [
     {
       "target": "production",
+      "predeploy": [
+        "node \"$PROJECT_DIR/scripts/check-deploy-target.mjs\" production"
+      ],
       "public": "out",
       "cleanUrls": true,
       "trailingSlash": false,
@@ -90,6 +93,9 @@
     },
     {
       "target": "staging",
+      "predeploy": [
+        "node \"$PROJECT_DIR/scripts/check-deploy-target.mjs\" staging"
+      ],
       "public": "out",
       "cleanUrls": true,
       "trailingSlash": false,
