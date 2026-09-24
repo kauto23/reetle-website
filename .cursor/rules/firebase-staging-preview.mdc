@@ -16,8 +16,15 @@ npm run build
 firebase deploy --only hosting:staging
 ```
 
-When deploying to production:
+When deploying to production, always rebuild with the production API URL.
+`.env.local` points at the staging API, so a plain `npm run build` produces a
+site that talks to staging:
 
 ```bash
+NEXT_PUBLIC_API_BASE_URL=https://reetle-api-production-507485624349.us-central1.run.app/api npm run build
+rg -l 'reetle-api-staging' out && echo "STOP: build points at staging" && exit 1
 firebase deploy --only hosting:production
 ```
+
+Never deploy a build made for staging to production, and never run a plain
+`firebase deploy` (it deploys both the staging and production sites).
