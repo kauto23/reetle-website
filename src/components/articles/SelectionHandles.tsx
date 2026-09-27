@@ -31,6 +31,42 @@ function caretOffsetInParagraph(x: number, y: number, paraEl: HTMLElement): numb
 
 const NUB = 6;
 
+/** Frames the mark must stay still before we stop re-measuring. */
+const STABLE_FRAMES = 20;
+
+type HandlePos = {
+  leftX: number; leftY: number;
+  rightX: number; rightY: number;
+  lineH: number;
+};
+
+function measureMark(): HandlePos | null {
+  const mark = document.querySelector('[data-active-mark]');
+  if (!mark) return null;
+
+  const rects = mark.getClientRects();
+  if (rects.length === 0) return null;
+
+  const first = rects[0];
+  const last = rects[rects.length - 1];
+
+  return {
+    leftX: first.left,
+    leftY: first.top,
+    rightX: last.right,
+    rightY: last.bottom,
+    lineH: first.height,
+  };
+}
+
+function samePos(a: HandlePos | null, b: HandlePos | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.leftX === b.leftX && a.leftY === b.leftY
+    && a.rightX === b.rightX && a.rightY === b.rightY
+    && a.lineH === b.lineH;
+}
+
 export default function SelectionHandles({
   paragraphIndex,
   paragraphText,
@@ -39,37 +75,52 @@ export default function SelectionHandles({
   onDragStart,
   onDragEnd,
 }: SelectionHandlesProps) {
-  const [pos, setPos] = useState<{
-    leftX: number; leftY: number;
-    rightX: number; rightY: number;
-    lineH: number;
-  } | null>(null);
+  const [pos, setPos] = useState<HandlePos | null>(null);
   const [mounted, setMounted] = useState(false);
   const dragging = useRef<'left' | 'right' | null>(null);
   const currentRange = useRef(selectionRange);
   const hasMoved = useRef(false);
+  const posRef = useRef<HandlePos | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const stableFrames = useRef(0);
 
   currentRange.current = selectionRange;
 
   useEffect(() => { setMounted(true); }, []);
 
+  // The mark can move after we measure it: the page scrolls, the translation
+  // sheet animates in, the demo banner above the article collapses. Rather
+  // than measuring once per event, re-measure every frame until the mark has
+  // held still for a while, then idle until something nudges us again.
   const updatePos = useCallback(() => {
-    const mark = document.querySelector('[data-active-mark]');
-    if (!mark) { setPos(null); return; }
+    stableFrames.current = 0;
+    if (rafRef.current !== null) return;
 
-    const rects = mark.getClientRects();
-    if (rects.length === 0) { setPos(null); return; }
+    const tick = () => {
+      const next = measureMark();
+      if (samePos(posRef.current, next)) {
+        stableFrames.current += 1;
+      } else {
+        stableFrames.current = 0;
+        posRef.current = next;
+        setPos(next);
+      }
 
-    const first = rects[0];
-    const last = rects[rects.length - 1];
+      if (stableFrames.current >= STABLE_FRAMES) {
+        rafRef.current = null;
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
 
-    setPos({
-      leftX: first.left,
-      leftY: first.top,
-      rightX: last.right,
-      rightY: last.bottom,
-      lineH: first.height,
-    });
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -80,11 +131,24 @@ export default function SelectionHandles({
     const h = () => updatePos();
     window.addEventListener('scroll', h, true);
     window.addEventListener('resize', h);
+    window.visualViewport?.addEventListener('scroll', h);
+    window.visualViewport?.addEventListener('resize', h);
+
+    // Anything reflowing the document — banners appearing or collapsing,
+    // images loading, fonts swapping — moves the paragraph under the handles.
+    const ro = new ResizeObserver(h);
+    ro.observe(document.documentElement);
+    const paraEl = document.querySelector(`[data-pidx="${paragraphIndex}"]`);
+    if (paraEl) ro.observe(paraEl);
+
     return () => {
       window.removeEventListener('scroll', h, true);
       window.removeEventListener('resize', h);
+      window.visualViewport?.removeEventListener('scroll', h);
+      window.visualViewport?.removeEventListener('resize', h);
+      ro.disconnect();
     };
-  }, [updatePos]);
+  }, [updatePos, paragraphIndex]);
 
   const startDrag = useCallback((side: 'left' | 'right', pointerId: number, target: HTMLElement) => {
     dragging.current = side;

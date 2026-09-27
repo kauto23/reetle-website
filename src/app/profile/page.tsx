@@ -17,7 +17,21 @@ import {
 import AuthGuard from '@/components/layout/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { getTargetLanguages, getReferralCode, cancelSubscription } from '@/services/api';
+import {
+  getTargetLanguages,
+  getReferralCode,
+  cancelSubscription,
+  createBillingPortalSession,
+  resumeSubscription,
+} from '@/services/api';
+import {
+  billingIssueCopy,
+  formatLongDate,
+  planLabel,
+  storeName,
+  storePaymentDetailsUrl,
+  subscriptionErrorMessage,
+} from '@/lib/premium';
 import type { TargetLanguage } from '@/types/user';
 import type { ReferralInfo } from '@/types/subscription';
 import { buildReferralUrl } from '@/lib/referralShare';
@@ -77,10 +91,26 @@ function PreferenceRow({
 
 export default function ProfilePage() {
   const { user, logout, deleteAccount, updateLanguage, updateCefrLevel } = useAuth();
-  const { isPremium, platform, expirationDate, refreshStatus } = useSubscription();
+  const { isPremium, platform, expirationDate, willRenew, billingIssue, refreshStatus } = useSubscription();
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
+
+  const [isResuming, setIsResuming] = useState(false);
+  const [isOpeningBilling, setIsOpeningBilling] = useState(false);
+  const [subscriptionMessage, setSubscriptionMessage] = useState<string | null>(null);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+
+  // Stripe's billing portal sends people back here with ?from=billing. The
+  // card may have just been fixed, so read the status again.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from') !== 'billing') return;
+    params.delete('from');
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    refreshStatus().catch(() => {});
+  }, [refreshStatus]);
 
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -213,6 +243,51 @@ export default function ProfilePage() {
       toast.error('Could not refresh subscription status. Please try again.');
     } finally {
       setIsRefreshingStatus(false);
+    }
+  };
+
+  const handleResumeSubscription = async () => {
+    setIsResuming(true);
+    setSubscriptionError(null);
+    setSubscriptionMessage(null);
+    try {
+      const result = await resumeSubscription();
+      if (result.requires_user_action && result.management_url) {
+        window.open(result.management_url, '_blank', 'noopener,noreferrer');
+        setSubscriptionMessage(
+          `Turn auto-renew back on in ${storeName(result.platform)}. We've opened it for you.`,
+        );
+      } else {
+        setCancelSuccess(null);
+        setSubscriptionMessage(
+          result.renews_on
+            ? `Auto-renew is back on. Your next payment is on ${formatLongDate(result.renews_on)}.`
+            : 'Auto-renew is back on.',
+        );
+      }
+      await refreshStatus().catch(() => {});
+    } catch (err) {
+      setSubscriptionError(subscriptionErrorMessage(err instanceof Error ? err.message : ''));
+    } finally {
+      setIsResuming(false);
+    }
+  };
+
+  const handleUpdatePayment = async () => {
+    if (!billingIssue) return;
+    setSubscriptionError(null);
+    const storeUrl = storePaymentDetailsUrl(billingIssue.platform);
+    if (storeUrl) {
+      window.open(storeUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    setIsOpeningBilling(true);
+    try {
+      const { url } = await createBillingPortalSession();
+      window.location.href = url;
+    } catch (err) {
+      setSubscriptionError(subscriptionErrorMessage(err instanceof Error ? err.message : ''));
+      setIsOpeningBilling(false);
     }
   };
 
@@ -403,18 +478,36 @@ export default function ProfilePage() {
             <CardContent>
               {isPremium ? (
                 <div className="space-y-3">
+                  {billingIssue && (
+                    <BillingIssueNotice
+                      issue={billingIssue}
+                      busy={isOpeningBilling}
+                      onUpdate={handleUpdatePayment}
+                    />
+                  )}
                   <div className="space-y-1">
-                    {platform && (
-                      <p className="text-body-sm text-ui-muted-foreground">
-                        Via <span className="capitalize">{platform}</span>
-                      </p>
-                    )}
+                    <p className="text-body-sm text-ui-muted-foreground">{planLabel(platform)}</p>
                     {expirationDate && (
                       <p className="text-body-sm text-ui-muted-foreground">
-                        Renews {new Date(expirationDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        {willRenew === false || platform === 'referral' || platform === 'complimentary' ? 'Ends' : 'Renews'}{' '}
+                        {formatLongDate(expirationDate)}
                       </p>
                     )}
                   </div>
+
+                  {subscriptionMessage && (
+                    <p className="text-body-sm text-ui-foreground">{subscriptionMessage}</p>
+                  )}
+                  {subscriptionError && (
+                    <p className="text-body-sm text-incorrect">{subscriptionError}</p>
+                  )}
+
+                  {willRenew === false && (platform === 'stripe' || platform === 'apple' || platform === 'google') && (
+                    <Button size="sm" onClick={handleResumeSubscription} disabled={isResuming}>
+                      {isResuming && <Loader2 className="h-4 w-4 animate-spin" />}
+                      Keep Premium
+                    </Button>
+                  )}
 
                   {cancelSuccess && (
                     <div className="border border-ui-border bg-ui-muted/30 p-3 space-y-2">
@@ -433,7 +526,7 @@ export default function ProfilePage() {
                     <p className="text-body-sm text-incorrect">{cancelError}</p>
                   )}
 
-                  {platform !== 'referral' && !cancelSuccess && (
+                  {platform !== 'referral' && platform !== 'complimentary' && willRenew !== false && !cancelSuccess && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button variant="outline" size="sm" className="text-ui-muted-foreground">
@@ -475,14 +568,27 @@ export default function ProfilePage() {
                   )}
                 </div>
               ) : (
-                <div>
-                  <p className="text-body-sm text-ui-muted-foreground mb-3">
-                    Upgrade to Premium for unlimited articles, audio and practice.
-                  </p>
-                  <Button asChild size="sm">
-                    <Link href="/premium">Upgrade to Premium</Link>
-                  </Button>
-                </div>
+                billingIssue ? (
+                  <div className="space-y-3">
+                    <BillingIssueNotice
+                      issue={billingIssue}
+                      busy={isOpeningBilling}
+                      onUpdate={handleUpdatePayment}
+                    />
+                    {subscriptionError && (
+                      <p className="text-body-sm text-incorrect">{subscriptionError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-body-sm text-ui-muted-foreground mb-3">
+                      Premium removes the daily limits on reading, listening and practice.
+                    </p>
+                    <Button asChild size="sm">
+                      <Link href="/premium">Upgrade to Premium</Link>
+                    </Button>
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
@@ -607,5 +713,27 @@ export default function ProfilePage() {
         </div>
       </section>
     </AuthGuard>
+  );
+}
+
+function BillingIssueNotice({
+  issue,
+  busy,
+  onUpdate,
+}: {
+  issue: NonNullable<ReturnType<typeof useSubscription>['billingIssue']>;
+  busy: boolean;
+  onUpdate: () => void;
+}) {
+  const copy = billingIssueCopy(issue);
+  return (
+    <div className="border border-ui-border bg-incorrect-bg p-3 space-y-2">
+      <p className="text-body-sm font-semibold text-incorrect-text">{copy.title}</p>
+      <p className="text-body-sm text-ui-foreground">{copy.body}</p>
+      <Button size="sm" onClick={onUpdate} disabled={busy}>
+        {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+        {copy.action}
+      </Button>
+    </div>
   );
 }
