@@ -15,7 +15,7 @@ export default function PaymentCancelPage() {
           Payment cancelled
         </h1>
         <p className="text-body-lg text-ui-muted-foreground mb-10 max-w-md mx-auto">
-          You haven&apos;t been charged. You can subscribe whenever you like.
+          No worries — you can upgrade to Premium any time.
         </p>
         <div className="flex flex-col gap-2 max-w-[300px] mx-auto">
           <Button asChild>

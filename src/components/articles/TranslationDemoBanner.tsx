@@ -24,17 +24,10 @@ export default function TranslationDemoBanner({ hasInteracted }: TranslationDemo
     }
   }, []);
 
-  // Once the user selects something the tip has served its purpose, but
-  // removing it mid-selection reflows the article and drags the selected
-  // text out from under the selection handles. Record the dismissal now and
-  // hide the banner once the selection is cleared.
   useEffect(() => {
     if (hasInteracted && visible && !hasAutoDismissed.current) {
       hasAutoDismissed.current = true;
       localStorage.setItem(DEMO_DISMISSED_KEY, 'true');
-      return;
-    }
-    if (!hasInteracted && hasAutoDismissed.current) {
       setVisible(false);
     }
   }, [hasInteracted, visible]);

@@ -8,16 +8,12 @@ import {
   saveSubscription,
   SUBSCRIPTION_UPDATED_EVENT,
 } from '@/services/api';
-import type { BillingIssue, SubscriptionStatus, SubscriptionDailyUsage } from '@/types/subscription';
+import type { SubscriptionStatus, SubscriptionDailyUsage } from '@/types/subscription';
 
 interface SubscriptionContextType {
   isPremium: boolean;
   platform: SubscriptionStatus['platform'];
   expirationDate: string | null;
-  /** null when unknown (older cached status). */
-  willRenew: boolean | null;
-  cancelledAt: string | null;
-  billingIssue: BillingIssue | null;
   dailyUsage: SubscriptionDailyUsage | null;
   isLoading: boolean;
   refreshStatus: () => Promise<void>;
@@ -84,9 +80,6 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         isPremium: status?.is_premium ?? false,
         platform: status?.platform ?? null,
         expirationDate: status?.expiration_date ?? null,
-        willRenew: typeof status?.will_renew === 'boolean' ? status.will_renew : null,
-        cancelledAt: status?.cancelled_at ?? null,
-        billingIssue: status?.billing_issue ?? null,
         dailyUsage: status?.daily_usage ?? null,
         isLoading,
         refreshStatus,

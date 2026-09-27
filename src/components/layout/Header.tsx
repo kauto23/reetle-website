@@ -158,105 +158,99 @@ export default function Header() {
                   </button>
                 </>
               ) : (
-                <div ref={dropdownRef} className="flex items-center gap-[2px]">
-                  <span className="whitespace-nowrap text-label-lg font-medium text-white/50">
-                    Reading in
-                  </span>
-
+                <div ref={dropdownRef} className="flex items-center gap-[2px] relative">
                   {/* Language selector */}
-                  <div className="relative">
-                    <button
-                      onClick={() => toggleDropdown('language')}
-                      className={cn(
-                        'flex items-center gap-[4px] border-none bg-transparent px-[10px] py-[8px] text-label-lg font-medium transition-all cursor-pointer',
-                        openDropdown === 'language' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
-                      )}
-                    >
-                      <span>{currentLangName}</span>
-                      <ChevronDown className={cn('h-3 w-3 transition-transform duration-200', openDropdown === 'language' && 'rotate-180')} strokeWidth={3} />
-                    </button>
-
-                    {openDropdown === 'language' && (
-                      <div className="absolute left-0 top-full z-[1100] mt-1 w-[240px] overflow-hidden border border-ui-border bg-ui-card shadow-lg">
-                        <div className="max-h-[320px] overflow-y-auto py-1">
-                          {languages.map(lang => {
-                            const selected = preferences.targetLanguage === lang.code;
-                            return (
-                              <button
-                                key={lang.code}
-                                onClick={() => handleLanguageSelect(lang.code)}
-                                className={cn(
-                                  'flex items-center justify-between w-full px-3.5 py-2.5 text-left cursor-pointer border-none transition-colors duration-100',
-                                  selected
-                                    ? 'bg-ui-primary/5 text-ui-primary font-medium'
-                                    : 'bg-ui-card text-ui-foreground hover:bg-ui-muted'
-                                )}
-                              >
-                                <div className="flex min-w-0 items-center gap-[10px]">
-                                  <span aria-hidden className="text-title-lg leading-none">{flagForLanguage(lang.code)}</span>
-                                  <div className="min-w-0">
-                                    <p className="text-label-lg leading-tight">{lang.name}</p>
-                                    <p className="text-label-md text-ui-muted-foreground leading-tight mt-0.5">{lang.native_name}</p>
-                                  </div>
-                                </div>
-                                {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                  <button
+                    onClick={() => toggleDropdown('language')}
+                    className={cn(
+                      'text-label-lg font-medium px-3.5 py-2 transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
+                      openDropdown === 'language' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
                     )}
-                  </div>
+                  >
+                    <span>{currentLangName}</span>
+                    <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', openDropdown === 'language' && 'rotate-180')} strokeWidth={3} />
+                  </button>
 
                   {/* Level selector */}
-                  <div className="relative">
-                    <button
-                      onClick={() => toggleDropdown('level')}
-                      className={cn(
-                        'flex items-center gap-[4px] border-none bg-transparent px-[10px] py-[8px] text-label-lg font-medium transition-all cursor-pointer',
-                        openDropdown === 'level' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
-                      )}
-                    >
-                      <span>{formatLevel(preferences.cefrLevel)}</span>
-                      <ChevronDown className={cn('h-3 w-3 transition-transform duration-200', openDropdown === 'level' && 'rotate-180')} strokeWidth={3} />
-                    </button>
-
-                    {openDropdown === 'level' && (
-                      <div className="absolute left-0 top-full z-[1100] mt-1 w-[260px] overflow-hidden border border-ui-border bg-ui-card shadow-lg">
-                        <div className="py-1">
-                          {AVAILABLE_LEVELS.map(level => {
-                            const selected = preferences.cefrLevel === level.code;
-                            return (
-                              <button
-                                key={level.code}
-                                onClick={() => handleLevelSelect(level.code)}
-                                className={cn(
-                                  'flex items-center justify-between w-full px-3.5 py-2.5 text-left cursor-pointer border-none transition-colors duration-100',
-                                  selected
-                                    ? 'bg-ui-primary/5 text-ui-primary font-medium'
-                                    : 'bg-ui-card text-ui-foreground hover:bg-ui-muted'
-                                )}
-                              >
-                                <div className="min-w-0">
-                                  <p className="text-label-lg leading-tight">
-                                    {level.name} <span className="text-ui-muted-foreground font-normal">({level.code})</span>
-                                  </p>
-                                  <p className="text-label-md text-ui-muted-foreground leading-tight mt-0.5">{level.description}</p>
-                                </div>
-                                {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                  <button
+                    onClick={() => toggleDropdown('level')}
+                    className={cn(
+                      'text-label-lg font-medium px-3.5 py-2 transition-all cursor-pointer bg-transparent border-none flex items-center gap-1.5',
+                      openDropdown === 'level' ? 'text-white bg-white/10' : 'text-white/70 hover:text-white hover:bg-white/10'
                     )}
-                  </div>
+                  >
+                    <span>{formatLevel(preferences.cefrLevel)}</span>
+                    <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', openDropdown === 'level' && 'rotate-180')} strokeWidth={3} />
+                  </button>
 
-                  <div className="mx-[6px] h-[20px] w-[1px] bg-white/20" />
+                  <div className="w-[1px] h-[20px] bg-white/20 mx-[6px]" />
 
-                  <Link href={loginUrl} className="px-[14px] py-[8px] text-label-lg font-medium text-white/70 transition-all hover:bg-white/10 hover:text-white">
+                  <Link href={loginUrl} className="text-label-lg font-medium text-white/70 hover:text-white hover:bg-white/10 px-[14px] py-[8px] transition-all">
                     Log in / Register
                   </Link>
+
+                  {/* Language dropdown */}
+                  {openDropdown === 'language' && (
+                    <div className="absolute right-0 top-full mt-1 w-[240px] bg-ui-card border border-ui-border shadow-lg overflow-hidden z-[1100]">
+                      <div className="max-h-[320px] overflow-y-auto py-1">
+                        {languages.map(lang => {
+                          const selected = preferences.targetLanguage === lang.code;
+                          return (
+                            <button
+                              key={lang.code}
+                              onClick={() => handleLanguageSelect(lang.code)}
+                              className={cn(
+                                'flex items-center justify-between w-full px-3.5 py-2.5 text-left cursor-pointer border-none transition-colors duration-100',
+                                selected
+                                  ? 'bg-ui-primary/5 text-ui-primary font-medium'
+                                  : 'bg-ui-card text-ui-foreground hover:bg-ui-muted'
+                              )}
+                            >
+                              <div className="flex min-w-0 items-center gap-[10px]">
+                                <span aria-hidden className="text-title-lg leading-none">{flagForLanguage(lang.code)}</span>
+                                <div className="min-w-0">
+                                  <p className="text-label-lg leading-tight">{lang.name}</p>
+                                  <p className="text-label-md text-ui-muted-foreground leading-tight mt-0.5">{lang.native_name}</p>
+                                </div>
+                              </div>
+                              {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Level dropdown */}
+                  {openDropdown === 'level' && (
+                    <div className="absolute right-0 top-full mt-1 w-[260px] bg-ui-card border border-ui-border shadow-lg overflow-hidden z-[1100]">
+                      <div className="py-1">
+                        {AVAILABLE_LEVELS.map(level => {
+                          const selected = preferences.cefrLevel === level.code;
+                          return (
+                            <button
+                              key={level.code}
+                              onClick={() => handleLevelSelect(level.code)}
+                              className={cn(
+                                'flex items-center justify-between w-full px-3.5 py-2.5 text-left cursor-pointer border-none transition-colors duration-100',
+                                selected
+                                  ? 'bg-ui-primary/5 text-ui-primary font-medium'
+                                  : 'bg-ui-card text-ui-foreground hover:bg-ui-muted'
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-label-lg leading-tight">
+                                  {level.name} <span className="text-ui-muted-foreground font-normal">({level.code})</span>
+                                </p>
+                                <p className="text-label-md text-ui-muted-foreground leading-tight mt-0.5">{level.description}</p>
+                              </div>
+                              {selected && <Check className="w-4 h-4 text-ui-primary shrink-0 ml-2" strokeWidth={2.5} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

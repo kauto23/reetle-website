@@ -48,7 +48,7 @@ function mergeRanges(ranges: HRange[]): HRange[] {
  *     is showing and what SelectionHandles should position over)
  *
  * The active range is always rendered as its OWN <mark> (tagged with
- * `data-active-mark`), even when it overlaps or sits inside a locked range.
+ * `data-active-mark`) — even when it overlaps/sits inside a locked range.
  * Locked ranges are split around the active range so a wider locked mark
  * never swallows the narrower active mark.
  */
@@ -482,7 +482,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
 
   // ── Handle-driven selection change (drag to expand/contract) ────────────────
   // The user is live-editing the current active range, so we only update
-  // activeSelection. We do NOT lock the previous active range because that would
+  // activeSelection. We do NOT lock the previous active range — that would
   // leave phantom highlights behind as the selection grows/shrinks.
 
   const handleSelectionChange = useCallback((text: string, paraIdx: number, range: HRange) => {
@@ -504,7 +504,7 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
   }, []);
 
   const handleDragEnd = useCallback(() => {
-    // Keep pending until the user presses Translate
+    // Keep pending — user must press Translate
   }, []);
 
   const handleTranslateRequest = useCallback(() => {
@@ -849,18 +849,18 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                         </div>
 
                         <h2 className="text-display-sm text-primary mb-sm">
-                          Keep reading with Reetle
+                          Keep reading for free
                         </h2>
                         <p className="text-body-lg text-ui-muted-foreground mb-lg max-w-[360px] mx-auto leading-[1.6]">
-                          Sign in or create a free account to continue with daily article access and learning tools.
+                          You&apos;ve previewed your daily articles. Create a free account to unlock this story and read without limits.
                         </p>
 
                         {/* Value props */}
                         <div className="flex flex-col gap-[10px] mb-xl text-left max-w-[300px] mx-auto">
                           {[
-                            'Read a selection of articles each day',
+                            'Unlimited article reading',
                             'Tap-to-translate any word or phrase',
-                            'Practice quizzes with available articles',
+                            'Practice quizzes after every article',
                             'Track your vocabulary & progress',
                           ].map((feature) => (
                             <div key={feature} className="flex items-start gap-[10px]">
@@ -873,9 +873,17 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                         {/* CTA */}
                         <div className="flex justify-center">
                           <Button asChild size="lg" className="w-full max-w-[320px]">
-                            <Link href={loginUrl}>Sign in or sign up for free</Link>
+                            <Link href={loginUrl}>Sign up free — takes 10 seconds</Link>
                           </Button>
                         </div>
+
+                        {/* Login link */}
+                        <p className="text-body-md text-ui-muted-foreground mt-lg">
+                          Already have an account?{' '}
+                          <Link href={loginUrl} className="text-primary font-medium hover:underline">
+                            Log in
+                          </Link>
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -906,12 +914,12 @@ export default function ArticleDetail({ articleId }: ArticleDetailProps) {
                         </p>
                         <div className="flex justify-center">
                           <Button asChild size="lg" className="w-full max-w-[320px]">
-                            <Link href="/premium">Go Premium for unlimited access</Link>
+                            <Link href="/premium">Go Premium — Unlimited access</Link>
                           </Button>
                         </div>
                         {freeTierQuota.resetsAt && (
                           <p className="text-body-md text-ui-muted-foreground mt-md">
-                            Or come back tomorrow. Limits reset at midnight.
+                            Or come back tomorrow — limits reset at midnight.
                           </p>
                         )}
                       </div>
