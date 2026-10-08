@@ -11,7 +11,7 @@ import type {
   GrammarFeedbackIncorrect,
 } from '@/types/practice';
 import type { Translation } from '@/types/translation';
-import type { SubscriptionStatus, ReferralInfo, ReferralApplyResponse, CancelSubscriptionResponse } from '@/types/subscription';
+import type { SubscriptionStatus, ReferralInfo, ReferralApplyResponse, CancelSubscriptionResponse, ResumeSubscriptionResponse } from '@/types/subscription';
 
 // Pre-hydration prefetch (populated by the inline script in app/layout.tsx).
 // Lets the initial home-feed requests start during HTML parse and be consumed
@@ -1226,6 +1226,49 @@ export async function cancelSubscription(): Promise<CancelSubscriptionResponse> 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.code || err.error || 'Failed to cancel subscription');
+  }
+
+  return response.json();
+}
+
+/**
+ * Turn auto-renew back on. Stripe resumes server-side; Apple and Google come
+ * back with requires_user_action and a management_url to open.
+ * Throws an Error whose message is the API `code` on failure.
+ */
+export async function resumeSubscription(): Promise<ResumeSubscriptionResponse> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/subscriptions/resume`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.code || err.error || 'resume_failed');
+  }
+
+  return response.json();
+}
+
+/**
+ * Stripe billing portal URL, where a web subscriber updates their card or
+ * pays a failed invoice. Throws an Error whose message is the API `code`.
+ */
+export async function createBillingPortalSession(): Promise<{ url: string }> {
+  const response = await fetchWithLogging(`${API_BASE_URL}/subscriptions/billing-portal`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+
+  await checkForExpiredToken(response);
+  await checkRateLimit(response);
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.code || err.error || 'billing_portal_unavailable');
   }
 
   return response.json();

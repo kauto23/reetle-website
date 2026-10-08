@@ -21,11 +21,11 @@ export default function FeedPreferencesStrip() {
   const level = preferences.cefrLevel;
 
   return (
-    <div className="mb-[16px] flex items-center justify-between gap-[12px] border border-border bg-ui-card px-[14px] py-[10px]">
-      <p className="min-w-0 text-body-md text-ui-muted-foreground">
-        Reading in{' '}
-        <span className="whitespace-nowrap font-medium text-ui-foreground">
-          <span aria-hidden className="mr-[4px]">{flagForLanguage(language)}</span>
+    <div className="mb-[16px] flex items-center justify-between gap-[12px] border border-border bg-ui-card px-[14px] py-[10px] md:hidden">
+      <p className="flex min-w-0 items-center text-label-lg font-normal text-ui-muted-foreground">
+        <span className="whitespace-nowrap">Reading in</span>
+        <span className="ml-[4px] inline-flex items-center whitespace-nowrap font-medium text-ui-foreground">
+          <span aria-hidden className="mr-[4px] inline-flex leading-none">{flagForLanguage(language)}</span>
           {languageName(language)}
         </span>
         <span aria-hidden className="mx-[6px] text-ui-muted-foreground/50">·</span>
