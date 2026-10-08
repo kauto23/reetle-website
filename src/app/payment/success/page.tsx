@@ -69,10 +69,10 @@ export default function PaymentSuccessPage() {
                 <Clock className="w-9 h-9 text-ui-muted-foreground" />
               </div>
               <h1 className="text-headline-lg tracking-tight text-ui-foreground mb-2">
-                Payment received
+                Payment processing
               </h1>
               <p className="text-body-lg text-ui-muted-foreground mb-6 max-w-md mx-auto">
-                Your payment has gone through. Premium can take a minute to switch on.
+                Your payment is being processed. Premium can take a minute to switch on.
               </p>
               <div className="flex flex-col gap-2 max-w-[300px] mx-auto">
                 <Button onClick={() => { pollCount.current = 0; setPolling(true); }}>
