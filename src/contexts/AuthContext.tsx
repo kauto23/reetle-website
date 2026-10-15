@@ -25,8 +25,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   hasApp: boolean;
   isLoading: boolean;
-  signInWithGoogle: (idToken: string, email?: string, fullName?: string) => Promise<boolean>;
-  signInWithApple: (idToken: string, email?: string, fullName?: string) => Promise<boolean>;
+  signInWithGoogle: (idToken: string, email?: string) => Promise<boolean>;
+  signInWithApple: (idToken: string, email?: string, givenName?: string, familyName?: string) => Promise<boolean>;
   logout: () => void;
   updateLanguage: (familiarLanguage?: string, targetLanguage?: string) => Promise<boolean>;
   updateCefrLevel: (cefrLevel: string) => Promise<boolean>;
@@ -65,8 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenExpiredCallback(logout);
   }, [logout]);
 
-  const signInWithGoogle = async (idToken: string, email?: string, fullName?: string): Promise<boolean> => {
-    const { user: newUser, accessToken, subscription } = await apiSignInWithGoogle(idToken, email, fullName);
+  const signInWithGoogle = async (idToken: string, email?: string): Promise<boolean> => {
+    const { user: newUser, accessToken, subscription } = await apiSignInWithGoogle(idToken, email);
     saveAccessToken(accessToken);
     saveUser(newUser);
     // Persist BEFORE setUser so SubscriptionContext finds it when auth flips.
@@ -76,9 +76,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const signInWithApple = async (idToken: string, email?: string, fullName?: string): Promise<boolean> => {
+  const signInWithApple = async (idToken: string, email?: string, givenName?: string, familyName?: string): Promise<boolean> => {
     try {
-      const { user: newUser, accessToken, subscription } = await apiSignInWithApple(idToken, email, fullName);
+      const { user: newUser, accessToken, subscription } = await apiSignInWithApple(idToken, email, givenName, familyName);
       saveAccessToken(accessToken);
       saveUser(newUser);
       if (subscription) saveSubscription(subscription);

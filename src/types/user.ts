@@ -1,7 +1,8 @@
 export interface User {
   id: string;
   username: string | null;
-  fullName?: string | null;
+  givenName?: string | null;
+  familyName?: string | null;
   hasCompletedAssessment: boolean;
   cefrLevel: string | null;
   appleUserId: string | null;

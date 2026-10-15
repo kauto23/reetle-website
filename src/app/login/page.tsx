@@ -47,12 +47,12 @@ const AppleLogo = () => (
   </svg>
 );
 
-function GoogleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token: string, email?: string, name?: string) => void; onError: () => void; disabled: boolean }) {
+function GoogleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token: string, email?: string) => void; onError: () => void; disabled: boolean }) {
   const handleCredentialResponse = (response: CredentialResponse) => {
     if (response.credential) {
       try {
         const payload = JSON.parse(atob(response.credential.split('.')[1]));
-        onSuccess(response.credential, payload.email, payload.name);
+        onSuccess(response.credential, payload.email);
       } catch {
         onSuccess(response.credential);
       }
@@ -89,7 +89,7 @@ function GoogleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (toke
   );
 }
 
-function AppleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token: string, email?: string, name?: string) => void; onError: (msg: string) => void; disabled: boolean }) {
+function AppleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token: string, email?: string, givenName?: string, familyName?: string) => void; onError: (msg: string) => void; disabled: boolean }) {
   const sdkReady = useRef(false);
 
   const initAppleSDK = () => {
@@ -119,10 +119,9 @@ function AppleSignInButton({ onSuccess, onError, disabled }: { onSuccess: (token
       const response = await window.AppleID.auth.signIn();
       const idToken = response.authorization.id_token;
       const email = response.user?.email;
-      const name = response.user?.name
-        ? [response.user.name.firstName, response.user.name.lastName].filter(Boolean).join(' ')
-        : undefined;
-      onSuccess(idToken, email, name);
+      // Apple only shares the name on the first authorization. Keep the two
+      // parts separate so the API stores them as given and family name.
+      onSuccess(idToken, email, response.user?.name?.firstName, response.user?.name?.lastName);
     } catch (err: unknown) {
       console.error('Apple Sign-In error:', err);
       const error = err as { error?: string };
@@ -211,11 +210,11 @@ function LoginContent() {
     }
   }, [isAuthenticated, redirectAfterAuth]);
 
-  const handleGoogleSuccess = async (token: string, email?: string, name?: string) => {
+  const handleGoogleSuccess = async (token: string, email?: string) => {
     setIsSigningIn(true);
     setError(null);
     try {
-      const success = await signInWithGoogle(token, email, name);
+      const success = await signInWithGoogle(token, email);
       if (!success) {
         setError('Sign in failed. Please try again.');
       }
@@ -227,11 +226,11 @@ function LoginContent() {
     }
   };
 
-  const handleAppleSuccess = async (token: string, email?: string, name?: string) => {
+  const handleAppleSuccess = async (token: string, email?: string, givenName?: string, familyName?: string) => {
     setIsSigningIn(true);
     setError(null);
     try {
-      const success = await signInWithApple(token, email, name);
+      const success = await signInWithApple(token, email, givenName, familyName);
       if (!success) {
         setError('Sign in failed. Please try again.');
       }

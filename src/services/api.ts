@@ -260,10 +260,10 @@ export interface AuthResult {
   subscription: SubscriptionStatus | null;
 }
 
-export async function signInWithGoogle(idToken: string, email?: string, fullName?: string): Promise<AuthResult> {
+// The API takes the name from Google's verified ID token, so none is sent.
+export async function signInWithGoogle(idToken: string, email?: string): Promise<AuthResult> {
   const body: Record<string, unknown> = { id_token: idToken };
   if (email) body.email = email;
-  if (fullName) body.full_name = fullName;
   body.device_type = 'web';
 
   const acquisition = getStoredAcquisition();
@@ -288,7 +288,8 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
   const user: User = {
     id: String(data.id),
     username: data.username || null,
-    fullName: data.full_name || fullName || null,
+    givenName: data.given_name || null,
+    familyName: data.family_name || null,
     hasCompletedAssessment: data.has_completed_assessment || false,
     cefrLevel: data.cefr_level || null,
     appleUserId: null,
@@ -303,10 +304,18 @@ export async function signInWithGoogle(idToken: string, email?: string, fullName
   return { user, accessToken: data.access_token, subscription: data.subscription ?? null };
 }
 
-export async function signInWithApple(idToken: string, email?: string, fullName?: string): Promise<AuthResult> {
+// Apple never puts the name in the ID token and only shares it on the first
+// authorization, so the two parts are sent separately when we have them.
+export async function signInWithApple(
+  idToken: string,
+  email?: string,
+  givenName?: string,
+  familyName?: string,
+): Promise<AuthResult> {
   const body: Record<string, unknown> = { id_token: idToken };
   if (email) body.email = email;
-  if (fullName) body.full_name = fullName;
+  if (givenName) body.given_name = givenName;
+  if (familyName) body.family_name = familyName;
   body.device_type = 'web';
 
   const acquisition = getStoredAcquisition();
@@ -331,7 +340,8 @@ export async function signInWithApple(idToken: string, email?: string, fullName?
   const user: User = {
     id: String(appleData.id),
     username: appleData.username || null,
-    fullName: appleData.full_name || fullName || null,
+    givenName: appleData.given_name || givenName || null,
+    familyName: appleData.family_name || familyName || null,
     hasCompletedAssessment: appleData.has_completed_assessment || false,
     cefrLevel: appleData.cefr_level || null,
     appleUserId: null,
