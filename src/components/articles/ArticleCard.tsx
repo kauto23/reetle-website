@@ -304,7 +304,10 @@ export default function ArticleCard({
     ? 'outline outline-2 -outline-offset-2 outline-primary animate-nowPlayingGlow [animation-duration:2.5s]'
     : '';
 
-  const imageUrl = article.imageThumbUrl || article.imageLinks?.[0] || null;
+  // The hero slot is too wide for the 640px thumbnail; the #1 article has a full-size image.
+  const imageUrl = variant === 'hero'
+    ? article.imageLinks?.[0] || article.imageThumbUrl || null
+    : article.imageThumbUrl || article.imageLinks?.[0] || null;
   const topicLabel = labelFromMap(topicMap, article.topic);
   const geoLabel = labelFromMap(geographyMap, article.geography);
   const subtopicLabel = labelFromMap(subtopicMap, article.subtopic);
