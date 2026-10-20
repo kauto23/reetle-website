@@ -130,6 +130,14 @@ export class TokenExpiredError extends Error {
   }
 }
 
+/** Checkout refused: this account already has an active reetle.co subscription. */
+export class AlreadySubscribedError extends Error {
+  constructor() {
+    super('Already subscribed');
+    this.name = 'AlreadySubscribedError';
+  }
+}
+
 export class RateLimitError extends Error {
   retryAfter: number;
   constructor(retryAfter: number) {
@@ -1203,6 +1211,35 @@ export async function getSubscriptionStatus(): Promise<SubscriptionStatus> {
   return block as SubscriptionStatus;
 }
 
+/**
+ * Report a payment problem the API can't see by itself (POST
+ * /telemetry/purchase-events): the API posts it to #reetle-issues. Best
+ * effort: never throws, so it can't get in the way of the page.
+ *
+ * - `purchase_delayed` with `store_accepted: true`: Stripe took the payment
+ *   but Premium wasn't confirmed while the customer waited.
+ * - `purchase_issue` with `issue: 'storeProblem'`: checkout couldn't start.
+ */
+export async function reportPurchaseProblem(
+  event: 'purchase_delayed' | 'purchase_issue',
+  fields: Record<string, string | number | boolean | undefined> = {},
+): Promise<void> {
+  try {
+    const payload: Record<string, unknown> = { event, platform: 'web', store: 'stripe' };
+    for (const [key, value] of Object.entries(fields)) {
+      if (value !== undefined) payload[key] = value;
+    }
+    await fetchWithLogging(`${API_BASE_URL}/telemetry/purchase-events`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ events: [payload] }),
+      keepalive: true,
+    });
+  } catch {
+    // Telemetry must never break the page.
+  }
+}
+
 export async function createCheckoutSession(priceId?: string): Promise<{ checkout_url: string }> {
   const body: Record<string, unknown> = {};
   if (priceId) body.price_id = priceId;
@@ -1218,6 +1255,11 @@ export async function createCheckoutSession(priceId?: string): Promise<{ checkou
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
+    // The API found a paid subscription we hadn't recorded yet and recorded
+    // it, rather than let the customer pay twice.
+    if (response.status === 409 && err.code === 'already_subscribed') {
+      throw new AlreadySubscribedError();
+    }
     throw new Error(err.error || 'Failed to create checkout session');
   }
 
