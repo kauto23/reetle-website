@@ -1233,10 +1233,35 @@ export async function reportPurchaseProblem(
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ events: [payload] }),
-      keepalive: true,
     });
   } catch {
     // Telemetry must never break the page.
+  }
+}
+
+/**
+ * Set when this tab is sent to Stripe checkout, so the success page only
+ * reports a payment that wasn't confirmed when the customer really came back
+ * from paying (not when they reopen the page later).
+ */
+export const CHECKOUT_STARTED_KEY = 'reetle:checkout-started';
+
+export function markCheckoutStarted(): void {
+  try {
+    sessionStorage.setItem(CHECKOUT_STARTED_KEY, String(Date.now()));
+  } catch {
+    // Storage blocked: the success page simply won't report.
+  }
+}
+
+/** True once per checkout: reading it clears it. */
+export function takeCheckoutStarted(): boolean {
+  try {
+    const started = sessionStorage.getItem(CHECKOUT_STARTED_KEY);
+    sessionStorage.removeItem(CHECKOUT_STARTED_KEY);
+    return started !== null;
+  } catch {
+    return false;
   }
 }
 

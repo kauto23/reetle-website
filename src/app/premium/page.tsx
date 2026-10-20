@@ -22,6 +22,7 @@ import {
   createBillingPortalSession,
   createCheckoutSession,
   applyReferralCode,
+  markCheckoutStarted,
   reportPurchaseProblem,
   resumeSubscription,
 } from '@/services/api';
@@ -104,6 +105,7 @@ function Paywall() {
     setCheckoutError(null);
     try {
       const { checkout_url } = await createCheckoutSession();
+      markCheckoutStarted();
       window.location.href = checkout_url;
     } catch (err) {
       if (err instanceof AlreadySubscribedError) {

@@ -6,7 +6,7 @@ import { CheckCircle2, CircleAlert, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import AuthGuard from '@/components/layout/AuthGuard';
 import { Button } from '@/components/ui/button';
-import { reportPurchaseProblem } from '@/services/api';
+import { reportPurchaseProblem, takeCheckoutStarted } from '@/services/api';
 
 /** How long "Confirming your payment" shows before the standard message. */
 const CONFIRM_POLLS = 10;
@@ -24,6 +24,12 @@ export default function PaymentSuccessPage() {
   const pollCount = useRef(0);
   const reported = useRef(false);
   const startedAt = useRef(Date.now());
+  // Only a visit straight back from Stripe checkout is worth reporting.
+  const cameFromCheckout = useRef(false);
+
+  useEffect(() => {
+    cameFromCheckout.current = takeCheckoutStarted();
+  }, []);
 
   // "Confirming your payment" while Stripe's webhook normally lands.
   useEffect(() => {
@@ -50,7 +56,7 @@ export default function PaymentSuccessPage() {
   useEffect(() => {
     if (isPremium || waiting) return;
 
-    if (!reported.current) {
+    if (!reported.current && cameFromCheckout.current) {
       reported.current = true;
       void reportPurchaseProblem('purchase_delayed', {
         intent: 'subscribe',
