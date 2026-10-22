@@ -29,7 +29,7 @@ const FAQS = [
   },
   {
     q: 'How do I delete my account?',
-    a: 'Cancel any Premium subscription first, then delete your account in the app (Profile, then Delete account), on your Profile page on the website, or by emailing support@reetle.co. Full details: reetle.co/delete-account.',
+    a: 'Deleting your account cancels a Premium subscription bought on reetle.co. If you subscribed through the App Store or Google Play, cancel it there first. Then delete your account in the app (Profile, then Delete account), on your Profile page on the website, or by emailing support@reetle.co. Full details: reetle.co/delete-account.',
   },
 ];
 

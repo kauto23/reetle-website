@@ -17,11 +17,12 @@ export default function DeleteAccountPage() {
           <h1 className="text-display-md tracking-tight text-ui-foreground mb-1">Delete your Reetle account</h1>
           <p className="text-body-md text-ui-muted-foreground mb-8">Reetle, by Acumen Analytics Limited</p>
 
-          <h2 className="text-title-lg text-primary mt-xl mb-md">1. Cancel Reetle Premium first</h2>
+          <h2 className="text-title-lg text-primary mt-xl mb-md">1. If you have Reetle Premium</h2>
           <p className="text-body-md text-primary">
-            Deleting your account does not stop a subscription. If you have Reetle Premium, cancel it before you delete
-            your account: on reetle.co from your Profile page, in your App Store settings on iPhone, or in the Google Play
-            Store under Payments &amp; subscriptions.
+            If you pay for Premium on reetle.co, deleting your account cancels it straight away: you won&apos;t be charged
+            again, and the rest of the current period isn&apos;t refunded. If you pay through the App Store or Google Play,
+            deleting your account does not stop the subscription, so cancel it first in your App Store settings on iPhone,
+            or in the Google Play Store under Payments &amp; subscriptions.
           </p>
 
           <h2 className="text-title-lg text-primary mt-xl mb-md">2. Delete your account</h2>
