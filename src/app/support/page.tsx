@@ -29,7 +29,7 @@ const FAQS = [
   },
   {
     q: 'How do I delete my account?',
-    a: 'You can delete your account from the Profile page on the website, or contact our support team at support@reetle.com. Account deletion is permanent and all progress will be lost.',
+    a: 'Cancel any Premium subscription first, then delete your account in the app (Profile, then Delete account), on your Profile page on the website, or by emailing support@reetle.co. Full details: reetle.co/delete-account.',
   },
 ];
 
@@ -80,9 +80,9 @@ export default function SupportPage() {
                     Can&apos;t find what you&apos;re looking for? Our support team is here to help.
                   </p>
                   <Button asChild className="w-full mb-2">
-                    <Link href="mailto:support@reetle.com">Email us</Link>
+                    <Link href="mailto:support@reetle.co">Email us</Link>
                   </Button>
-                  <p className="text-[12px] text-ui-muted-foreground">support@reetle.com</p>
+                  <p className="text-[12px] text-ui-muted-foreground">support@reetle.co</p>
                 </CardContent>
               </Card>
 
@@ -94,7 +94,7 @@ export default function SupportPage() {
                     Found something that doesn&apos;t work correctly? Let us know so we can fix it.
                   </p>
                   <Button asChild variant="outline" className="w-full">
-                    <Link href="mailto:support@reetle.com?subject=Bug%20Report">Report bug</Link>
+                    <Link href="mailto:support@reetle.co?subject=Bug%20Report">Report bug</Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -107,7 +107,7 @@ export default function SupportPage() {
                     Have an idea to make Reetle better? We&apos;d love to hear from you.
                   </p>
                   <Button asChild variant="outline" className="w-full">
-                    <Link href="mailto:support@reetle.com?subject=Feature%20Request">Suggest feature</Link>
+                    <Link href="mailto:support@reetle.co?subject=Feature%20Request">Suggest feature</Link>
                   </Button>
                 </CardContent>
               </Card>

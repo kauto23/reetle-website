@@ -83,7 +83,7 @@ export default function PrivacyPage() {
             If you have any questions about this privacy policy or our data practices, please contact us at:
           </p>
           <p className="text-body-md text-primary mt-sm">
-            <strong>Email:</strong> support@reetle.com
+            <strong>Email:</strong> support@reetle.co
           </p>
           </CardContent>
         </Card>
