@@ -120,6 +120,18 @@ function ArticleQuizContent() {
           </motion.div>
         )}
 
+        {!isLoading && !error && !isComplete && questions.length === 0 && (
+          // A live blog has no quiz while the story is still developing.
+          <motion.div className="text-center py-12" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <p className="text-body-lg text-ui-muted-foreground mb-md">
+              There is no quiz for this story yet. Check back once it has stopped developing.
+            </p>
+            <Button variant="outline" asChild>
+              <Link href="/">Back to articles</Link>
+            </Button>
+          </motion.div>
+        )}
+
         {isComplete && (
           <div className="text-center py-12 animate-fadeIn">
             <div className="w-20 h-20 bg-correct flex items-center justify-center mx-auto mb-md">
