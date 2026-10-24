@@ -122,7 +122,7 @@ export default function TermsPage() {
             If you have any questions about these Terms of Service or need assistance with your subscription, please contact us at:
           </p>
           <p className="text-body-md text-primary mt-sm">
-            <strong>Email:</strong> support@reetle.com
+            <strong>Email:</strong> support@reetle.co
           </p>
           </CardContent>
         </Card>

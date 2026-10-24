@@ -88,8 +88,12 @@ export default function PaymentSuccessPage() {
               <h1 className="text-display-md tracking-tight text-ui-foreground mb-2">
                 Welcome to Premium
               </h1>
-              <p className="text-body-lg text-ui-muted-foreground mb-10 max-w-md mx-auto">
+              <p className="text-body-lg text-ui-muted-foreground mb-4 max-w-md mx-auto">
                 No more daily limits. Read, listen and practise as much as you like.
+              </p>
+              <p className="text-body-md text-ui-muted-foreground mb-10 max-w-md mx-auto">
+                Premium is now active in the Reetle app too. Open it on your phone, signed in
+                with the same account, and the limits are gone.
               </p>
               <Button asChild size="lg">
                 <Link href="/">Start reading</Link>
