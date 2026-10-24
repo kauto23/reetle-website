@@ -2,35 +2,79 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import AuthGuard from '@/components/layout/AuthGuard';
 import { Button } from '@/components/ui/button';
+import { reportPurchaseProblem, takeCheckoutStarted } from '@/services/api';
+
+/** How long "Confirming your payment" shows before the standard message. */
+const CONFIRM_POLLS = 10;
+const CONFIRM_INTERVAL_MS = 2000;
+/**
+ * After that the page keeps checking quietly, so it turns into the welcome by
+ * itself when Stripe's confirmation arrives.
+ */
+const BACKGROUND_INTERVAL_MS = 10000;
+const BACKGROUND_POLLS = 60;
 
 export default function PaymentSuccessPage() {
   const { isPremium, refreshStatus } = useSubscription();
-  const [polling, setPolling] = useState(!isPremium);
+  const [waiting, setWaiting] = useState(!isPremium);
   const pollCount = useRef(0);
+  const reported = useRef(false);
+  const startedAt = useRef(Date.now());
+  // Only a visit straight back from Stripe checkout is worth reporting.
+  const cameFromCheckout = useRef(false);
 
   useEffect(() => {
-    if (isPremium || !polling) {
-      setPolling(false);
+    cameFromCheckout.current = takeCheckoutStarted();
+  }, []);
+
+  // "Confirming your payment" while Stripe's webhook normally lands.
+  useEffect(() => {
+    if (isPremium || !waiting) {
+      setWaiting(false);
       return;
     }
 
     const poll = async () => {
       pollCount.current += 1;
       await refreshStatus().catch(() => {});
-      if (pollCount.current >= 6) {
-        setPolling(false);
+      if (pollCount.current >= CONFIRM_POLLS) {
+        setWaiting(false);
       }
     };
 
-    const timer = setInterval(poll, 2000);
+    const timer = setInterval(poll, CONFIRM_INTERVAL_MS);
     poll();
 
     return () => clearInterval(timer);
-  }, [isPremium, polling, refreshStatus]);
+  }, [isPremium, waiting, refreshStatus]);
+
+  // Not confirmed in time: tell #reetle-issues once, and keep checking.
+  useEffect(() => {
+    if (isPremium || waiting) return;
+
+    if (!reported.current && cameFromCheckout.current) {
+      reported.current = true;
+      void reportPurchaseProblem('purchase_delayed', {
+        intent: 'subscribe',
+        store_accepted: true,
+        error_code: 'not_confirmed',
+        elapsed_ms: Date.now() - startedAt.current,
+      });
+    }
+
+    let polls = 0;
+    const timer = setInterval(() => {
+      polls += 1;
+      void refreshStatus().catch(() => {});
+      if (polls >= BACKGROUND_POLLS) clearInterval(timer);
+    }, BACKGROUND_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [isPremium, waiting, refreshStatus]);
 
   return (
     <AuthGuard>
@@ -51,7 +95,7 @@ export default function PaymentSuccessPage() {
                 <Link href="/">Start reading</Link>
               </Button>
             </div>
-          ) : polling ? (
+          ) : waiting ? (
             <>
               <div className="w-20 h-20 bg-ui-muted flex items-center justify-center mx-auto mb-6">
                 <Loader2 className="w-9 h-9 animate-spin text-ui-primary" />
@@ -66,19 +110,17 @@ export default function PaymentSuccessPage() {
           ) : (
             <>
               <div className="w-20 h-20 bg-ui-muted flex items-center justify-center mx-auto mb-6">
-                <Clock className="w-9 h-9 text-ui-muted-foreground" />
+                <CircleAlert className="w-9 h-9 text-ui-muted-foreground" />
               </div>
               <h1 className="text-headline-lg tracking-tight text-ui-foreground mb-2">
-                Payment processing
+                Something went wrong
               </h1>
               <p className="text-body-lg text-ui-muted-foreground mb-6 max-w-md mx-auto">
-                Your payment is being processed. Premium can take a minute to switch on.
+                We couldn&apos;t finish setting up Premium just now. This issue has been passed to
+                our technical team. Please try again later. You won&apos;t be charged twice.
               </p>
               <div className="flex flex-col gap-2 max-w-[300px] mx-auto">
-                <Button onClick={() => { pollCount.current = 0; setPolling(true); }}>
-                  Check again
-                </Button>
-                <Button asChild variant="outline">
+                <Button asChild>
                   <Link href="/">Continue reading</Link>
                 </Button>
               </div>

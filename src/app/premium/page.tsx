@@ -16,9 +16,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useReferral } from '@/contexts/ReferralContext';
 import {
+  AlreadySubscribedError,
+  RateLimitError,
+  TokenExpiredError,
   createBillingPortalSession,
   createCheckoutSession,
   applyReferralCode,
+  markCheckoutStarted,
+  reportPurchaseProblem,
   resumeSubscription,
 } from '@/services/api';
 import { useLoginUrl } from '@/hooks/useLoginUrl';
@@ -91,7 +96,7 @@ function PremiumPageContent() {
 function Paywall() {
   const { isAuthenticated } = useAuth();
   const loginUrl = useLoginUrl();
-  const { isPremium } = useSubscription();
+  const { isPremium, refreshStatus } = useSubscription();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -100,9 +105,26 @@ function Paywall() {
     setCheckoutError(null);
     try {
       const { checkout_url } = await createCheckoutSession();
+      markCheckoutStarted();
       window.location.href = checkout_url;
-    } catch {
-      setCheckoutError('Couldn\'t open checkout. Try again in a moment.');
+    } catch (err) {
+      if (err instanceof AlreadySubscribedError) {
+        // Already paid: the page switches to "You're on Premium" once refreshed.
+        await refreshStatus().catch(() => {});
+        setCheckoutError('You already have Premium on this account.');
+      } else if (err instanceof RateLimitError) {
+        setCheckoutError('Please wait a moment and try again.');
+      } else if (!(err instanceof TokenExpiredError)) {
+        void reportPurchaseProblem('purchase_issue', {
+          intent: 'subscribe',
+          issue: 'storeProblem',
+          error_code: 'checkout_failed',
+        });
+        setCheckoutError(
+          'Something went wrong and nothing was charged. This issue has been passed to our ' +
+            'technical team. Please try again later.',
+        );
+      }
       setIsCheckingOut(false);
     }
   };
