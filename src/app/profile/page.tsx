@@ -26,6 +26,7 @@ import {
 } from '@/services/api';
 import {
   billingIssueCopy,
+  deleteAccountSubscriptionNote,
   formatLongDate,
   planLabel,
   storeName,
@@ -92,6 +93,7 @@ function PreferenceRow({
 export default function ProfilePage() {
   const { user, logout, deleteAccount, updateLanguage, updateCefrLevel } = useAuth();
   const { isPremium, platform, expirationDate, willRenew, billingIssue, refreshStatus } = useSubscription();
+  const deleteSubscriptionNote = deleteAccountSubscriptionNote(isPremium, platform, willRenew);
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
@@ -689,6 +691,9 @@ export default function ProfilePage() {
                   <AlertDialogDescription>
                     This will permanently delete your account and all progress. This action cannot be undone.
                   </AlertDialogDescription>
+                  {deleteSubscriptionNote && (
+                    <p className="text-body-sm text-ui-foreground font-medium">{deleteSubscriptionNote}</p>
+                  )}
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>

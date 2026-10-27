@@ -67,6 +67,22 @@ export function storeName(platform: SubscriptionPlatform | null): string {
   return 'reetle.co';
 }
 
+/** What deleting the account does to a running subscription (R-032). Matches /delete-account. */
+export function deleteAccountSubscriptionNote(
+  isPremium: boolean,
+  platform: SubscriptionPlatform | null,
+  willRenew: boolean | null | undefined,
+): string | null {
+  if (!isPremium || willRenew === false) return null;
+  if (platform === 'stripe') {
+    return "Your Premium subscription on reetle.co is cancelled straight away: you won't be charged again, and the rest of the current period isn't refunded.";
+  }
+  if (platform === 'apple' || platform === 'google') {
+    return `Deleting your account doesn't stop your subscription in ${storeName(platform)}. Cancel it there first, or you'll keep being charged.`;
+  }
+  return null;
+}
+
 export function billingIssueCopy(issue: BillingIssue): { title: string; body: string; action: string } {
   const where =
     issue.platform === 'stripe'
